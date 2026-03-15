@@ -1,0 +1,10 @@
+com\example\apptivitybackend\ApptivityBackendApplication.class
+com\example\apptivitybackend\services\UserService.class
+com\example\apptivitybackend\repository\UserRepository.class
+com\example\apptivitybackend\model\User.class
+com\example\apptivitybackend\security\SecurityConfig.class
+com\example\apptivitybackend\controller\UserController.class
+com\example\apptivitybackend\constants\AppConstants.class
+com\example\apptivitybackend\exception\GlobalExceptionHandler.class
+com\example\apptivitybackend\exception\BadRequestException.class
+com\example\apptivitybackend\exception\ResourceNotFoundException.class

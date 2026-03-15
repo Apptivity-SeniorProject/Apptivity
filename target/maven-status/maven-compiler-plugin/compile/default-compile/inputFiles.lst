@@ -1,0 +1,10 @@
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\ApptivityBackendApplication.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\constants\AppConstants.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\controller\UserController.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\exception\BadRequestException.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\exception\GlobalExceptionHandler.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\exception\ResourceNotFoundException.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\model\User.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\repository\UserRepository.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\security\SecurityConfig.java
+C:\Users\ozelo\OneDrive\Desktop\ADZIE Temiz\apptivity-backend\src\main\java\com\example\apptivitybackend\services\UserService.java
