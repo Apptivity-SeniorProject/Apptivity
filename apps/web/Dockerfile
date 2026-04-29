@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 
 # Bağımlılıkları yükle (Sadece Workspace'leri destekleyecek şekilde)
-RUN npm ci --silent
+RUN npm install --silent
 
 # Web projesinin tamamını kopyala
 COPY apps/web/ ./apps/web/

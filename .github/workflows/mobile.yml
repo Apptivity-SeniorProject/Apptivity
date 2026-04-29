@@ -27,7 +27,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: 📦 Install Dependencies
-        run: npm ci
+        run: npm install
 
       - name: 🩺 Expo Doctor
         run: npx -w mobile expo-doctor
