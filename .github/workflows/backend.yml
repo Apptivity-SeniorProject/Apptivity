@@ -1,23 +1,23 @@
-name: "🔧 Backend CI"
+name: "Backend CI"
 
 on:
   push:
     paths:
-      - "pom.xml"
-      - "src/**"
-      - "Dockerfile"
+      - "services/backend/**"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
-      - "pom.xml"
-      - "src/**"
-      - "Dockerfile"
+      - "services/backend/**"
       - ".github/workflows/backend.yml"
 
 jobs:
   build:
-    name: Build & Test
+    name: Build and Test
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/backend
 
     services:
       postgres:
@@ -35,32 +35,32 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: 📥 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: ☕ Setup JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
           cache: "maven"
 
-      - name: 🔨 Compile
+      - name: Compile
         run: mvn compile -B -q
 
-      - name: 🧪 Run Tests
+      - name: Run Tests
         run: mvn test -B
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/apptivity
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: test1234
 
-      - name: 📦 Package JAR
+      - name: Package JAR
         run: mvn package -DskipTests -B -q
 
-      - name: 📤 Upload JAR Artifact
+      - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-jar
-          path: target/*.jar
+          path: services/backend/target/*.jar
           retention-days: 7

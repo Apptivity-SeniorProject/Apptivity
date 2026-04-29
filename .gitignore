@@ -1,0 +1,31 @@
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.iml
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Node ---
+**/node_modules/
+**/dist/
+**/.expo/
+**/.expo-shared/
+
+# --- Java / Maven / Gradle ---
+**/target/
+**/build/
+**/.gradle/
+
+# --- Env files ---
+.env
+.env.*
+!.env.example
