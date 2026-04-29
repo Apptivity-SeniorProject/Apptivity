@@ -38,8 +38,8 @@ services:
 
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: apptivity-web
     restart: unless-stopped
     ports:
