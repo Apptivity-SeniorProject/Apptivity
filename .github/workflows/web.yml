@@ -28,6 +28,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: package-lock.json
 
+      - name: 🗑️ Workaround for NPM Native Binding Bug
+        run: rm -f package-lock.json
+
       - name: 📦 Install Dependencies
         run: npm install
 
