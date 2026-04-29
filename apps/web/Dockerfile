@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Monorepo kilit dosyalarını ve workspace manifestolarını kopyala
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY apps/web/package.json ./apps/web/
 
 # Bağımlılıkları yükle (Sadece Workspace'leri destekleyecek şekilde)
