@@ -1,27 +1,15 @@
-# ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-WORKDIR /backend
+COPY . .
+RUN dotnet restore ./Apptivity.Backend.sln
+RUN dotnet publish ./src/Apptivity.Api/Apptivity.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-# Önce sadece pom.xml kopyala → dependency cache katmanı
-COPY pom.xml .
-RUN mvn dependency:go-offline -B -q || true
-
-# Kaynak kodu kopyala ve paketle (testleri atla)
-COPY src ./src
-RUN mvn package -DskipTests -B -q
-
-# ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM eclipse-temurin:17-jre-alpine
-
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Güvenlik: root olmayan kullanıcı
-RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
-
-COPY --from=builder /backend/target/*.jar app.jar
-
+COPY --from=build /app/publish .
 EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "Apptivity.Api.dll"]
 
-ENTRYPOINT ["java", "-jar", "app.jar"]

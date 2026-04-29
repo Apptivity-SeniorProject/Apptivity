@@ -6,6 +6,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.iml
+.vs/
 
 # --- Logs ---
 *.log
@@ -20,7 +21,11 @@ pnpm-debug.log*
 **/.expo/
 **/.expo-shared/
 
-# --- Java / Maven / Gradle ---
+# --- .NET ---
+**/bin/
+**/obj/
+
+# --- Java / Maven / Gradle (legacy safety) ---
 **/target/
 **/build/
 **/.gradle/
