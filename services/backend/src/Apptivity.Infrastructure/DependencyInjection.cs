@@ -27,14 +27,17 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IEventRepository, EventRepository>();
-        services.AddScoped<ISubmissionRepository, SubmissionRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
+
+        // Domain-specific repositories kept in Infrastructure scope.
+        services.AddScoped<EventRepository>();
+        services.AddScoped<ParticipationRepository>();
 
         return services;
     }

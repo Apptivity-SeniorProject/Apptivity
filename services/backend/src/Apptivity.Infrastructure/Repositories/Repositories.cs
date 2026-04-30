@@ -1,7 +1,5 @@
-using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
-using Apptivity.Domain.Enums;
 using Apptivity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,107 +14,53 @@ public sealed class UserRepository : IUserRepository
         _db = db;
     }
 
-    public Task<User?> GetByIdAsync(Guid userId, CancellationToken cancellationToken)
+    public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken)
     {
-        return _db.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        return _db.Accounts
+            .Include(x => x.UserProfile)
+            .Include(x => x.ClubProfile)
+            .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
     }
 
-    public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+    public Task<Account?> GetAccountByEmailAsync(string email, CancellationToken cancellationToken)
     {
-        return _db.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        return _db.Accounts
+            .Include(x => x.UserProfile)
+            .Include(x => x.ClubProfile)
+            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
     }
 
-    public Task<User?> GetByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+    public Task<Account?> GetAccountByPhoneAsync(string phone, CancellationToken cancellationToken)
     {
-        return _db.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phoneNumber, cancellationToken);
+        return _db.Accounts
+            .Include(x => x.UserProfile)
+            .Include(x => x.ClubProfile)
+            .FirstOrDefaultAsync(x => x.Phone == phone, cancellationToken);
     }
 
-    public async Task AddAsync(User user, CancellationToken cancellationToken)
+    public Task<Account?> GetAccountByUsernameAsync(string username, CancellationToken cancellationToken)
     {
+        return _db.Accounts
+            .Include(x => x.UserProfile)
+            .Include(x => x.ClubProfile)
+            .FirstOrDefaultAsync(x => x.Username == username, cancellationToken);
+    }
+
+    public async Task AddAccountAsync(Account account, CancellationToken cancellationToken)
+    {
+        await _db.Accounts.AddAsync(account, cancellationToken);
+    }
+
+    public async Task AddUserProfileAsync(User user, CancellationToken cancellationToken)
+    {
+        // Shared primary key relation: User.Id must match Account.Id.
         await _db.Users.AddAsync(user, cancellationToken);
     }
-}
 
-public sealed class EventRepository : IEventRepository
-{
-    private readonly AppDbContext _db;
-
-    public EventRepository(AppDbContext db)
+    public async Task AddClubProfileAsync(Club club, CancellationToken cancellationToken)
     {
-        _db = db;
-    }
-
-    public Task<Event?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken)
-    {
-        return _db.Events.FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
-    }
-
-    public async Task<PagedResult<Event>> GetPagedAsync(Guid? userId, UserRole role, EventStatus? status, PagedRequest request, CancellationToken cancellationToken)
-    {
-        IQueryable<Event> query = _db.Events.AsNoTracking();
-
-        if (role == UserRole.Organization && userId.HasValue)
-        {
-            query = query.Where(x => x.OrganizerId == userId.Value);
-        }
-
-        if (role == UserRole.Individual)
-        {
-            query = query.Where(x => x.Status != EventStatus.Draft && x.Status != EventStatus.Cancelled);
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .OrderByDescending(x => x.StartUtc)
-            .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Event>(items, totalCount, request.PageNumber, request.PageSize);
-    }
-
-    public async Task AddAsync(Event entity, CancellationToken cancellationToken)
-    {
-        await _db.Events.AddAsync(entity, cancellationToken);
-    }
-}
-
-public sealed class SubmissionRepository : ISubmissionRepository
-{
-    private readonly AppDbContext _db;
-
-    public SubmissionRepository(AppDbContext db)
-    {
-        _db = db;
-    }
-
-    public Task<Submission?> GetByIdAsync(Guid submissionId, CancellationToken cancellationToken)
-    {
-        return _db.Submissions
-            .Include(x => x.Event)
-            .FirstOrDefaultAsync(x => x.Id == submissionId, cancellationToken);
-    }
-
-    public Task<Submission?> GetByEventAndAttendeeAsync(Guid eventId, Guid attendeeId, CancellationToken cancellationToken)
-    {
-        return _db.Submissions
-            .FirstOrDefaultAsync(x => x.EventId == eventId && x.AttendeeId == attendeeId, cancellationToken);
-    }
-
-    public async Task AddAsync(Submission entity, CancellationToken cancellationToken)
-    {
-        await _db.Submissions.AddAsync(entity, cancellationToken);
-    }
-
-    public Task<bool> HasApprovedSubmissionAsync(Guid eventId, Guid attendeeId, CancellationToken cancellationToken)
-    {
-        return _db.Submissions.AnyAsync(x => x.EventId == eventId && x.AttendeeId == attendeeId && x.Status == SubmissionStatus.Approved, cancellationToken);
+        // Shared primary key relation: Club.Id must match Account.Id.
+        await _db.Clubs.AddAsync(club, cancellationToken);
     }
 }
 
@@ -134,11 +78,93 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
         await _db.RefreshTokens.AddAsync(token, cancellationToken);
     }
 
-    public Task<RefreshToken?> GetActiveByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
+    public Task<RefreshToken?> GetActiveByTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
         return _db.RefreshTokens
+            .Include(x => x.Account)
+            .FirstOrDefaultAsync(x => x.Token == refreshToken && x.RevokedAt == null && x.ExpiresAt > DateTime.UtcNow, cancellationToken);
+    }
+}
+
+public sealed class OtpVerificationRepository : IOtpVerificationRepository
+{
+    private readonly AppDbContext _db;
+
+    public OtpVerificationRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task AddAsync(OtpVerification otpVerification, CancellationToken cancellationToken)
+    {
+        await _db.OtpVerifications.AddAsync(otpVerification, cancellationToken);
+    }
+
+    public Task<OtpVerification?> GetValidAsync(string phoneNumber, string code, CancellationToken cancellationToken)
+    {
+        return _db.OtpVerifications
+            .Where(x => x.PhoneNumber == phoneNumber && x.Code == code && !x.IsUsed && x.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+}
+
+// Infrastructure-side repositories for the new domain model.
+// They are intentionally kept in Infrastructure scope for upcoming use-cases.
+public sealed class EventRepository
+{
+    private readonly AppDbContext _db;
+
+    public EventRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<Event?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Events
+            .Include(x => x.Owner)
+            .Include(x => x.PrimaryTag)
+            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+    }
+
+    public IQueryable<Event> Query()
+    {
+        return _db.Events.AsQueryable();
+    }
+
+    public async Task AddAsync(Event entity, CancellationToken cancellationToken)
+    {
+        await _db.Events.AddAsync(entity, cancellationToken);
+    }
+}
+
+public sealed class ParticipationRepository
+{
+    private readonly AppDbContext _db;
+
+    public ParticipationRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<Participation?> GetByIdAsync(Guid participationId, CancellationToken cancellationToken)
+    {
+        return _db.Participations
             .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.TokenHash == tokenHash && x.RevokedUtc == null, cancellationToken);
+            .Include(x => x.Event)
+            .FirstOrDefaultAsync(x => x.Id == participationId, cancellationToken);
+    }
+
+    public Task<Participation?> GetByUserAndEventAsync(Guid userId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Participations
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.EventId == eventId, cancellationToken);
+    }
+
+    public async Task AddAsync(Participation entity, CancellationToken cancellationToken)
+    {
+        await _db.Participations.AddAsync(entity, cancellationToken);
     }
 }
 

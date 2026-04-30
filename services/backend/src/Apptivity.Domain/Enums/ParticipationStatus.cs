@@ -1,6 +1,6 @@
 namespace Apptivity.Domain.Enums;
 
-public enum SubmissionStatus
+public enum ParticipationStatus
 {
     Pending = 1,
     Approved = 2,

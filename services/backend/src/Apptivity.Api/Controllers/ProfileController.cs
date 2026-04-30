@@ -1,4 +1,5 @@
 using Apptivity.Api.Common;
+using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,27 +28,45 @@ public sealed class ProfileController : ApiControllerBase
         {
             return Unauthorized(ApiEnvelope<object?>.Failure(new[]
             {
-                new Apptivity.Application.Common.Models.ErrorDetail("AUTH_401", "Unauthorized.")
+                new ErrorDetail("AUTH_401", "Unauthorized.")
             }));
         }
 
-        var user = await _userRepository.GetByIdAsync(context.UserId, cancellationToken);
-        if (user is null)
+        var account = await _userRepository.GetAccountByIdAsync(context.AccountId, cancellationToken);
+        if (account is null)
         {
             return NotFound(ApiEnvelope<object?>.Failure(new[]
             {
-                new Apptivity.Application.Common.Models.ErrorDetail("USER_404", "User not found.")
+                new ErrorDetail("AUTH_404", "Account not found.")
             }));
         }
 
         var payload = new
         {
-            user.Id,
-            user.DisplayName,
-            user.Email,
-            user.PhoneNumber,
-            Role = user.Role.ToString(),
-            user.ReputationScore
+            account.Id,
+            account.Type,
+            account.Username,
+            account.Phone,
+            account.Email,
+            account.ProfilePhoto,
+            account.SocialLinks,
+            user = account.UserProfile is null ? null : new
+            {
+                account.UserProfile.Name,
+                account.UserProfile.Surname,
+                account.UserProfile.Birthdate,
+                account.UserProfile.Gender,
+                account.UserProfile.Bio,
+                account.UserProfile.IsVerified
+            },
+            club = account.ClubProfile is null ? null : new
+            {
+                account.ClubProfile.Name,
+                account.ClubProfile.LocationCity,
+                account.ClubProfile.Description,
+                account.ClubProfile.Latitude,
+                account.ClubProfile.Longitude
+            }
         };
 
         return Ok(ApiEnvelope<object>.Success(payload));

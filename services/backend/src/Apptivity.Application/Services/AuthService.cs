@@ -4,145 +4,281 @@ using Apptivity.Application.Contracts.Auth;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
+using System.Security.Cryptography;
 
 namespace Apptivity.Application.Services;
 
 public sealed class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IOtpVerificationRepository _otpVerificationRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly IFirebaseOtpVerifier _firebaseOtpVerifier;
     private readonly IUnitOfWork _unitOfWork;
 
     public AuthService(
         IUserRepository userRepository,
+        IOtpVerificationRepository otpVerificationRepository,
         IRefreshTokenRepository refreshTokenRepository,
         ITokenService tokenService,
         IPasswordHasher passwordHasher,
-        IFirebaseOtpVerifier firebaseOtpVerifier,
         IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
+        _otpVerificationRepository = otpVerificationRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
-        _firebaseOtpVerifier = firebaseOtpVerifier;
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<AuthResponse>> LoginWebAsync(WebLoginRequest request, CancellationToken cancellationToken)
+    public async Task<Result> SendOtpAsync(string phoneNumber, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email.Trim().ToLowerInvariant(), cancellationToken);
-        if (user is null || user.PasswordHash is null)
+        if (string.IsNullOrWhiteSpace(phoneNumber))
         {
-            return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid email or password.");
+            return Result.Failure(ErrorCodes.Validation, "Phone number is required.");
         }
 
-        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
-        {
-            return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid email or password.");
-        }
+        var normalizedPhone = NormalizePhone(phoneNumber);
+        var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
-        if (user.Role is UserRole.Individual)
+        var otp = new OtpVerification
         {
-            return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "Individual users must login via mobile OTP.");
-        }
+            Id = Guid.NewGuid(),
+            PhoneNumber = normalizedPhone,
+            Code = code,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            IsUsed = false
+        };
 
-        return await IssueTokenPairAsync(user, request.DeviceId, cancellationToken);
+        await _otpVerificationRepository.AddAsync(otp, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        Console.WriteLine($"[OTP-SIMULATION] {normalizedPhone} => {code}");
+
+        return Result.Success();
     }
 
-    public async Task<Result<AuthResponse>> LoginMobileWithOtpAsync(MobileOtpLoginRequest request, CancellationToken cancellationToken)
+    public async Task<Result<AuthResponse>> VerifyOtpAsync(OtpVerifyRequest request, CancellationToken cancellationToken)
     {
-        var otpResult = await _firebaseOtpVerifier.VerifyAsync(request.FirebaseIdToken, cancellationToken);
-        if (!otpResult.IsValid || string.IsNullOrWhiteSpace(otpResult.PhoneNumber))
+        var normalizedPhone = NormalizePhone(request.PhoneNumber);
+        var validOtp = await _otpVerificationRepository.GetValidAsync(normalizedPhone, request.Code, cancellationToken);
+        if (validOtp is null || validOtp.ExpiresAt <= DateTime.UtcNow || validOtp.IsUsed)
         {
-            return Result<AuthResponse>.Failure(ErrorCodes.InvalidOtp, otpResult.ErrorMessage ?? "OTP verification failed.");
+            return Result<AuthResponse>.Failure(ErrorCodes.InvalidOtp, "OTP is invalid or expired.");
         }
 
-        var normalizedPhone = otpResult.PhoneNumber.Trim();
-        var user = await _userRepository.GetByPhoneAsync(normalizedPhone, cancellationToken);
-        if (user is null)
+        validOtp.IsUsed = true;
+
+        var account = await _userRepository.GetAccountByPhoneAsync(normalizedPhone, cancellationToken);
+        if (account is null)
         {
-            user = new User
+            return Result<AuthResponse>.Failure(ErrorCodes.AccountNotFound, "Account not found for this phone number.");
+        }
+
+        var authResponse = await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
+        if (!authResponse.IsSuccess)
+        {
+            return authResponse;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return authResponse;
+    }
+
+    public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Validation, "Identifier and password are required.");
+        }
+
+        var normalizedIdentifier = request.Identifier.Trim().ToLowerInvariant();
+        Account? account = null;
+
+        if (normalizedIdentifier.Contains('@', StringComparison.Ordinal))
+        {
+            account = await _userRepository.GetAccountByEmailAsync(normalizedIdentifier, cancellationToken);
+        }
+
+        account ??= await _userRepository.GetAccountByUsernameAsync(normalizedIdentifier, cancellationToken);
+        account ??= await _userRepository.GetAccountByPhoneAsync(NormalizePhone(request.Identifier), cancellationToken);
+
+        if (account is null || string.IsNullOrWhiteSpace(account.Password))
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid identifier or password.");
+        }
+
+        if (!_passwordHasher.Verify(request.Password, account.Password))
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid identifier or password.");
+        }
+
+        return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
+    }
+
+    public async Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Validation, "Username, phone, and password are required.");
+        }
+
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
+        var normalizedPhone = NormalizePhone(request.Phone);
+        var normalizedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+
+        var existingByUsername = await _userRepository.GetAccountByUsernameAsync(normalizedUsername, cancellationToken);
+        if (existingByUsername is not null)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Username already exists.");
+        }
+
+        var existingByPhone = await _userRepository.GetAccountByPhoneAsync(normalizedPhone, cancellationToken);
+        if (existingByPhone is not null)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Phone number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            var existingByEmail = await _userRepository.GetAccountByEmailAsync(normalizedEmail, cancellationToken);
+            if (existingByEmail is not null)
             {
-                Id = Guid.NewGuid(),
-                PhoneNumber = normalizedPhone,
-                DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? "New User" : request.DisplayName.Trim(),
-                Role = UserRole.Individual,
-                ReputationScore = 0
-            };
-            await _userRepository.AddAsync(user, cancellationToken);
+                return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Email already exists.");
+            }
         }
 
-        return await IssueTokenPairAsync(user, request.DeviceId, cancellationToken);
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Type = AccountType.Individual,
+            Username = normalizedUsername,
+            Phone = normalizedPhone,
+            Email = normalizedEmail,
+            Password = _passwordHasher.Hash(request.Password),
+            IsDeleted = false
+        };
+
+        var user = new User
+        {
+            Id = account.Id,
+            Account = account,
+            Name = request.Name.Trim(),
+            Surname = request.Surname.Trim(),
+            Birthdate = request.Birthdate,
+            Gender = request.Gender,
+            Bio = request.Bio,
+            IsVerified = false,
+            IsDeleted = false
+        };
+
+        await _userRepository.AddAccountAsync(account, cancellationToken);
+        await _userRepository.AddUserProfileAsync(user, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
+    }
+
+    public async Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Validation, "Username, phone, password, and organization name are required.");
+        }
+
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
+        var normalizedPhone = NormalizePhone(request.Phone);
+        var normalizedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+
+        var existingByUsername = await _userRepository.GetAccountByUsernameAsync(normalizedUsername, cancellationToken);
+        if (existingByUsername is not null)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Username already exists.");
+        }
+
+        var existingByPhone = await _userRepository.GetAccountByPhoneAsync(normalizedPhone, cancellationToken);
+        if (existingByPhone is not null)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Phone number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            var existingByEmail = await _userRepository.GetAccountByEmailAsync(normalizedEmail, cancellationToken);
+            if (existingByEmail is not null)
+            {
+                return Result<AuthResponse>.Failure(ErrorCodes.AccountAlreadyExists, "Email already exists.");
+            }
+        }
+
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Type = AccountType.Organization,
+            Username = normalizedUsername,
+            Phone = normalizedPhone,
+            Email = normalizedEmail,
+            Password = _passwordHasher.Hash(request.Password),
+            IsDeleted = false
+        };
+
+        var club = new Club
+        {
+            Id = account.Id,
+            Account = account,
+            Name = request.Name.Trim(),
+            LocationCity = request.LocationCity.Trim(),
+            Description = request.Description,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            IsDeleted = false
+        };
+
+        await _userRepository.AddAccountAsync(account, cancellationToken);
+        await _userRepository.AddClubProfileAsync(club, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 
     public async Task<Result<AuthResponse>> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var tokenHash = _tokenService.HashRefreshToken(request.RefreshToken);
-        var existing = await _refreshTokenRepository.GetActiveByTokenHashAsync(tokenHash, cancellationToken);
-        if (existing is null || !existing.IsActive)
+        var existing = await _refreshTokenRepository.GetActiveByTokenAsync(request.RefreshToken, cancellationToken);
+        if (existing is null || existing.ExpiresAt <= DateTime.UtcNow || existing.RevokedAt is not null)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.TokenExpired, "Refresh token is invalid or expired.");
         }
 
-        if (!string.Equals(existing.DeviceId, request.DeviceId, StringComparison.Ordinal))
-        {
-            return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "Token device mismatch.");
-        }
+        existing.RevokedAt = DateTime.UtcNow;
 
-        existing.RevokedUtc = DateTime.UtcNow;
-
-        var user = existing.User;
-        var pair = _tokenService.GenerateTokens(user.Id, user.Role.ToString(), request.DeviceId);
-
-        var replacement = new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = _tokenService.HashRefreshToken(pair.RefreshToken),
-            DeviceId = request.DeviceId,
-            ExpiresUtc = pair.RefreshTokenExpiresUtc
-        };
-
-        existing.ReplacedByTokenHash = replacement.TokenHash;
-        await _refreshTokenRepository.AddAsync(replacement, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result<AuthResponse>.Success(new AuthResponse(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresUtc, pair.RefreshTokenExpiresUtc));
+        var account = existing.Account;
+        return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 
-    public async Task<Result> LogoutAsync(LogoutRequest request, CancellationToken cancellationToken)
+    private async Task<Result<AuthResponse>> IssueTokenPairAsync(Account account, string deviceId, CancellationToken cancellationToken)
     {
-        var tokenHash = _tokenService.HashRefreshToken(request.RefreshToken);
-        var existing = await _refreshTokenRepository.GetActiveByTokenHashAsync(tokenHash, cancellationToken);
-        if (existing is null)
-        {
-            return Result.Success();
-        }
+        var pair = _tokenService.GenerateTokens(account.Id, account.Type.ToString(), deviceId);
 
-        existing.RevokedUtc = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Result.Success();
-    }
-
-    private async Task<Result<AuthResponse>> IssueTokenPairAsync(User user, string deviceId, CancellationToken cancellationToken)
-    {
-        var pair = _tokenService.GenerateTokens(user.Id, user.Role.ToString(), deviceId);
         var refreshToken = new RefreshToken
         {
             Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = _tokenService.HashRefreshToken(pair.RefreshToken),
-            DeviceId = deviceId,
-            ExpiresUtc = pair.RefreshTokenExpiresUtc
+            AccountId = account.Id,
+            Account = account,
+            Token = pair.RefreshToken,
+            ExpiresAt = pair.RefreshTokenExpiresUtc,
+            IsDeleted = false
         };
 
         await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<AuthResponse>.Success(new AuthResponse(pair.AccessToken, pair.RefreshToken, pair.AccessTokenExpiresUtc, pair.RefreshTokenExpiresUtc));
+        return Result<AuthResponse>.Success(new AuthResponse(pair.AccessToken, pair.RefreshToken));
+    }
+
+    private static string NormalizePhone(string phoneNumber)
+    {
+        return phoneNumber.Trim().Replace(" ", string.Empty, StringComparison.Ordinal);
     }
 }

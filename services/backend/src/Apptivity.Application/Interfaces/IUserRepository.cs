@@ -4,8 +4,12 @@ namespace Apptivity.Application.Interfaces;
 
 public interface IUserRepository
 {
-    Task<User?> GetByIdAsync(Guid userId, CancellationToken cancellationToken);
-    Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken);
-    Task<User?> GetByPhoneAsync(string phoneNumber, CancellationToken cancellationToken);
-    Task AddAsync(User user, CancellationToken cancellationToken);
+    Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken);
+    Task<Account?> GetAccountByEmailAsync(string email, CancellationToken cancellationToken);
+    Task<Account?> GetAccountByPhoneAsync(string phone, CancellationToken cancellationToken);
+    Task<Account?> GetAccountByUsernameAsync(string username, CancellationToken cancellationToken);
+
+    Task AddAccountAsync(Account account, CancellationToken cancellationToken);
+    Task AddUserProfileAsync(User user, CancellationToken cancellationToken);
+    Task AddClubProfileAsync(Club club, CancellationToken cancellationToken);
 }

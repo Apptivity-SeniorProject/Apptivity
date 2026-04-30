@@ -24,16 +24,16 @@ public sealed class UserContextAccessor : IUserContextAccessor
         var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
         var roleClaim = user.FindFirstValue(ClaimTypes.Role);
 
-        if (!Guid.TryParse(sub, out var userId) || string.IsNullOrWhiteSpace(roleClaim))
+        if (!Guid.TryParse(sub, out var accountId) || string.IsNullOrWhiteSpace(roleClaim))
         {
             return null;
         }
 
-        if (!Enum.TryParse<UserRole>(roleClaim, true, out var role))
+        if (!Enum.TryParse<AccountType>(roleClaim, true, out var accountType))
         {
             return null;
         }
 
-        return new UserContext(userId, role);
+        return new UserContext(accountId, accountType);
     }
 }

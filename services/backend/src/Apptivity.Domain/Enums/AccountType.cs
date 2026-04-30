@@ -1,8 +1,8 @@
 namespace Apptivity.Domain.Enums;
 
-public enum UserRole
+public enum AccountType
 {
-    Admin = 1,
+    Individual = 1,
     Organization = 2,
-    Individual = 3
+    Admin = 3
 }
