@@ -39,7 +39,7 @@ public sealed class ImagesController : ApiControllerBase
 
     [HttpPost("profile-photo")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> UploadProfilePhoto([FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadProfilePhoto(IFormFile file, CancellationToken cancellationToken)
     {
         var userContext = _userContextAccessor.GetCurrentUser();
         if (userContext is null)
@@ -85,7 +85,7 @@ public sealed class ImagesController : ApiControllerBase
     [HttpPost("events/{eventId:guid}/banner")]
     [Authorize(Roles = "Organization,Admin")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> UploadEventBanner(Guid eventId, [FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadEventBanner(Guid eventId, IFormFile file, CancellationToken cancellationToken)
     {
         var userContext = _userContextAccessor.GetCurrentUser();
         if (userContext is null)
