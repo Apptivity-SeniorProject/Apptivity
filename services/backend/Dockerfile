@@ -8,6 +8,7 @@ COPY ["src/Apptivity.Application/Apptivity.Application.csproj", "src/Apptivity.A
 COPY ["src/Apptivity.Domain/Apptivity.Domain.csproj", "src/Apptivity.Domain/"]
 COPY ["src/Apptivity.Infrastructure/Apptivity.Infrastructure.csproj", "src/Apptivity.Infrastructure/"]
 COPY ["tests/Apptivity.Api.Tests/Apptivity.Api.Tests.csproj", "tests/Apptivity.Api.Tests/"]
+COPY ["Directory.Build.props", "./"]
 
 RUN dotnet restore "Apptivity.Backend.sln"
 
