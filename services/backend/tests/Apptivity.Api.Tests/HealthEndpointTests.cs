@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 namespace Apptivity.Api.Tests;
 
@@ -15,8 +16,21 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     [Fact]
     public async Task HealthEndpoint_ReturnsOk()
     {
-        using var client = _factory.CreateClient();
-        using var response = await client.GetAsync("/api/v1/health");
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Jwt:SigningKey"] = "SuperSecretDummyKeyForTestingPurposesOnlyWhichIsAtLeast32BytesLong!",
+                    ["Jwt:Issuer"] = "TestIssuer",
+                    ["Jwt:Audience"] = "TestAudience"
+                });
+            });
+        });
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/health");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
