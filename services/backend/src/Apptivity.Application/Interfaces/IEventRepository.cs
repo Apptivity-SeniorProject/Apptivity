@@ -2,7 +2,6 @@ using Apptivity.Domain.Entities;
 
 namespace Apptivity.Application.Interfaces;
 
-<<<<<<< Updated upstream
 public sealed record EventSearchFilter(
     string? LocationCity,
     Guid? PrimaryTagId,
@@ -16,11 +15,6 @@ public interface IEventRepository
     Task<Event?> GetByIdWithOwnerAsync(Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<Event> Items, int TotalCount)> SearchAsync(EventSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
-=======
-public interface IEventRepository
-{
-    Task<Event?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken);
     IQueryable<Event> Query();
->>>>>>> Stashed changes
     Task AddAsync(Event entity, CancellationToken cancellationToken);
 }
