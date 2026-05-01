@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Apptivity.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/auth")]
+[Route("api/auth")]
 public sealed class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;

@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Apptivity.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/events")]
+[Route("api/events")]
 [Authorize]
 public sealed class EventsController : ApiControllerBase
 {
