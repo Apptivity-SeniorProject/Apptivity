@@ -17,12 +17,48 @@ public sealed class UserRepository : IUserRepository
 
     public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken)
     {
-        return _db.Accounts
-            .Include(x => x.UserProfile)
-                .ThenInclude(u => u!.Reputation)
-            .Include(x => x.ClubProfile)
-                .ThenInclude(c => c!.ClubRating)
+        return BuildProfileQuery()
             .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public Task<Account?> GetAccountByIdWithProfilesAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return BuildProfileQuery()
+            .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<Account> Items, int TotalCount)> SearchProfilesAsync(ProfileSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = BuildProfileQuery().AsNoTracking();
+
+        if (filter.AccountType.HasValue)
+        {
+            query = query.Where(x => x.Type == filter.AccountType.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.City))
+        {
+            var city = filter.City.Trim().ToLowerInvariant();
+            query = query.Where(x => x.ClubProfile != null && x.ClubProfile.LocationCity.ToLower().Contains(city));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var keyword = filter.Query.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                x.Username.ToLower().Contains(keyword) ||
+                (x.UserProfile != null && (x.UserProfile.Name + " " + x.UserProfile.Surname).ToLower().Contains(keyword)) ||
+                (x.ClubProfile != null && x.ClubProfile.Name.ToLower().Contains(keyword)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(x => x.Username)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public Task<Account?> GetAccountByEmailAsync(string email, CancellationToken cancellationToken)
@@ -62,6 +98,15 @@ public sealed class UserRepository : IUserRepository
     public async Task AddClubProfileAsync(Club club, CancellationToken cancellationToken)
     {
         await _db.Clubs.AddAsync(club, cancellationToken);
+    }
+
+    private IQueryable<Account> BuildProfileQuery()
+    {
+        return _db.Accounts
+            .Include(x => x.UserProfile)
+                .ThenInclude(u => u!.Reputation)
+            .Include(x => x.ClubProfile)
+                .ThenInclude(c => c!.ClubRating);
     }
 }
 
@@ -136,17 +181,44 @@ public sealed class EventRepository : IEventRepository
             .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     }
 
-    public Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+    public Task<int> CountByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken)
     {
-        return _db.Events
-            .Include(x => x.Owner)
-                .ThenInclude(o => o.UserProfile)
-            .Include(x => x.Owner)
-                .ThenInclude(o => o.ClubProfile)
-            .Include(x => x.Participations)
-                .ThenInclude(p => p.User)
-                    .ThenInclude(u => u.Account)
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        return _db.Events.CountAsync(x => x.OwnerId == ownerId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.Events
+            .AsNoTracking()
+            .Where(x => x.OwnerId == ownerId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Time)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByApprovedParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.Participations
+            .AsNoTracking()
+            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved)
+            .Select(x => x.Event);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Time)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public async Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)
@@ -290,6 +362,12 @@ public sealed class ParticipationRepository : IParticipationRepository
     {
         return _db.Participations
             .CountAsync(x => x.EventId == eventId && x.Status == ParticipationStatus.Approved, cancellationToken);
+    }
+
+    public Task<int> CountApprovedByUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return _db.Participations
+            .CountAsync(x => x.UserId == userId && x.Status == ParticipationStatus.Approved, cancellationToken);
     }
 
     public Task<bool> HasApprovedParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken)

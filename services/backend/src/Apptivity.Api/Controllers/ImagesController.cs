@@ -38,9 +38,11 @@ public sealed class ImagesController : ApiControllerBase
     }
 
     [HttpPost("profile-photo")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> UploadProfilePhoto(IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadProfilePhoto([FromForm] ProfilePhotoUploadRequest request, CancellationToken cancellationToken)
     {
+        var file = request.File;
         var userContext = _userContextAccessor.GetCurrentUser();
         if (userContext is null)
         {
@@ -84,9 +86,11 @@ public sealed class ImagesController : ApiControllerBase
 
     [HttpPost("events/{eventId:guid}/banner")]
     [Authorize(Roles = "Organization,Admin")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> UploadEventBanner(Guid eventId, IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadEventBanner(Guid eventId, [FromForm] EventBannerUploadRequest request, CancellationToken cancellationToken)
     {
+        var file = request.File;
         var userContext = _userContextAccessor.GetCurrentUser();
         if (userContext is null)
         {
@@ -163,5 +167,15 @@ public sealed class ImagesController : ApiControllerBase
         }
 
         return null;
+    }
+
+    public sealed class ProfilePhotoUploadRequest
+    {
+        public IFormFile File { get; set; } = null!;
+    }
+
+    public sealed class EventBannerUploadRequest
+    {
+        public IFormFile File { get; set; } = null!;
     }
 }
