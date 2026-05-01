@@ -15,7 +15,9 @@ public sealed class Event : BaseEntity
     public required string Description { get; set; }
     public DateOnly Date { get; set; }
     public TimeOnly Time { get; set; }
+    public int DurationMinutes { get; set; } = 120;
     public int Capacity { get; set; }
+    public int RemainingParticipationCount { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public decimal Price { get; set; }
     public string? LocationData { get; set; }

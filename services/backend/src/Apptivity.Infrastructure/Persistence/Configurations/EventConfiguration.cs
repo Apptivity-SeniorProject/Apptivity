@@ -13,7 +13,9 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
 
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(4000).IsRequired();
+        builder.Property(x => x.DurationMinutes).IsRequired();
         builder.Property(x => x.Capacity).IsRequired();
+        builder.Property(x => x.RemainingParticipationCount).IsRequired();
         builder.Property(x => x.Price).HasPrecision(18, 2);
         builder.Property(x => x.LocationData).HasMaxLength(2000);
 

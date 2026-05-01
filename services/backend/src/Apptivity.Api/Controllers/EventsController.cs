@@ -1,12 +1,9 @@
 using Apptivity.Api.Common;
 using Apptivity.Application.Common.Models;
+using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Interfaces;
-using Apptivity.Domain.Entities;
-using Apptivity.Domain.Enums;
-using Apptivity.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Apptivity.Api.Controllers;
 
@@ -15,72 +12,42 @@ namespace Apptivity.Api.Controllers;
 [Authorize]
 public sealed class EventsController : ApiControllerBase
 {
-    private readonly EventRepository _eventRepository;
+    private readonly IEventService _eventService;
     private readonly IUserContextAccessor _userContextAccessor;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public EventsController(EventRepository eventRepository, IUserContextAccessor userContextAccessor, IUnitOfWork unitOfWork)
+    public EventsController(IEventService eventService, IUserContextAccessor userContextAccessor)
     {
-        _eventRepository = eventRepository;
+        _eventService = eventService;
         _userContextAccessor = userContextAccessor;
-        _unitOfWork = unitOfWork;
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] EventStatus? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Search(
+        [FromQuery] string? locationCity,
+        [FromQuery] Guid? primaryTagId,
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        [FromQuery] bool? isPaid,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        if (pageNumber < 1)
-        {
-            pageNumber = 1;
-        }
+        var request = new EventSearchRequest(
+            locationCity,
+            primaryTagId,
+            startDate,
+            endDate,
+            isPaid,
+            pageNumber,
+            pageSize);
 
-        if (pageSize < 1)
-        {
-            pageSize = 20;
-        }
-
-        if (pageSize > 100)
-        {
-            pageSize = 100;
-        }
-
-        var query = _eventRepository.Query().AsNoTracking();
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .OrderByDescending(x => x.Date)
-            .ThenByDescending(x => x.Time)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(x => new
-            {
-                x.Id,
-                x.OwnerId,
-                x.PrimaryTagId,
-                x.Name,
-                x.Description,
-                x.Date,
-                x.Time,
-                x.Capacity,
-                x.Status,
-                x.Price,
-                x.LocationData
-            })
-            .ToListAsync(cancellationToken);
-
-        var payload = new PagedResult<object>(items.Cast<object>().ToArray(), totalCount, pageNumber, pageSize);
-        return Ok(ApiEnvelope<PagedResult<object>>.Success(payload));
+        var result = await _eventService.SearchAsync(request, cancellationToken);
+        return FromResult(result);
     }
 
-    [HttpPost]
-    [Authorize(Roles = "Admin,Organization")]
-    public async Task<IActionResult> Create([FromBody] CreateEventRequest request, CancellationToken cancellationToken)
+    [HttpPost("{id:guid}/apply")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> Apply(Guid id, CancellationToken cancellationToken)
     {
         var context = _userContextAccessor.GetCurrentUser();
         if (context is null)
@@ -91,65 +58,65 @@ public sealed class EventsController : ApiControllerBase
             }));
         }
 
-        if (context.AccountType is not (AccountType.Admin or AccountType.Organization))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, ApiEnvelope<object?>.Failure(new[]
-            {
-                new ErrorDetail("EVENT_401", "Only Admin or Organization can create events.")
-            }));
-        }
-
-        if (request.Capacity <= 0)
-        {
-            return BadRequest(ApiEnvelope<object?>.Failure(new[]
-            {
-                new ErrorDetail("VAL_001", "Capacity must be greater than zero.")
-            }));
-        }
-
-        var entity = new Event
-        {
-            Id = Guid.NewGuid(),
-            OwnerId = context.AccountId,
-            PrimaryTagId = request.PrimaryTagId,
-            Name = request.Name.Trim(),
-            Description = request.Description.Trim(),
-            Date = request.Date,
-            Time = request.Time,
-            Capacity = request.Capacity,
-            Status = EventStatus.Draft,
-            Price = request.Price,
-            LocationData = request.LocationData
-        };
-
-        await _eventRepository.AddAsync(entity, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var response = new
-        {
-            entity.Id,
-            entity.OwnerId,
-            entity.PrimaryTagId,
-            entity.Name,
-            entity.Description,
-            entity.Date,
-            entity.Time,
-            entity.Capacity,
-            entity.Status,
-            entity.Price,
-            entity.LocationData
-        };
-
-        return Ok(ApiEnvelope<object>.Success(response));
+        var result = await _eventService.ApplyToEventAsync(id, context, cancellationToken);
+        return FromResult(result);
     }
 
-    public sealed record CreateEventRequest(
-        Guid? PrimaryTagId,
-        string Name,
-        string Description,
-        DateOnly Date,
-        TimeOnly Time,
-        int Capacity,
-        decimal Price,
-        string? LocationData);
+    [HttpPatch("{eventId:guid}/participants/{userId:guid}/status")]
+    [Authorize(Roles = "Organization,Admin")]
+    public async Task<IActionResult> UpdateParticipationStatus(
+        Guid eventId,
+        Guid userId,
+        [FromBody] ManageParticipationStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }));
+        }
+
+        var result = await _eventService.UpdateParticipationStatusAsync(eventId, userId, request, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPost("{id:guid}/withdraw")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> Withdraw(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }));
+        }
+
+        var result = await _eventService.WithdrawAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("my-participations")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> GetMyParticipations(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }));
+        }
+
+        var result = await _eventService.GetMyParticipationsAsync(pageNumber, pageSize, context, cancellationToken);
+        return FromResult(result);
+    }
 }
