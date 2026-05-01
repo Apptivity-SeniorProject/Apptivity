@@ -20,7 +20,6 @@ public interface IEventRepository
     Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<Event> Items, int TotalCount)> SearchAsync(EventSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
-    Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken);
     IQueryable<Event> Query();
     Task AddAsync(Event entity, CancellationToken cancellationToken);

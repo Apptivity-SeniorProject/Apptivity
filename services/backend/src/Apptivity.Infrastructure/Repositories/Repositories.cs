@@ -181,6 +181,19 @@ public sealed class EventRepository : IEventRepository
             .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     }
 
+    public Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Events
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
+            .Include(x => x.Participations)
+                .ThenInclude(p => p.User)
+                    .ThenInclude(u => u.Account)
+            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+    }
+
     public Task<int> CountByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken)
     {
         return _db.Events.CountAsync(x => x.OwnerId == ownerId, cancellationToken);
@@ -280,22 +293,6 @@ public sealed class EventRepository : IEventRepository
         return (items, totalCount);
     }
 
-    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken)
-    {
-        var query = _db.Events
-            .AsNoTracking()
-            .Where(x => x.OwnerId == ownerId)
-            .OrderByDescending(x => x.CreatedAt);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return (items, totalCount);
-    }
 
     public async Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken)
     {
