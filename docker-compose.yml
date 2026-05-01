@@ -1,60 +1,59 @@
 services:
-
   postgres:
     image: postgres:16-alpine
     container_name: apptivity-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: apptivity
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
+      POSTGRES_DB: ${POSTGRES_DB:-apptivity}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d apptivity" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-apptivity}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: apptivity-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  backend:
+  api:
     build:
       context: ./services/backend
       dockerfile: Dockerfile
-    container_name: apptivity-backend
+    container_name: apptivity-api
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__PostgreSql: "Host=postgres;Port=5432;Database=apptivity;Username=postgres;Password=${DB_PASSWORD:-1234}"
-      ConnectionStrings__Redis: "redis:6379"
-      Jwt__SigningKey: ${JWT_SECRET:-CHANGE_ME_USE_A_STRONG_256_BIT_SECRET_KEY_HERE}
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-apptivity};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Issuer: ${JWT_ISSUER:-Apptivity.Api}
+      Jwt__Audience: ${JWT_AUDIENCE:-Apptivity.Clients}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-CHANGE_ME}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+      Fcm__Enabled: ${FCM_ENABLED:-false}
+      Fcm__ServerKey: ${FCM_SERVER_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    container_name: apptivity-web
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    environment:
-      # Eğer ileride proxy kullanmazsanız veya build anında environment variable geçmek isterseniz burada tanımlayabilirsiniz.
-      VITE_API_URL: http://localhost:8080
-    depends_on:
-      - backend
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:

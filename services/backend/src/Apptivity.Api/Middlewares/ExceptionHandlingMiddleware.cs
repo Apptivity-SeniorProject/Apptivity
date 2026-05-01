@@ -29,7 +29,7 @@ public sealed class ExceptionHandlingMiddleware
             var payload = ApiEnvelope<object?>.Failure(new[]
             {
                 new ErrorDetail("SYS_500", ex.ToString())
-            });
+            }, context.TraceIdentifier);
 
             await context.Response.WriteAsJsonAsync(payload);
         }

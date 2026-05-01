@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
         services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
+        services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -27,7 +28,7 @@ public static class DependencyInjection
 
         services.AddStackExchangeRedisCache(options =>
         {
-            // We use the Configure overload with IServiceProvider for Redis
+            options.InstanceName = "apptivity:";
         });
         services.AddOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>()
             .Configure<IConfiguration>((options, config) =>
@@ -43,23 +44,17 @@ public static class DependencyInjection
         services.AddScoped<IParticipationRepository, ParticipationRepository>();
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IReputationRepository, ReputationRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
         services.AddScoped<INotificationService, FirebaseNotificationService>();
+        services.AddScoped<IImageService, CloudinaryImageService>();
+
         services.AddHttpClient(nameof(FirebaseNotificationService));
-
-        // Domain-specific repositories — registered against both interface and concrete type.
-        services.AddScoped<IEventRepository, EventRepository>();
-        services.AddScoped<EventRepository>(sp => (EventRepository)sp.GetRequiredService<IEventRepository>());
-
-        services.AddScoped<IParticipationRepository, ParticipationRepository>();
-        services.AddScoped<ParticipationRepository>(sp => (ParticipationRepository)sp.GetRequiredService<IParticipationRepository>());
-
-        services.AddScoped<IReviewRepository, ReviewRepository>();
-        services.AddScoped<IReputationRepository, ReputationRepository>();
 
         return services;
     }
