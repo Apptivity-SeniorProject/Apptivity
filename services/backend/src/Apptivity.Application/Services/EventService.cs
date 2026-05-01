@@ -11,21 +11,27 @@ public sealed class EventService : IEventService
 {
     private readonly IEventRepository _eventRepository;
     private readonly IParticipationRepository _participationRepository;
+    private readonly IEventLifecycleService _eventLifecycleService;
+    private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public EventService(
         IEventRepository eventRepository,
         IParticipationRepository participationRepository,
+        IEventLifecycleService eventLifecycleService,
+        INotificationService notificationService,
         IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
         _participationRepository = participationRepository;
+        _eventLifecycleService = eventLifecycleService;
+        _notificationService = notificationService;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, CancellationToken cancellationToken)
     {
-        await SyncLifecycleStatusesAsync(cancellationToken);
+        await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
         var paging = new PagedRequest
         {
@@ -56,7 +62,7 @@ public sealed class EventService : IEventService
             return Result<ApplyToEventResponse>.Failure(ErrorCodes.EventUnauthorized, "Only individual accounts can apply to events.");
         }
 
-        await SyncLifecycleStatusesAsync(cancellationToken);
+        await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
         var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
         if (eventEntity is null)
@@ -111,7 +117,7 @@ public sealed class EventService : IEventService
             return Result<ParticipationStatusDto>.Failure(ErrorCodes.Validation, "Rejection reason is required when rejecting a participation.");
         }
 
-        await SyncLifecycleStatusesAsync(cancellationToken);
+        await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
         var participation = await _participationRepository.GetByEventAndUserAsync(eventId, userId, cancellationToken);
         if (participation is null)
@@ -152,6 +158,25 @@ public sealed class EventService : IEventService
             : null;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var notificationTitle = request.Status == ParticipationStatus.Approved
+            ? "Participation Approved"
+            : "Participation Rejected";
+        var notificationBody = request.Status == ParticipationStatus.Approved
+            ? $"Your participation for '{eventEntity.Name}' has been approved."
+            : $"Your participation for '{eventEntity.Name}' has been rejected.";
+
+        await _notificationService.SendToAccountAsync(
+            new PushNotificationRequest(
+                userId,
+                notificationTitle,
+                notificationBody,
+                new Dictionary<string, string>
+                {
+                    ["eventId"] = eventId.ToString(),
+                    ["status"] = request.Status.ToString()
+                }),
+            cancellationToken);
 
         return Result<ParticipationStatusDto>.Success(
             new ParticipationStatusDto(eventId, userId, participation.Status, participation.RejectionReason));
@@ -200,7 +225,7 @@ public sealed class EventService : IEventService
             return Result<PagedResult<MyParticipationDto>>.Failure(ErrorCodes.EventUnauthorized, "Only individual accounts have personal participations.");
         }
 
-        await SyncLifecycleStatusesAsync(cancellationToken);
+        await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
         var paging = new PagedRequest
         {
@@ -224,35 +249,6 @@ public sealed class EventService : IEventService
         return Result<PagedResult<MyParticipationDto>>.Success(new PagedResult<MyParticipationDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
-    private async Task SyncLifecycleStatusesAsync(CancellationToken cancellationToken)
-    {
-        var nowUtc = DateTime.UtcNow;
-        var candidates = await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken);
-        var hasChanges = false;
-
-        foreach (var eventEntity in candidates)
-        {
-            var startUtc = ToUtcDateTime(eventEntity.Date, eventEntity.Time);
-            var endUtc = startUtc.AddMinutes(Math.Max(1, eventEntity.DurationMinutes));
-
-            if (eventEntity.Status == EventStatus.Published && startUtc <= nowUtc)
-            {
-                eventEntity.Status = EventStatus.Ongoing;
-                hasChanges = true;
-            }
-            else if (eventEntity.Status == EventStatus.Ongoing && endUtc <= nowUtc)
-            {
-                eventEntity.Status = EventStatus.Completed;
-                hasChanges = true;
-            }
-        }
-
-        if (hasChanges)
-        {
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-    }
-
     private async Task EnsureRemainingCountIsInitializedAsync(Event eventEntity, CancellationToken cancellationToken)
     {
         if (eventEntity.RemainingParticipationCount > 0)
@@ -263,12 +259,6 @@ public sealed class EventService : IEventService
         var approvedCount = await _participationRepository.CountApprovedByEventAsync(eventEntity.Id, cancellationToken);
         var remaining = eventEntity.Capacity - approvedCount;
         eventEntity.RemainingParticipationCount = remaining < 0 ? 0 : remaining;
-    }
-
-    private static DateTime ToUtcDateTime(DateOnly date, TimeOnly time)
-    {
-        var localDateTime = date.ToDateTime(time, DateTimeKind.Utc);
-        return DateTime.SpecifyKind(localDateTime, DateTimeKind.Utc);
     }
 
     private static EventSummaryDto MapEventSummary(Event eventEntity)

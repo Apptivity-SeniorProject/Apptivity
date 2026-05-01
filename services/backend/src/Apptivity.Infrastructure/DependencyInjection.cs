@@ -16,6 +16,7 @@ public static class DependencyInjection
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
+        services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
 
         var connectionString = configuration.GetConnectionString("PostgreSql");
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
@@ -31,11 +32,15 @@ public static class DependencyInjection
         services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IParticipationRepository, ParticipationRepository>();
+        services.AddScoped<IChatRepository, ChatRepository>();
+        services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
+        services.AddScoped<INotificationService, FirebaseNotificationService>();
+        services.AddHttpClient(nameof(FirebaseNotificationService));
 
         return services;
     }

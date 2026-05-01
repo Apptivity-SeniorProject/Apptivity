@@ -54,13 +54,11 @@ public sealed class UserRepository : IUserRepository
 
     public async Task AddUserProfileAsync(User user, CancellationToken cancellationToken)
     {
-        // Shared primary key relation: User.Id must match Account.Id.
         await _db.Users.AddAsync(user, cancellationToken);
     }
 
     public async Task AddClubProfileAsync(Club club, CancellationToken cancellationToken)
     {
-        // Shared primary key relation: Club.Id must match Account.Id.
         await _db.Clubs.AddAsync(club, cancellationToken);
     }
 }
@@ -236,9 +234,113 @@ public sealed class ParticipationRepository : IParticipationRepository
             .CountAsync(x => x.EventId == eventId && x.Status == ParticipationStatus.Approved, cancellationToken);
     }
 
+    public Task<bool> HasApprovedParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Participations
+            .AnyAsync(x => x.UserId == userId && x.EventId == eventId && x.Status == ParticipationStatus.Approved, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Guid>> GetApprovedParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return await _db.Participations
+            .Where(x => x.EventId == eventId && x.Status == ParticipationStatus.Approved)
+            .Select(x => x.UserId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Participation entity, CancellationToken cancellationToken)
     {
         await _db.Participations.AddAsync(entity, cancellationToken);
+    }
+}
+
+public sealed class ChatRepository : IChatRepository
+{
+    private readonly AppDbContext _db;
+
+    public ChatRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<Chat?> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Chats.FirstOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
+    }
+
+    public async Task<Chat> GetOrCreateForEventAsync(Guid eventId, Guid createdByAccountId, CancellationToken cancellationToken)
+    {
+        var chat = await _db.Chats.FirstOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
+        if (chat is not null)
+        {
+            return chat;
+        }
+
+        chat = new Chat
+        {
+            Id = Guid.NewGuid(),
+            EventId = eventId,
+            CreatedByAccountId = createdByAccountId
+        };
+
+        await _db.Chats.AddAsync(chat, cancellationToken);
+        return chat;
+    }
+
+    public async Task<(IReadOnlyCollection<Message> Items, int TotalCount)> GetMessagesAsync(Guid eventId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.Messages
+            .AsNoTracking()
+            .Include(x => x.Chat)
+            .Where(x => x.Chat.EventId == eventId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task AddMessageAsync(Message message, CancellationToken cancellationToken)
+    {
+        await _db.Messages.AddAsync(message, cancellationToken);
+    }
+}
+
+public sealed class DeviceTokenRepository : IDeviceTokenRepository
+{
+    private readonly AppDbContext _db;
+
+    public DeviceTokenRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<DeviceToken?> GetByAccountAndDeviceTypeAsync(Guid accountId, string deviceType, CancellationToken cancellationToken)
+    {
+        return _db.DeviceTokens
+            .FirstOrDefaultAsync(x => x.AccountId == accountId && x.DeviceType == deviceType, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<DeviceToken>> GetByAccountIdsAsync(IReadOnlyCollection<Guid> accountIds, CancellationToken cancellationToken)
+    {
+        if (accountIds.Count == 0)
+        {
+            return Array.Empty<DeviceToken>();
+        }
+
+        return await _db.DeviceTokens
+            .Where(x => accountIds.Contains(x.AccountId))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddAsync(DeviceToken deviceToken, CancellationToken cancellationToken)
+    {
+        await _db.DeviceTokens.AddAsync(deviceToken, cancellationToken);
     }
 }
 

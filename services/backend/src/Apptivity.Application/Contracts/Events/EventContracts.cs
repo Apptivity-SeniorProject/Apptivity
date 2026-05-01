@@ -55,3 +55,8 @@ public interface IEventService
     Task<Result<ParticipationStatusDto>> WithdrawAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<MyParticipationDto>>> GetMyParticipationsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
 }
+
+public interface IEventLifecycleService
+{
+    Task ProcessTransitionsAndNotifyAsync(CancellationToken cancellationToken);
+}
