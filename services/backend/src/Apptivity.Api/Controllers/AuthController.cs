@@ -24,6 +24,14 @@ public sealed class AuthController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpPost("send-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.SendOtpAsync(request.PhoneNumber, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpPost("verify-otp")]
     [AllowAnonymous]
     public async Task<IActionResult> VerifyOtp([FromBody] OtpVerifyRequest request, CancellationToken cancellationToken)

@@ -18,6 +18,13 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:alpine
+    container_name: apptivity-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
   backend:
     build:
       context: ./services/backend
@@ -27,11 +34,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/apptivity
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-1234}
-      APP_JWT_SECRET: ${JWT_SECRET:-CHANGE_ME_USE_A_STRONG_256_BIT_SECRET_KEY_HERE}
-      APP_JWT_EXPIRATION_MS: 86400000
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgreSql: "Host=postgres;Port=5432;Database=apptivity;Username=postgres;Password=${DB_PASSWORD:-1234}"
+      ConnectionStrings__Redis: "redis:6379"
+      Jwt__SigningKey: ${JWT_SECRET:-CHANGE_ME_USE_A_STRONG_256_BIT_SECRET_KEY_HERE}
     depends_on:
       postgres:
         condition: service_healthy

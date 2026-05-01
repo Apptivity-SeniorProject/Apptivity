@@ -3,6 +3,7 @@ using Apptivity.Application.Common.Models;
 namespace Apptivity.Application.Contracts.Auth;
 
 public sealed record LoginRequest(string Identifier, string Password, string DeviceId);
+public sealed record SendOtpRequest(string PhoneNumber);
 public sealed record OtpVerifyRequest(string PhoneNumber, string Code, string DeviceId);
 public sealed record RegisterIndividualRequest(
     string Username,
