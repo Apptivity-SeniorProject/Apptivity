@@ -28,7 +28,7 @@ public sealed class ExceptionHandlingMiddleware
 
             var payload = ApiEnvelope<object?>.Failure(new[]
             {
-                new ErrorDetail("SYS_500", "An unexpected error occurred.")
+                new ErrorDetail("SYS_500", ex.ToString())
             });
 
             await context.Response.WriteAsJsonAsync(payload);

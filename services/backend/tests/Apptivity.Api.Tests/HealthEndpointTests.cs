@@ -24,13 +24,20 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
                 {
                     ["Jwt:SigningKey"] = "SuperSecretDummyKeyForTestingPurposesOnlyWhichIsAtLeast32BytesLong!",
                     ["Jwt:Issuer"] = "TestIssuer",
-                    ["Jwt:Audience"] = "TestAudience"
+                    ["Jwt:Audience"] = "TestAudience",
+                    ["ConnectionStrings:PostgreSql"] = "Host=localhost;Database=dummy;Username=dummy;Password=dummy"
                 });
             });
         });
 
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/health");
+
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected OK but got {response.StatusCode}. Content: {content}");
+        }
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

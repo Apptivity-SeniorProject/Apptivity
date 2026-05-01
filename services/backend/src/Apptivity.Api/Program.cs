@@ -29,13 +29,16 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IUserContextAccessor, UserContextAccessor>();
 
-var jwtOptionsSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtOptionsSection.Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt options are missing.");
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IConfiguration>((options, configuration) =>
     {
+        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() 
+                         ?? throw new InvalidOperationException("Jwt options are missing.");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -80,12 +83,11 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("StrictOrigins", policy =>
     {
+        var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
         policy.WithOrigins(corsOptions.AllowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()

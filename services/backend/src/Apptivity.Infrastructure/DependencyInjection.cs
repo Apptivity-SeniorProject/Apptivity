@@ -18,14 +18,23 @@ public static class DependencyInjection
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
         services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
 
-        var connectionString = configuration.GetConnectionString("PostgreSql");
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connectionString = config.GetConnectionString("PostgreSql");
+            options.UseNpgsql(connectionString);
+        });
 
         services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = configuration.GetConnectionString("Redis");
-            options.InstanceName = "apptivity:";
+            // We use the Configure overload with IServiceProvider for Redis
         });
+        services.AddOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>()
+            .Configure<IConfiguration>((options, config) =>
+            {
+                options.Configuration = config.GetConnectionString("Redis");
+                options.InstanceName = "apptivity:";
+            });
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
