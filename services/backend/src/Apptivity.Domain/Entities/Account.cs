@@ -12,6 +12,7 @@ public sealed class Account : BaseEntity
     public string? Password { get; set; }
     public string? ProfilePhoto { get; set; }
     public string? SocialLinks { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public User? UserProfile { get; set; }
     public Club? ClubProfile { get; set; }
@@ -24,4 +25,8 @@ public sealed class Account : BaseEntity
     public ICollection<DeviceToken> DeviceTokens { get; set; } = new List<DeviceToken>();
     public ICollection<Review> WrittenReviews { get; set; } = new List<Review>();
     public ICollection<Review> ReceivedReviews { get; set; } = new List<Review>();
+    public ICollection<Report> FiledReports { get; set; } = new List<Report>();
+    public ICollection<Report> ReceivedReports { get; set; } = new List<Report>();
+    public ICollection<Report> ReviewedReports { get; set; } = new List<Report>();
+    public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

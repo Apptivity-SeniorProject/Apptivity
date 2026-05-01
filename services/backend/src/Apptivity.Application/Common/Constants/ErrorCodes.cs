@@ -33,4 +33,10 @@ public static class ErrorCodes
 
     // Profile
     public const string ProfileNotFound = "PROFILE_404";
+
+    // Admin
+    public const string AdminUnauthorized = "ADMIN_401";
+    public const string AdminAccountNotFound = "ADMIN_ACCOUNT_404";
+    public const string AdminClubNotFound = "ADMIN_CLUB_404";
+    public const string AdminInvalidClubType = "ADMIN_CLUB_409";
 }

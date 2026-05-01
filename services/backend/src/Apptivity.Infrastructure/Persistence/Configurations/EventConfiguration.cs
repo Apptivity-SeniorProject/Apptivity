@@ -19,6 +19,7 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(x => x.Price).HasPrecision(18, 2);
         builder.Property(x => x.LocationData).HasMaxLength(2000);
         builder.Property(x => x.BannerImage).HasMaxLength(500);
+        builder.Property(x => x.IsFeatured).HasDefaultValue(false);
 
         builder.HasOne(x => x.Owner)
             .WithMany(x => x.OwnedEvents)
@@ -29,5 +30,7 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
             .WithMany(x => x.PrimaryTaggedEvents)
             .HasForeignKey(x => x.PrimaryTagId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => x.IsFeatured);
     }
 }

@@ -17,6 +17,7 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(x => x.Password).HasMaxLength(512);
         builder.Property(x => x.ProfilePhoto).HasMaxLength(500);
         builder.Property(x => x.SocialLinks).HasMaxLength(2000);
+        builder.Property(x => x.IsActive).HasDefaultValue(true);
 
         builder.HasIndex(x => x.Username).IsUnique();
         builder.HasIndex(x => x.Phone).IsUnique();

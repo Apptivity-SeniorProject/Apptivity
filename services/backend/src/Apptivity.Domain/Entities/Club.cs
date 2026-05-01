@@ -11,6 +11,7 @@ public sealed class Club : BaseEntity
     public string? Description { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
+    public bool IsVerified { get; set; }
 
     public ClubRating? ClubRating { get; set; }
 }

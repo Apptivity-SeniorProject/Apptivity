@@ -3,6 +3,7 @@ using System;
 using Apptivity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Apptivity.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501033844_AddAdminModuleEntitiesAndFlags")]
+    partial class AddAdminModuleEntitiesAndFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -372,39 +375,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasIndex("PrimaryTagId");
 
                     b.ToTable("events", (string)null);
-                });
-
-            modelBuilder.Entity("Apptivity.Domain.Entities.EventBookmark", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("EventId");
-
-                    b.ToTable("EventBookmarks");
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Message", b =>
@@ -888,25 +858,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("Owner");
 
                     b.Navigation("PrimaryTag");
-                });
-
-            modelBuilder.Entity("Apptivity.Domain.Entities.EventBookmark", b =>
-                {
-                    b.HasOne("Apptivity.Domain.Entities.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Apptivity.Domain.Entities.Event", "Event")
-                        .WithMany()
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Message", b =>

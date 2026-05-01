@@ -1,4 +1,5 @@
 using Apptivity.Application.Contracts.Auth;
+using Apptivity.Application.Contracts.Admin;
 using Apptivity.Application.Contracts.Chats;
 using Apptivity.Application.Contracts.Devices;
 using Apptivity.Application.Contracts.Events;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IEventReputationService, EventReputationService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<ReputationCalculator>();
         return services;
     }

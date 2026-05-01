@@ -27,6 +27,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<Reputation> Reputations => Set<Reputation>();
     public DbSet<ClubRating> ClubRatings => Set<ClubRating>();
     public DbSet<EventBookmark> EventBookmarks => Set<EventBookmark>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

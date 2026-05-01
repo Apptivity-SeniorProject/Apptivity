@@ -22,9 +22,11 @@ public sealed class Event : BaseEntity
     public decimal Price { get; set; }
     public string? LocationData { get; set; }
     public string? BannerImage { get; set; }
+    public bool IsFeatured { get; set; }
     public bool IsVotingClosed { get; set; } = false;
 
     public ICollection<Participation> Participations { get; set; } = new List<Participation>();
     public ICollection<Chat> Chats { get; set; } = new List<Chat>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public ICollection<Report> Reports { get; set; } = new List<Report>();
 }

@@ -80,6 +80,11 @@ public sealed class AuthService : IAuthService
             return Result<AuthResponse>.Failure(ErrorCodes.AccountNotFound, "Account not found for this phone number.");
         }
 
+        if (!account.IsActive)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
+        }
+
         var authResponse = await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
         if (!authResponse.IsSuccess)
         {
@@ -116,6 +121,11 @@ public sealed class AuthService : IAuthService
         if (!_passwordHasher.Verify(request.Password, account.Password))
         {
             return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid identifier or password.");
+        }
+
+        if (!account.IsActive)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
         }
 
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
@@ -161,6 +171,7 @@ public sealed class AuthService : IAuthService
             Phone = normalizedPhone,
             Email = normalizedEmail,
             Password = _passwordHasher.Hash(request.Password),
+            IsActive = true,
             IsDeleted = false
         };
 
@@ -231,6 +242,7 @@ public sealed class AuthService : IAuthService
             Phone = normalizedPhone,
             Email = normalizedEmail,
             Password = _passwordHasher.Hash(request.Password),
+            IsActive = true,
             IsDeleted = false
         };
 
@@ -243,6 +255,7 @@ public sealed class AuthService : IAuthService
             Description = request.Description,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
+            IsVerified = false,
             IsDeleted = false
         };
 
@@ -272,6 +285,11 @@ public sealed class AuthService : IAuthService
         existing.RevokedAt = DateTime.UtcNow;
 
         var account = existing.Account;
+        if (!account.IsActive)
+        {
+            return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
+        }
+
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 

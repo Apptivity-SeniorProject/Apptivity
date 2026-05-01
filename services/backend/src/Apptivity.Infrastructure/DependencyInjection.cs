@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IReputationRepository, ReputationRepository>();
+        services.AddScoped<IAdminRepository, AdminRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ITokenService, JwtTokenService>();

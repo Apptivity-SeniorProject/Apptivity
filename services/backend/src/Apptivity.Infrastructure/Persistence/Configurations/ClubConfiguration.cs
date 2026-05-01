@@ -16,6 +16,7 @@ public sealed class ClubConfiguration : IEntityTypeConfiguration<Club>
         builder.Property(x => x.Description).HasMaxLength(3000);
         builder.Property(x => x.Latitude).HasPrecision(9, 6);
         builder.Property(x => x.Longitude).HasPrecision(9, 6);
+        builder.Property(x => x.IsVerified).HasDefaultValue(false);
 
         builder.HasOne(x => x.Account)
             .WithOne(x => x.ClubProfile)

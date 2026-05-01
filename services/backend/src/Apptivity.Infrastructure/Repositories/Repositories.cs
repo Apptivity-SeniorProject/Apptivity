@@ -284,7 +284,8 @@ public sealed class EventRepository : IEventRepository
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderBy(x => x.Date)
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenBy(x => x.Date)
             .ThenBy(x => x.Time)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -570,6 +571,121 @@ public sealed class ReputationRepository : IReputationRepository
     public async Task AddClubRatingAsync(ClubRating clubRating, CancellationToken cancellationToken)
     {
         await _db.ClubRatings.AddAsync(clubRating, cancellationToken);
+    }
+}
+
+public sealed class AdminRepository : IAdminRepository
+{
+    private readonly AppDbContext _db;
+
+    public AdminRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<int> CountAccountsAsync(CancellationToken cancellationToken)
+    {
+        return _db.Accounts.CountAsync(cancellationToken);
+    }
+
+    public Task<int> CountActiveEventsAsync(CancellationToken cancellationToken)
+    {
+        return _db.Events.CountAsync(
+            x => x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing,
+            cancellationToken);
+    }
+
+    public Task<int> CountRecentParticipationsAsync(DateTime fromUtc, CancellationToken cancellationToken)
+    {
+        return _db.Participations.CountAsync(x => x.CreatedAt >= fromUtc, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<AdminAccountListItem> Items, int TotalCount)> GetAccountsAsync(
+        AdminAccountFilter filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.Accounts.AsNoTracking();
+
+        if (filter.IsActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == filter.IsActive.Value);
+        }
+
+        if (filter.Type.HasValue)
+        {
+            query = query.Where(x => x.Type == filter.Type.Value);
+        }
+
+        var projected = query
+            .Select(x => new
+            {
+                Account = x,
+                ReportCount = _db.Reports.Count(r =>
+                    r.TargetAccountId == x.Id ||
+                    (r.TargetEventId != null && r.TargetEvent != null && r.TargetEvent.OwnerId == x.Id))
+            });
+
+        if (filter.MinReportCount.HasValue)
+        {
+            projected = projected.Where(x => x.ReportCount >= filter.MinReportCount.Value);
+        }
+
+        var totalCount = await projected.CountAsync(cancellationToken);
+        var rows = await projected
+            .OrderByDescending(x => x.ReportCount)
+            .ThenByDescending(x => x.Account.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (rows.Select(x => new AdminAccountListItem(x.Account, x.ReportCount)).ToArray(), totalCount);
+    }
+
+    public Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken)
+    {
+        return _db.Clubs
+            .Include(x => x.Account)
+            .FirstOrDefaultAsync(x => x.Id == clubId, cancellationToken);
+    }
+
+    public Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Events.FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+    }
+
+    public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return _db.Accounts.FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(
+        bool? isResolved,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.Reports.AsNoTracking();
+
+        if (isResolved.HasValue)
+        {
+            query = query.Where(x => x.IsResolved == isResolved.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task AddAuditLogAsync(AuditLog auditLog, CancellationToken cancellationToken)
+    {
+        await _db.AuditLogs.AddAsync(auditLog, cancellationToken);
     }
 }
 
