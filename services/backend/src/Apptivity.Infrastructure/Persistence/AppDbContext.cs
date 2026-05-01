@@ -24,6 +24,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<Reputation> Reputations => Set<Reputation>();
+    public DbSet<ClubRating> ClubRatings => Set<ClubRating>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

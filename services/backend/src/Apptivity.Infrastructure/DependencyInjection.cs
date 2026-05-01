@@ -39,8 +39,21 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
+<<<<<<< Updated upstream
         services.AddScoped<INotificationService, FirebaseNotificationService>();
         services.AddHttpClient(nameof(FirebaseNotificationService));
+=======
+
+        // Domain-specific repositories — registered against both interface and concrete type.
+        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<EventRepository>(sp => (EventRepository)sp.GetRequiredService<IEventRepository>());
+
+        services.AddScoped<IParticipationRepository, ParticipationRepository>();
+        services.AddScoped<ParticipationRepository>(sp => (ParticipationRepository)sp.GetRequiredService<IParticipationRepository>());
+
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IReputationRepository, ReputationRepository>();
+>>>>>>> Stashed changes
 
         return services;
     }

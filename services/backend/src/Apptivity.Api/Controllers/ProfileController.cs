@@ -57,7 +57,9 @@ public sealed class ProfileController : ApiControllerBase
                 account.UserProfile.Birthdate,
                 account.UserProfile.Gender,
                 account.UserProfile.Bio,
-                account.UserProfile.IsVerified
+                account.UserProfile.IsVerified,
+                reputationScore = account.UserProfile.Reputation?.ReputationPoint ?? 0.0,
+                votePoint = account.UserProfile.Reputation?.VotePoint ?? 0.5
             },
             club = account.ClubProfile is null ? null : new
             {
@@ -65,7 +67,9 @@ public sealed class ProfileController : ApiControllerBase
                 account.ClubProfile.LocationCity,
                 account.ClubProfile.Description,
                 account.ClubProfile.Latitude,
-                account.ClubProfile.Longitude
+                account.ClubProfile.Longitude,
+                rating = account.ClubProfile.ClubRating?.Rating ?? 0.0,
+                ratedCount = account.ClubProfile.ClubRating?.RatedCount ?? 0
             }
         };
 

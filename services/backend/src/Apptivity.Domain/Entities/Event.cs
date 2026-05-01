@@ -21,6 +21,7 @@ public sealed class Event : BaseEntity
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public decimal Price { get; set; }
     public string? LocationData { get; set; }
+    public bool IsVotingClosed { get; set; } = false;
 
     public ICollection<Participation> Participations { get; set; } = new List<Participation>();
     public ICollection<Chat> Chats { get; set; } = new List<Chat>();

@@ -19,7 +19,9 @@ public sealed class UserRepository : IUserRepository
     {
         return _db.Accounts
             .Include(x => x.UserProfile)
+                .ThenInclude(u => u!.Reputation)
             .Include(x => x.ClubProfile)
+                .ThenInclude(c => c!.ClubRating)
             .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
     }
 
@@ -254,15 +256,24 @@ public sealed class ParticipationRepository : IParticipationRepository
     }
 }
 
+<<<<<<< Updated upstream
 public sealed class ChatRepository : IChatRepository
 {
     private readonly AppDbContext _db;
 
     public ChatRepository(AppDbContext db)
+=======
+public sealed class ReviewRepository : IReviewRepository
+{
+    private readonly AppDbContext _db;
+
+    public ReviewRepository(AppDbContext db)
+>>>>>>> Stashed changes
     {
         _db = db;
     }
 
+<<<<<<< Updated upstream
     public Task<Chat?> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken)
     {
         return _db.Chats.FirstOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
@@ -316,10 +327,75 @@ public sealed class DeviceTokenRepository : IDeviceTokenRepository
     private readonly AppDbContext _db;
 
     public DeviceTokenRepository(AppDbContext db)
+=======
+    public async Task AddAsync(Review review, CancellationToken cancellationToken)
+    {
+        await _db.Reviews.AddAsync(review, cancellationToken);
+    }
+
+    public Task<Review?> GetByIdAsync(Guid reviewId, CancellationToken cancellationToken)
+    {
+        return _db.Reviews
+            .Include(x => x.Reviewer)
+            .Include(x => x.Reviewed)
+            .Include(x => x.Event)
+            .FirstOrDefaultAsync(x => x.Id == reviewId, cancellationToken);
+    }
+
+    public Task<Review?> GetDuplicateAsync(Guid reviewerId, Guid reviewedId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Reviews
+            .FirstOrDefaultAsync(
+                x => x.ReviewerId == reviewerId && x.ReviewedId == reviewedId && x.EventId == eventId,
+                cancellationToken);
+    }
+
+    public Task<List<Review>> GetByReviewedAccountIdAsync(Guid accountId, int skip, int take, CancellationToken cancellationToken)
+    {
+        return _db.Reviews
+            .Include(x => x.Reviewer)
+            .Include(x => x.Reviewed)
+            .Include(x => x.Event)
+            .Where(x => x.ReviewedId == accountId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountByReviewedAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return _db.Reviews.CountAsync(x => x.ReviewedId == accountId, cancellationToken);
+    }
+
+    public Task<int> CountReviewsForUserInEventAsync(Guid reviewedUserId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Reviews.CountAsync(
+            x => x.ReviewedId == reviewedUserId && x.EventId == eventId,
+            cancellationToken);
+    }
+
+    public Task<List<Review>> GetReviewsByEventIdAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Reviews
+            .Include(x => x.Reviewer)
+            .Include(x => x.Reviewed)
+            .Where(x => x.EventId == eventId)
+            .ToListAsync(cancellationToken);
+    }
+}
+
+public sealed class ReputationRepository : IReputationRepository
+{
+    private readonly AppDbContext _db;
+
+    public ReputationRepository(AppDbContext db)
+>>>>>>> Stashed changes
     {
         _db = db;
     }
 
+<<<<<<< Updated upstream
     public Task<DeviceToken?> GetByAccountAndDeviceTypeAsync(Guid accountId, string deviceType, CancellationToken cancellationToken)
     {
         return _db.DeviceTokens
@@ -341,6 +417,26 @@ public sealed class DeviceTokenRepository : IDeviceTokenRepository
     public async Task AddAsync(DeviceToken deviceToken, CancellationToken cancellationToken)
     {
         await _db.DeviceTokens.AddAsync(deviceToken, cancellationToken);
+=======
+    public Task<Reputation?> GetByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return _db.Reputations.FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public Task<ClubRating?> GetClubRatingByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return _db.ClubRatings.FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public async Task AddReputationAsync(Reputation reputation, CancellationToken cancellationToken)
+    {
+        await _db.Reputations.AddAsync(reputation, cancellationToken);
+    }
+
+    public async Task AddClubRatingAsync(ClubRating clubRating, CancellationToken cancellationToken)
+    {
+        await _db.ClubRatings.AddAsync(clubRating, cancellationToken);
+>>>>>>> Stashed changes
     }
 }
 

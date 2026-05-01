@@ -3,6 +3,7 @@ using System;
 using Apptivity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Apptivity.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501010756_AddReviewAndReputationSystem")]
+    partial class AddReviewAndReputationSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -257,13 +260,7 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
-                    b.Property<int>("DurationMinutes")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsVotingClosed")
                         .HasColumnType("boolean");
 
                     b.Property<string>("LocationData")
@@ -284,9 +281,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("PrimaryTagId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("RemainingParticipationCount")
-                        .HasColumnType("integer");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

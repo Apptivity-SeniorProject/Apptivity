@@ -13,5 +13,6 @@ public sealed class User : BaseEntity
     public string? Bio { get; set; }
     public bool IsVerified { get; set; }
 
+    public Reputation? Reputation { get; set; }
     public ICollection<Participation> Participations { get; set; } = new List<Participation>();
 }

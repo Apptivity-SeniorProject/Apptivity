@@ -15,6 +15,7 @@ public sealed class AuthService : IAuthService
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IReputationRepository _reputationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AuthService(
@@ -23,6 +24,7 @@ public sealed class AuthService : IAuthService
         IRefreshTokenRepository refreshTokenRepository,
         ITokenService tokenService,
         IPasswordHasher passwordHasher,
+        IReputationRepository reputationRepository,
         IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
@@ -30,6 +32,7 @@ public sealed class AuthService : IAuthService
         _refreshTokenRepository = refreshTokenRepository;
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
+        _reputationRepository = reputationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -174,8 +177,15 @@ public sealed class AuthService : IAuthService
             IsDeleted = false
         };
 
+        var reputation = new Reputation
+        {
+            Id = account.Id,
+            ReputationPoint = 0
+        };
+
         await _userRepository.AddAccountAsync(account, cancellationToken);
         await _userRepository.AddUserProfileAsync(user, cancellationToken);
+        await _reputationRepository.AddReputationAsync(reputation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
@@ -236,8 +246,16 @@ public sealed class AuthService : IAuthService
             IsDeleted = false
         };
 
+        var clubRating = new ClubRating
+        {
+            Id = account.Id,
+            Rating = 0,
+            RatedCount = 0
+        };
+
         await _userRepository.AddAccountAsync(account, cancellationToken);
         await _userRepository.AddClubProfileAsync(club, cancellationToken);
+        await _reputationRepository.AddClubRatingAsync(clubRating, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);

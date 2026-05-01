@@ -27,5 +27,10 @@ public sealed class ReviewConfiguration : IEntityTypeConfiguration<Review>
             .WithMany(x => x.Reviews)
             .HasForeignKey(x => x.EventId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Enforce: one review per reviewer/reviewed pair per event.
+        builder.HasIndex(x => new { x.ReviewerId, x.ReviewedId, x.EventId })
+            .IsUnique()
+            .HasDatabaseName("ix_reviews_reviewer_reviewed_event_unique");
     }
 }
