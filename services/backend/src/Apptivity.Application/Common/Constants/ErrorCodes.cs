@@ -30,4 +30,7 @@ public static class ErrorCodes
 
     // Event
     public const string EventVotingClosed = "EVENT_400_CLOSED";
+
+    // Profile
+    public const string ProfileNotFound = "PROFILE_404";
 }
