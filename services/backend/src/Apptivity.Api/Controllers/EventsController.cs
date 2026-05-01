@@ -23,8 +23,92 @@ public sealed class EventsController : ApiControllerBase
         _userContextAccessor = userContextAccessor;
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateEvent([FromBody] CreateEventRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.CreateEventAsync(request, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetEventDetails(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser() ?? new UserContext(Guid.Empty, AccountType.Individual);
+        var result = await _eventService.GetEventDetailsAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] UpdateEventRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.UpdateEventAsync(id, request, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> CancelEvent(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.CancelEventAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("my-events")]
+    public async Task<IActionResult> GetMyCreatedEvents(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.GetMyCreatedEventsAsync(pageNumber, pageSize, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("{id:guid}/similar")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSimilarEvents(Guid id, [FromQuery] int count = 5, CancellationToken cancellationToken = default)
+    {
+        var result = await _eventService.GetSimilarEventsAsync(id, count, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPost("{id:guid}/bookmark")]
+    public async Task<IActionResult> ToggleBookmark(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.ToggleBookmarkAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("my-bookmarks")]
+    public async Task<IActionResult> GetMyBookmarks(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventService.GetMyBookmarksAsync(pageNumber, pageSize, context, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Search(
+        [FromQuery] string? searchTerm,
         [FromQuery] string? locationCity,
         [FromQuery] Guid? primaryTagId,
         [FromQuery] DateOnly? startDate,
@@ -35,6 +119,7 @@ public sealed class EventsController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         var request = new EventSearchRequest(
+            searchTerm,
             locationCity,
             primaryTagId,
             startDate,
@@ -178,5 +263,12 @@ public sealed class EventsController : ApiControllerBase
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Ok(ApiEnvelope<object>.Success(new { message = "Voting closed and reputations updated." }));
+    }
+
+    [HttpGet("{id:guid}/participants")]
+    public async Task<IActionResult> GetParticipants(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _eventService.GetEventParticipantsAsync(id, cancellationToken);
+        return FromResult(result);
     }
 }

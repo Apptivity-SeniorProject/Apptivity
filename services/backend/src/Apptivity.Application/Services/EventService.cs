@@ -10,6 +10,7 @@ namespace Apptivity.Application.Services;
 public sealed class EventService : IEventService
 {
     private readonly IEventRepository _eventRepository;
+    private readonly IEventBookmarkRepository _eventBookmarkRepository;
     private readonly IParticipationRepository _participationRepository;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
@@ -17,12 +18,14 @@ public sealed class EventService : IEventService
 
     public EventService(
         IEventRepository eventRepository,
+        IEventBookmarkRepository eventBookmarkRepository,
         IParticipationRepository participationRepository,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
+        _eventBookmarkRepository = eventBookmarkRepository;
         _participationRepository = participationRepository;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
@@ -41,6 +44,7 @@ public sealed class EventService : IEventService
         paging.Normalize();
 
         var filter = new EventSearchFilter(
+            request.SearchTerm,
             request.LocationCity,
             request.PrimaryTagId,
             request.StartDate,
@@ -247,6 +251,246 @@ public sealed class EventService : IEventService
             .ToArray();
 
         return Result<PagedResult<MyParticipationDto>>.Success(new PagedResult<MyParticipationDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
+    public async Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetWithParticipantsAsync(eventId, cancellationToken);
+
+        if (eventEntity is null)
+        {
+            return Result<EventParticipantsResponse>.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        var ownerDto = new EventParticipantProfileDto(
+            eventEntity.OwnerId,
+            eventEntity.Owner.Type,
+            eventEntity.Owner.Username,
+            eventEntity.Owner.ProfilePhoto,
+            eventEntity.Owner.Type == AccountType.Organization && eventEntity.Owner.ClubProfile != null ? eventEntity.Owner.ClubProfile.Name :
+            eventEntity.Owner.UserProfile != null ? eventEntity.Owner.UserProfile.Name + " " + eventEntity.Owner.UserProfile.Surname : eventEntity.Owner.Username,
+            null);
+
+        var participantDtos = eventEntity.Participations.Select(p => new EventParticipantProfileDto(
+            p.UserId,
+            p.User.Account.Type,
+            p.User.Account.Username,
+            p.User.Account.ProfilePhoto,
+            p.User.Name + " " + p.User.Surname,
+            p.Status)).ToList();
+
+        return Result<EventParticipantsResponse>.Success(new EventParticipantsResponse(ownerDto, participantDtos));
+    }
+
+    public async Task<Result<Guid>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = new Event
+        {
+            Id = Guid.NewGuid(),
+            OwnerId = userContext.AccountId,
+            Name = request.Name,
+            Description = request.Description,
+            Date = request.Date,
+            Time = request.Time,
+            DurationMinutes = request.DurationMinutes,
+            Capacity = request.Capacity,
+            RemainingParticipationCount = request.Capacity,
+            Price = request.Price,
+            LocationData = request.LocationData,
+            PrimaryTagId = request.PrimaryTagId,
+            Status = EventStatus.Published
+        };
+
+        await _eventRepository.AddAsync(eventEntity, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<Guid>.Success(eventEntity.Id);
+    }
+
+    public async Task<Result<EventDetailsDto>> GetEventDetailsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetWithParticipantsAsync(eventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result<EventDetailsDto>.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        bool isBookmarked = false;
+        ParticipationStatus? participationStatus = null;
+
+        if (userContext.AccountId != Guid.Empty)
+        {
+            isBookmarked = await _eventBookmarkRepository.HasBookmarkedAsync(userContext.AccountId, eventId, cancellationToken);
+            
+            var participation = eventEntity.Participations.FirstOrDefault(p => p.UserId == userContext.AccountId);
+            if (participation is null)
+            {
+                var existingParticipation = await _participationRepository.GetByUserAndEventAsync(userContext.AccountId, eventId, cancellationToken);
+                participationStatus = existingParticipation?.Status;
+            }
+            else
+            {
+                participationStatus = participation.Status;
+            }
+        }
+
+        var dto = new EventDetailsDto(
+            eventEntity.Id,
+            eventEntity.OwnerId,
+            eventEntity.Owner.Type == AccountType.Organization && eventEntity.Owner.ClubProfile != null ? eventEntity.Owner.ClubProfile.Name :
+            eventEntity.Owner.UserProfile != null ? eventEntity.Owner.UserProfile.Name + " " + eventEntity.Owner.UserProfile.Surname : eventEntity.Owner.Username,
+            eventEntity.Owner.Type,
+            eventEntity.Owner.ProfilePhoto,
+            eventEntity.PrimaryTagId,
+            eventEntity.PrimaryTag?.Name,
+            eventEntity.Name,
+            eventEntity.Description,
+            eventEntity.Date,
+            eventEntity.Time,
+            eventEntity.DurationMinutes,
+            eventEntity.Capacity,
+            eventEntity.RemainingParticipationCount,
+            eventEntity.Status,
+            eventEntity.Price,
+            eventEntity.LocationData,
+            isBookmarked,
+            participationStatus);
+
+        return Result<EventDetailsDto>.Success(dto);
+    }
+
+    public async Task<Result<EventSummaryDto>> UpdateEventAsync(Guid eventId, UpdateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        if (eventEntity.OwnerId != userContext.AccountId)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventUnauthorized, "Only the owner can update the event.");
+        }
+
+        if (eventEntity.Status != EventStatus.Draft && eventEntity.Status != EventStatus.Published)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "Only Draft or Published events can be updated.");
+        }
+
+        eventEntity.Name = request.Name;
+        eventEntity.Description = request.Description;
+        eventEntity.Date = request.Date;
+        eventEntity.Time = request.Time;
+        eventEntity.DurationMinutes = request.DurationMinutes;
+        eventEntity.LocationData = request.LocationData;
+
+        if (request.Capacity < eventEntity.Capacity - eventEntity.RemainingParticipationCount)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventCapacityFull, "New capacity cannot be less than the current approved participants.");
+        }
+
+        var capacityDifference = request.Capacity - eventEntity.Capacity;
+        eventEntity.Capacity = request.Capacity;
+        eventEntity.RemainingParticipationCount += capacityDifference;
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
+    }
+
+    public async Task<Result> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        if (eventEntity.OwnerId != userContext.AccountId && userContext.AccountType != AccountType.Admin)
+        {
+            return Result.Failure(ErrorCodes.EventUnauthorized, "Only the owner or an admin can cancel the event.");
+        }
+
+        if (eventEntity.Status == EventStatus.Cancelled || eventEntity.Status == EventStatus.Completed)
+        {
+            return Result.Failure(ErrorCodes.EventInvalidState, "Event cannot be cancelled.");
+        }
+
+        eventEntity.Status = EventStatus.Cancelled;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var participantIds = await _participationRepository.GetApprovedParticipantAccountIdsAsync(eventId, cancellationToken);
+        foreach (var participantId in participantIds)
+        {
+            await _notificationService.SendToAccountAsync(
+                new PushNotificationRequest(
+                    participantId,
+                    "Event Cancelled",
+                    $"The event '{eventEntity.Name}' has been cancelled.",
+                    new Dictionary<string, string> { ["eventId"] = eventId.ToString() }),
+                cancellationToken);
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetMyCreatedEventsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _eventRepository.GetByOwnerIdAsync(userContext.AccountId, pageNumber, pageSize, cancellationToken);
+        var mapped = items.Select(MapEventSummary).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
+    }
+
+    public async Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (eventEntity is null || eventEntity.PrimaryTagId is null)
+        {
+            return Result<IEnumerable<EventSummaryDto>>.Success(Array.Empty<EventSummaryDto>());
+        }
+
+        var similarEvents = await _eventRepository.GetSimilarEventsAsync(eventId, eventEntity.PrimaryTagId.Value, count, cancellationToken);
+        var mapped = similarEvents.Select(MapEventSummary);
+
+        return Result<IEnumerable<EventSummaryDto>>.Success(mapped);
+    }
+
+    public async Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        var bookmark = await _eventBookmarkRepository.GetBookmarkAsync(userContext.AccountId, eventId, cancellationToken);
+        
+        if (bookmark is not null)
+        {
+            _eventBookmarkRepository.Remove(bookmark);
+        }
+        else
+        {
+            await _eventBookmarkRepository.AddAsync(new EventBookmark
+            {
+                Id = Guid.NewGuid(),
+                AccountId = userContext.AccountId,
+                EventId = eventId
+            }, cancellationToken);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _eventBookmarkRepository.GetByAccountIdAsync(userContext.AccountId, pageNumber, pageSize, cancellationToken);
+        
+        var mapped = items.Select(x => MapEventSummary(x.Event)).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
     }
 
     private async Task EnsureRemainingCountIsInitializedAsync(Event eventEntity, CancellationToken cancellationToken)

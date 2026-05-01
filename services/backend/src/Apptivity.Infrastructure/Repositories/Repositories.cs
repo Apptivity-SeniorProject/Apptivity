@@ -136,6 +136,19 @@ public sealed class EventRepository : IEventRepository
             .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     }
 
+    public Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Events
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
+            .Include(x => x.Participations)
+                .ThenInclude(p => p.User)
+                    .ThenInclude(u => u.Account)
+            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)
     {
         return await _db.Events
@@ -148,6 +161,12 @@ public sealed class EventRepository : IEventRepository
         var query = _db.Events
             .AsNoTracking()
             .Where(x => x.Status != EventStatus.Draft && x.Status != EventStatus.Cancelled);
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            var term = filter.SearchTerm.Trim().ToLower();
+            query = query.Where(x => x.Name.ToLower().Contains(term) || x.Description.ToLower().Contains(term));
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.LocationCity))
         {
@@ -187,6 +206,33 @@ public sealed class EventRepository : IEventRepository
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
+    }
+
+    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.Events
+            .AsNoTracking()
+            .Where(x => x.OwnerId == ownerId)
+            .OrderByDescending(x => x.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken)
+    {
+        return await _db.Events
+            .AsNoTracking()
+            .Where(x => x.Id != eventId && x.PrimaryTagId == primaryTagId && x.Status == EventStatus.Published)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(count)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(Event entity, CancellationToken cancellationToken)
@@ -464,5 +510,55 @@ public sealed class UnitOfWork : IUnitOfWork
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         return _db.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public sealed class EventBookmarkRepository : IEventBookmarkRepository
+{
+    private readonly AppDbContext _db;
+
+    public EventBookmarkRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<EventBookmark?> GetBookmarkAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.EventBookmarks
+            .FirstOrDefaultAsync(x => x.AccountId == accountId && x.EventId == eventId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<EventBookmark> Items, int TotalCount)> GetByAccountIdAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.EventBookmarks
+            .AsNoTracking()
+            .Include(x => x.Event)
+            .Where(x => x.AccountId == accountId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task AddAsync(EventBookmark bookmark, CancellationToken cancellationToken)
+    {
+        await _db.EventBookmarks.AddAsync(bookmark, cancellationToken);
+    }
+
+    public void Remove(EventBookmark bookmark)
+    {
+        _db.EventBookmarks.Remove(bookmark);
+    }
+
+    public Task<bool> HasBookmarkedAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.EventBookmarks
+            .AnyAsync(x => x.AccountId == accountId && x.EventId == eventId, cancellationToken);
     }
 }
