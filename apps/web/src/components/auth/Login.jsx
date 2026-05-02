@@ -1,6 +1,9 @@
-﻿import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import { Avatar, Button, Card, Form, Input, Space, Typography } from 'antd'
+import { LockOutlined, UserOutlined } from '@ant-design/icons'
+import { Avatar, Button, Card, Form, Input, Space, Typography, message } from 'antd'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { getOrCreateDeviceId, loginWithPassword } from '../../services/authService'
 
 const titleKeyByRole = {
     admin: 'login.adminLoginTitle',
@@ -12,15 +15,90 @@ const subtitleKeyByRole = {
     organization: 'login.organizationLoginSubtitle',
 }
 
+const roleClaimType = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+
+function decodeJwtPayload(token) {
+    try {
+        const payload = token.split('.')[1]
+        if (!payload) {
+            return null
+        }
+
+        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+        const padding = '='.repeat((4 - (normalizedPayload.length % 4)) % 4)
+        return JSON.parse(atob(normalizedPayload + padding))
+    } catch {
+        return null
+    }
+}
+
+function extractRole(accessToken) {
+    const payload = decodeJwtPayload(accessToken)
+    const rawRole = payload?.role || payload?.[roleClaimType] || ''
+    return String(rawRole).toLowerCase()
+}
+
 const Login = ({ role = 'default' }) => {
     const [form] = Form.useForm()
+    const [messageApi, messageContextHolder] = message.useMessage()
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [errorText, setErrorText] = useState('')
+    const navigate = useNavigate()
     const { t } = useTranslation()
 
     const titleKey = titleKeyByRole[role] || 'login.loginTitle'
     const subtitleKey = subtitleKeyByRole[role] || 'login.loginSubtitle'
+    const expectedRole = role === 'organization' ? 'organization' : 'admin'
 
-    const onFinish = (values) => {
-        console.log('Form Values:', values)
+    const onFinish = async (values) => {
+        setIsSubmitting(true)
+        setErrorText('')
+
+        try {
+            const deviceId = getOrCreateDeviceId()
+
+            const result = await loginWithPassword({
+                identifier: values.identifier,
+                password: values.password,
+                deviceId,
+            })
+
+            if (!result.isSuccess) {
+                const backendMessage = result.errors?.[0]?.message || t('login.unexpectedError')
+                setErrorText(backendMessage)
+                return
+            }
+
+            const accessToken = result.data?.accessToken || ''
+            const refreshToken = result.data?.refreshToken || ''
+
+            if (!accessToken || !refreshToken) {
+                setErrorText(t('login.unexpectedError'))
+                return
+            }
+
+            const tokenRole = extractRole(accessToken)
+            if (tokenRole !== expectedRole) {
+                setErrorText(t(expectedRole === 'admin' ? 'login.adminRoleRequired' : 'login.organizationRoleRequired'))
+                return
+            }
+
+            localStorage.setItem(
+                'apptivity.auth',
+                JSON.stringify({
+                    accessToken,
+                    refreshToken,
+                    role: tokenRole,
+                }),
+            )
+
+            messageApi.success(t('login.loginSuccess'))
+            navigate('/')
+        } catch {
+            setErrorText(t('login.networkError'))
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const onFinishFailed = (errorInfo) => {
@@ -29,6 +107,7 @@ const Login = ({ role = 'default' }) => {
 
     return (
         <Card style={{ width: '100%', maxWidth: 460, borderRadius: 14, borderColor: '#e5e7eb' }}>
+            {messageContextHolder}
             <Space direction="vertical" size={18} style={{ width: '100%' }}>
                 <Space direction="vertical" size={8} style={{ width: '100%', textAlign: 'center' }}>
                     <Avatar
@@ -52,14 +131,14 @@ const Login = ({ role = 'default' }) => {
                     requiredMark={false}
                 >
                     <Form.Item
-                        name="userName"
-                        label={t('login.userName')}
+                        name="identifier"
+                        label={t('login.identifier')}
                         rules={[
-                            { required: true, message: t('login.userNameRequired') },
+                            { required: true, message: t('login.identifierRequired') },
                             { type: 'string', message: t('login.invalidUserName') },
                         ]}
                     >
-                        <Input prefix={<UserOutlined style={{ color: '#9ca3af' }} />} placeholder={t('login.userName')} />
+                        <Input prefix={<UserOutlined style={{ color: '#9ca3af' }} />} placeholder={t('login.identifier')} />
                     </Form.Item>
 
                     <Form.Item
@@ -78,11 +157,18 @@ const Login = ({ role = 'default' }) => {
                             type="primary"
                             style={{ backgroundColor: '#111111', borderColor: '#111111', borderRadius: 999, height: 38 }}
                             htmlType="submit"
+                            loading={isSubmitting}
                             block
                         >
                             {t(titleKey)}
                         </Button>
                     </Form.Item>
+
+                    {errorText ? (
+                        <Typography.Text style={{ color: '#dc2626' }}>
+                            {errorText}
+                        </Typography.Text>
+                    ) : null}
                 </Form>
             </Space>
         </Card>

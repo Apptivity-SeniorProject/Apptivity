@@ -1,8 +1,10 @@
-﻿import { Button, ConfigProvider, Flex, Layout, Space, Typography } from 'antd'
+﻿import { Button, ConfigProvider, Flex, Grid, Layout, Space, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import LanguageSwitcher from '../common/LanguageSwitcher'
 import Login from './Login'
+
+const { useBreakpoint } = Grid
 
 const rolePathByKey = {
     admin: '/login/admin',
@@ -13,6 +15,8 @@ function AuthPage({ role = 'admin' }) {
     const navigate = useNavigate()
     const currentRole = role === 'organization' ? 'organization' : 'admin'
     const { t } = useTranslation()
+    const screens = useBreakpoint()
+    const isMobile = !screens.md
 
     return (
         <ConfigProvider
@@ -29,23 +33,29 @@ function AuthPage({ role = 'admin' }) {
                     style={{
                         background: '#ffffff',
                         borderBottom: '1px solid #e5e7eb',
-                        paddingInline: '24px',
+                        paddingInline: isMobile ? '16px' : '24px',
                     }}
                 >
                     <Flex
-                        style={{ width: '100%', maxWidth: '1080px', margin: '0 auto', minHeight: '72px' }}
+                        style={{ width: '100%', maxWidth: '1080px', margin: '0 auto', minHeight: isMobile ? 'auto' : '72px', paddingBlock: isMobile ? 10 : 0 }}
+                        vertical={isMobile}
                         justify="space-between"
-                        align="center"
+                        align={isMobile ? 'stretch' : 'center'}
+                        gap={isMobile ? 10 : 0}
                     >
-                        <Typography.Title
-                            level={4}
-                            style={{ margin: 0, color: '#111111', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
-                            onClick={() => navigate('/')}
-                        >
-                            {t('landing.brand')}
-                        </Typography.Title>
+                        <Flex justify="space-between" align="center">
+                            <Typography.Title
+                                level={4}
+                                style={{ margin: 0, color: '#111111', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
+                                onClick={() => navigate('/')}
+                            >
+                                {t('landing.brand')}
+                            </Typography.Title>
 
-                        <Flex align="center" gap={10}>
+                            <LanguageSwitcher />
+                        </Flex>
+
+                        <Flex align="center" gap={8} wrap={isMobile}>
                             <Button
                                 type={currentRole === 'admin' ? 'primary' : 'default'}
                                 style={{
@@ -57,6 +67,8 @@ function AuthPage({ role = 'admin' }) {
                                     backgroundColor: currentRole === 'admin' ? '#111111' : '#ffffff',
                                     borderColor: '#111111',
                                     color: currentRole === 'admin' ? '#ffffff' : '#111111',
+                                    flex: isMobile ? 1 : 'none',
+                                    minWidth: isMobile ? 0 : 'auto',
                                 }}
                                 onClick={() => navigate(rolePathByKey.admin)}
                             >
@@ -74,13 +86,13 @@ function AuthPage({ role = 'admin' }) {
                                     backgroundColor: currentRole === 'organization' ? '#111111' : '#ffffff',
                                     borderColor: '#111111',
                                     color: currentRole === 'organization' ? '#ffffff' : '#111111',
+                                    flex: isMobile ? 1 : 'none',
+                                    minWidth: isMobile ? 0 : 'auto',
                                 }}
                                 onClick={() => navigate(rolePathByKey.organization)}
                             >
                                 {t('landing.organizationLogin')}
                             </Button>
-
-                            <LanguageSwitcher />
                         </Flex>
                     </Flex>
                 </Layout.Header>
@@ -88,12 +100,12 @@ function AuthPage({ role = 'admin' }) {
                 <Layout.Content
                     style={{
                         background: '#ffffff',
-                        padding: '48px 24px',
+                        padding: isMobile ? '32px 16px' : '48px 24px',
                     }}
                 >
                     <Flex vertical align="center" style={{ width: '100%', maxWidth: '1080px', margin: '0 auto' }} gap={20}>
                         <Space direction="vertical" size={6} style={{ width: '100%', textAlign: 'center' }}>
-                            <Typography.Title level={2} style={{ margin: 0, color: '#111111' }}>
+                            <Typography.Title level={2} style={{ margin: 0, color: '#111111', fontSize: isMobile ? 28 : undefined }}>
                                 {t('login.pageTitle')}
                             </Typography.Title>
                             <Typography.Text style={{ color: '#6b7280' }}>
@@ -123,4 +135,3 @@ function AuthPage({ role = 'admin' }) {
 }
 
 export default AuthPage
-
