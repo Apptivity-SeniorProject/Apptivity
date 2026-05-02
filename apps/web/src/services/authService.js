@@ -42,12 +42,7 @@ export async function loginWithPassword({ identifier, password, deviceId }) {
         }),
     })
 
-    let payload = null
-    try {
-        payload = await response.json()
-    } catch {
-        payload = null
-    }
+    const payload = await response.json().catch(() => null)
 
     const normalized = normalizeEnvelope(payload)
 
