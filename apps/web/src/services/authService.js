@@ -1,5 +1,5 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5277').replace(/\/$/, '')
-const LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const LOGIN_ENDPOINT = `${API_BASE_URL}/auth/login`
 const DEVICE_ID_STORAGE_KEY = 'apptivity.deviceId'
 
 function normalizeEnvelope(payload) {

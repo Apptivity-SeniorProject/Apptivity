@@ -1,4 +1,5 @@
 using Apptivity.Domain.Entities;
+using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -20,5 +21,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne(x => x.UserProfile)
             .HasForeignKey<User>(x => x.Id)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasData(ManualTestSeed.Users);
     }
 }

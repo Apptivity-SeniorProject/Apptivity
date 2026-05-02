@@ -1,4 +1,5 @@
 using Apptivity.Domain.Entities;
+using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -23,5 +24,6 @@ public sealed class ReputationConfiguration : IEntityTypeConfiguration<Reputatio
 
         // vote_point is a computed/derived value — not stored separately.
         builder.Ignore(x => x.VotePoint);
+        builder.HasData(ManualTestSeed.Reputations);
     }
 }

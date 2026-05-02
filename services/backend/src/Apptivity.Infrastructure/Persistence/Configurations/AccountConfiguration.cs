@@ -1,4 +1,5 @@
 using Apptivity.Domain.Entities;
+using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -22,5 +23,7 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.HasIndex(x => x.Username).IsUnique();
         builder.HasIndex(x => x.Phone).IsUnique();
         builder.HasIndex(x => x.Email).IsUnique();
+
+        builder.HasData(ManualTestSeed.Accounts);
     }
 }
