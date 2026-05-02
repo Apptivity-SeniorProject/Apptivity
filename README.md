@@ -92,3 +92,52 @@ Bu notları alırsan, EF Core sınıflarını (Entity) yazarken mimarimiz kusurs
     Değişiklikler: Account.password boş bırakılabilir olacak. Tüm ana tablolara updated_at eklenecek. Participation'a rejection_reason eklenecek, skor alanları Review tablosuna taşınacak.
 
     db ye bunları ekleyeceğim hata görürseniz belirtin.
+## Frontend Guncellemeleri (Web)
+
+Bu bolumde landing/login tarafinda yapilan son duzenlemeler listelenir.
+
+### Teknoloji ve Yapi
+
+- `apps/web` React + Vite + Ant Design + i18next kullaniyor.
+- Landing yapisi component bazli olacak sekilde ayrildi:
+  - `src/components/landing/LandingNavbar.jsx`
+  - `src/components/landing/LandingContent.jsx`
+- Login yapisi ortak auth sayfasina tasindi:
+  - `src/components/auth/AuthPage.jsx`
+  - `src/components/auth/Login.jsx`
+
+### Landing Sayfasi
+
+- Navbar icinde bolum anchor linkleri var:
+  - `#about` (Hakkimizda)
+  - `#features` (Neden Apptivity?)
+  - `#how` (Nasil Calisir)
+- Sticky navbar kaynakli anchor kesilmesini engellemek icin bolum kartlarinda `scrollMarginTop` kullanildi.
+- Hero bolumunde sag tarafa gorsel eklendi ve eski istatistik karti kaldirildi.
+- Hakkimizda bolumunde gorsel + metin iki kolonlu yapiya alindi (gorsel solda, metin sagda).
+- Ozellikler bolumu 6 kartli yapiya cevrildi (ikon + baslik + aciklama).
+- Nasil Calisir bolumu 4 adima cikarildi.
+- CTA bolumunde bireysel kullanici odagi ve `App Store` / `Google Play` butonlari eklendi.
+
+### Gorsel Dosya Organizasyonu
+
+- Gorseller duzenli klasore alindi:
+  - `apps/web/src/assets/images/community-event.jpg`
+  - `apps/web/src/assets/images/hero-social.jpg`
+
+### Coklu Dil (TR / EN)
+
+- Dil yonetimi `i18next` ile yapiliyor (`src/i18n/index.js`).
+- Tum aktif landing/login metinleri i18n anahtarlarina tasindi.
+- Dil secici componenti eklendi:
+  - `src/components/common/LanguageSwitcher.jsx`
+- Dil secici landing ve auth navbarlarinin en saginda konumlandirildi.
+
+### Dogrulama
+
+- Web tarafinda lint dogrulamasi:
+
+```bash
+cd apps/web
+npm run lint
+```

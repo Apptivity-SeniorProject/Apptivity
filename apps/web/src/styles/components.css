@@ -1,0 +1,65 @@
+/* components/index.css — component-specific styles */
+
+/* Navbar */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 15, 26, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-md) 0;
+}
+
+.navbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar__logo {
+  font-size: 1.4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.navbar__link {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+.navbar__link:hover,
+.navbar__link.active {
+  color: var(--color-text);
+}
+
+.lang-switcher {
+  margin-inline-start: 12px;
+  border-radius: 999px;
+  padding: 2px;
+  background: #f3f4f6;
+}
+
+.lang-switcher .ant-segmented-item,
+.lang-switcher .ant-segmented-thumb {
+  border-radius: 999px;
+}
+
+.lang-switcher .ant-segmented-item-label {
+  min-width: 34px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
