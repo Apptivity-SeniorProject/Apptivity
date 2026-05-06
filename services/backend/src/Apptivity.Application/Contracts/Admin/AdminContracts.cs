@@ -46,20 +46,19 @@ public sealed record AdminEventModerationDto(
     bool IsDeleted);
 
 public sealed record ReportsFilterRequest(
-    bool? IsResolved,
+    ReportStatus? Status,
     int PageNumber = 1,
     int PageSize = 20);
 
 public sealed record AdminReportDto(
     Guid ReportId,
-    Guid ReporterAccountId,
-    Guid? TargetAccountId,
-    Guid? TargetEventId,
-    string Reason,
-    bool IsResolved,
-    DateTime CreatedAt,
-    DateTime? ResolvedAt,
-    Guid? ResolvedByAccountId);
+    Guid ReporterId,
+    Guid TargetId,
+    ReportTargetType TargetType,
+    ReportReasonCategory ReasonCategory,
+    string Description,
+    ReportStatus Status,
+    DateTime CreatedAt);
 
 public interface IAdminService
 {

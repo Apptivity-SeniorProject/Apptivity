@@ -57,4 +57,5 @@ public interface IProfileService
     Task<Result<ProfileDto>> UpdateMeAsync(UserContext userContext, UpdateProfileRequest request, CancellationToken cancellationToken);
     Task<Result<ProfileDto>> UpdateMyPhotoAsync(UserContext userContext, Stream fileStream, string fileName, CancellationToken cancellationToken);
     Task<Result<PagedResult<ProfileEventDto>>> GetEventsAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<Result> DeactivateMeAsync(UserContext userContext, CancellationToken cancellationToken);
 }

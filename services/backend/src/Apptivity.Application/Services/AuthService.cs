@@ -293,6 +293,68 @@ public sealed class AuthService : IAuthService
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 
+    public async Task<Result> ChangePhoneAsync(ChangePhoneRequest request, UserContext userContext, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPhoneNumber))
+        {
+            return Result.Failure(ErrorCodes.Validation, "New phone number is required.");
+        }
+
+        var account = await _userRepository.GetAccountByIdAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result.Failure(ErrorCodes.AccountNotFound, "Account not found.");
+        }
+
+        if (!account.IsActive)
+        {
+            return Result.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
+        }
+
+        var normalizedPhone = NormalizePhone(request.NewPhoneNumber);
+        if (normalizedPhone == account.Phone)
+        {
+            return Result.Failure(ErrorCodes.Validation, "New phone number must be different from current phone number.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+            var otp = new OtpVerification
+            {
+                Id = Guid.NewGuid(),
+                PhoneNumber = normalizedPhone,
+                Code = code,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+                IsUsed = false
+            };
+
+            await _otpVerificationRepository.AddAsync(otp, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            Console.WriteLine($"[PHONE-CHANGE-OTP] {normalizedPhone} => {code}");
+            return Result.Success();
+        }
+
+        var validOtp = await _otpVerificationRepository.GetValidAsync(normalizedPhone, request.Code.Trim(), cancellationToken);
+        if (validOtp is null || validOtp.ExpiresAt <= DateTime.UtcNow || validOtp.IsUsed)
+        {
+            return Result.Failure(ErrorCodes.InvalidOtp, "OTP is invalid or expired.");
+        }
+
+        var existingAccount = await _userRepository.GetAccountByPhoneAsync(normalizedPhone, cancellationToken);
+        if (existingAccount is not null && existingAccount.Id != account.Id)
+        {
+            return Result.Failure(ErrorCodes.AccountAlreadyExists, "Phone number already exists.");
+        }
+
+        validOtp.IsUsed = true;
+        account.Phone = normalizedPhone;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
     private async Task<Result<AuthResponse>> IssueTokenPairAsync(Account account, string deviceId, CancellationToken cancellationToken)
     {
         var pair = _tokenService.GenerateTokens(account.Id, account.Type.ToString(), deviceId);

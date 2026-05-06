@@ -112,6 +112,22 @@ public sealed class ProfileController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeactivateMe(CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _profileService.DeactivateMeAsync(context, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("{id:guid}/events")]
     [AllowAnonymous]
     public async Task<IActionResult> GetEvents(

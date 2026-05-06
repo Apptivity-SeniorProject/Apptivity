@@ -48,6 +48,8 @@ public static class DependencyInjection
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IReputationRepository, ReputationRepository>();
         services.AddScoped<IAdminRepository, AdminRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<ITokenService, JwtTokenService>();

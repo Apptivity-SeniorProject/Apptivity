@@ -1,4 +1,5 @@
 using Apptivity.Application.Interfaces;
+using Apptivity.Domain.Entities;
 using Apptivity.Infrastructure.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,17 +14,23 @@ public sealed class FirebaseNotificationService : INotificationService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IOptions<FcmOptions> _fcmOptions;
     private readonly ILogger<FirebaseNotificationService> _logger;
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public FirebaseNotificationService(
         IDeviceTokenRepository deviceTokenRepository,
         IHttpClientFactory httpClientFactory,
         IOptions<FcmOptions> fcmOptions,
-        ILogger<FirebaseNotificationService> logger)
+        ILogger<FirebaseNotificationService> logger,
+        INotificationRepository notificationRepository,
+        IUnitOfWork unitOfWork)
     {
         _deviceTokenRepository = deviceTokenRepository;
         _httpClientFactory = httpClientFactory;
         _fcmOptions = fcmOptions;
         _logger = logger;
+        _notificationRepository = notificationRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task SendToAccountAsync(PushNotificationRequest request, CancellationToken cancellationToken)
@@ -37,6 +44,19 @@ public sealed class FirebaseNotificationService : INotificationService
         {
             return;
         }
+
+        var notifications = requests.Select(x => new Notification
+        {
+            Id = Guid.NewGuid(),
+            AccountId = x.AccountId,
+            Title = x.Title,
+            Content = x.Body,
+            IsRead = false,
+            RelatedEntityId = TryResolveRelatedEntityId(x.Data)
+        }).ToArray();
+
+        await _notificationRepository.AddRangeAsync(notifications, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var options = _fcmOptions.Value;
         if (!options.Enabled)
@@ -94,5 +114,25 @@ public sealed class FirebaseNotificationService : INotificationService
                 }
             }
         }
+    }
+
+    private static Guid? TryResolveRelatedEntityId(IReadOnlyDictionary<string, string>? data)
+    {
+        if (data is null)
+        {
+            return null;
+        }
+
+        if (data.TryGetValue("relatedEntityId", out var raw) && Guid.TryParse(raw, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (data.TryGetValue("eventId", out raw) && Guid.TryParse(raw, out parsed))
+        {
+            return parsed;
+        }
+
+        return null;
     }
 }

@@ -1,4 +1,5 @@
 using Apptivity.Application.Common.Models;
+using Apptivity.Application.Interfaces;
 
 namespace Apptivity.Application.Contracts.Auth;
 
@@ -31,6 +32,7 @@ public sealed record RegisterOrganizationRequest(
 
 public sealed record AuthResponse(string AccessToken, string RefreshToken);
 public sealed record RefreshTokenRequest(string RefreshToken, string DeviceId);
+public sealed record ChangePhoneRequest(string NewPhoneNumber, string? Code);
 
 public interface IAuthService
 {
@@ -40,4 +42,5 @@ public interface IAuthService
     Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, CancellationToken cancellationToken);
     Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken cancellationToken);
     Task<Result<AuthResponse>> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken);
+    Task<Result> ChangePhoneAsync(ChangePhoneRequest request, UserContext userContext, CancellationToken cancellationToken);
 }

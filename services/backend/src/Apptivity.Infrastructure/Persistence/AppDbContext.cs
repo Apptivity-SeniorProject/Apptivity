@@ -28,6 +28,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ClubRating> ClubRatings => Set<ClubRating>();
     public DbSet<EventBookmark> EventBookmarks => Set<EventBookmark>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

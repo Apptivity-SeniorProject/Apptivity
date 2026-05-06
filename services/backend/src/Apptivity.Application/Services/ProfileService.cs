@@ -204,6 +204,19 @@ public sealed class ProfileService : IProfileService
             new PagedResult<ProfileEventDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
+    public async Task<Result> DeactivateMeAsync(UserContext userContext, CancellationToken cancellationToken)
+    {
+        var account = await _userRepository.GetAccountByIdAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
+        }
+
+        account.IsActive = false;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     private static ProfileDto MapProfile(Account account)
     {
         var userProfile = account.UserProfile is null

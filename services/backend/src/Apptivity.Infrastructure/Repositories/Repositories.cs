@@ -29,7 +29,9 @@ public sealed class UserRepository : IUserRepository
 
     public async Task<(IReadOnlyCollection<Account> Items, int TotalCount)> SearchProfilesAsync(ProfileSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
-        var query = BuildProfileQuery().AsNoTracking();
+        var query = BuildProfileQuery()
+            .AsNoTracking()
+            .Where(x => x.IsActive);
 
         if (filter.AccountType.HasValue)
         {
@@ -245,7 +247,7 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Events
             .AsNoTracking()
-            .Where(x => x.Status != EventStatus.Draft && x.Status != EventStatus.Cancelled);
+            .Where(x => x.Status != EventStatus.Draft && x.Status != EventStatus.Cancelled && x.Owner.IsActive);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
@@ -623,8 +625,9 @@ public sealed class AdminRepository : IAdminRepository
             {
                 Account = x,
                 ReportCount = _db.Reports.Count(r =>
-                    r.TargetAccountId == x.Id ||
-                    (r.TargetEventId != null && r.TargetEvent != null && r.TargetEvent.OwnerId == x.Id))
+                    (r.TargetType == ReportTargetType.Account && r.TargetId == x.Id) ||
+                    (r.TargetType == ReportTargetType.Event &&
+                     _db.Events.Any(e => e.Id == r.TargetId && e.OwnerId == x.Id)))
             });
 
         if (filter.MinReportCount.HasValue)
@@ -661,16 +664,16 @@ public sealed class AdminRepository : IAdminRepository
     }
 
     public async Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(
-        bool? isResolved,
+        ReportStatus? status,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var query = _db.Reports.AsNoTracking();
 
-        if (isResolved.HasValue)
+        if (status.HasValue)
         {
-            query = query.Where(x => x.IsResolved == isResolved.Value);
+            query = query.Where(x => x.Status == status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -686,6 +689,64 @@ public sealed class AdminRepository : IAdminRepository
     public async Task AddAuditLogAsync(AuditLog auditLog, CancellationToken cancellationToken)
     {
         await _db.AuditLogs.AddAsync(auditLog, cancellationToken);
+    }
+}
+
+public sealed class ReportRepository : IReportRepository
+{
+    private readonly AppDbContext _db;
+
+    public ReportRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task AddAsync(Report report, CancellationToken cancellationToken)
+    {
+        await _db.Reports.AddAsync(report, cancellationToken);
+    }
+}
+
+public sealed class NotificationRepository : INotificationRepository
+{
+    private readonly AppDbContext _db;
+
+    public NotificationRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<(IReadOnlyCollection<Notification> Items, int TotalCount)> GetByAccountIdAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _db.Notifications
+            .AsNoTracking()
+            .Where(x => x.AccountId == accountId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public Task<Notification?> GetByIdAsync(Guid notificationId, CancellationToken cancellationToken)
+    {
+        return _db.Notifications.FirstOrDefaultAsync(x => x.Id == notificationId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Notification>> GetUnreadByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return await _db.Notifications
+            .Where(x => x.AccountId == accountId && !x.IsRead)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddRangeAsync(IReadOnlyCollection<Notification> notifications, CancellationToken cancellationToken)
+    {
+        await _db.Notifications.AddRangeAsync(notifications, cancellationToken);
     }
 }
 

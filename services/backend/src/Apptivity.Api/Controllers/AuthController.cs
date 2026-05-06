@@ -1,5 +1,7 @@
 using Apptivity.Api.Common;
+using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Auth;
+using Apptivity.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +12,12 @@ namespace Apptivity.Api.Controllers;
 public sealed class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IUserContextAccessor _userContextAccessor;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IUserContextAccessor userContextAccessor)
     {
         _authService = authService;
+        _userContextAccessor = userContextAccessor;
     }
 
     [HttpPost("login")]
@@ -61,6 +65,23 @@ public sealed class AuthController : ApiControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.RefreshAsync(request, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPost("change-phone")]
+    [Authorize]
+    public async Task<IActionResult> ChangePhone([FromBody] ChangePhoneRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _authService.ChangePhoneAsync(request, context, cancellationToken);
         return FromResult(result);
     }
 }

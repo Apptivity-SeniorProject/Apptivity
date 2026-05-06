@@ -23,10 +23,9 @@ public sealed class Account : BaseEntity
 
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<DeviceToken> DeviceTokens { get; set; } = new List<DeviceToken>();
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<Review> WrittenReviews { get; set; } = new List<Review>();
     public ICollection<Review> ReceivedReviews { get; set; } = new List<Review>();
     public ICollection<Report> FiledReports { get; set; } = new List<Report>();
-    public ICollection<Report> ReceivedReports { get; set; } = new List<Report>();
-    public ICollection<Report> ReviewedReports { get; set; } = new List<Report>();
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

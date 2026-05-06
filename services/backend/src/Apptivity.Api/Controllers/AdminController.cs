@@ -71,12 +71,12 @@ public sealed class AdminController : ApiControllerBase
 
     [HttpGet("reports")]
     public async Task<IActionResult> GetReports(
-        [FromQuery] bool? isResolved,
+        [FromQuery] ReportStatus? status,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var request = new ReportsFilterRequest(isResolved, pageNumber, pageSize);
+        var request = new ReportsFilterRequest(status, pageNumber, pageSize);
         var result = await _adminService.GetReportsAsync(request, cancellationToken);
         return FromResult(result);
     }

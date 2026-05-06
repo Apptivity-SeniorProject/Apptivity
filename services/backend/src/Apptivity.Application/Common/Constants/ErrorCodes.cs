@@ -39,4 +39,10 @@ public static class ErrorCodes
     public const string AdminAccountNotFound = "ADMIN_ACCOUNT_404";
     public const string AdminClubNotFound = "ADMIN_CLUB_404";
     public const string AdminInvalidClubType = "ADMIN_CLUB_409";
+
+    // Report
+    public const string ReportNotFound = "REPORT_404";
+
+    // Notification
+    public const string NotificationNotFound = "NOTIF_404";
 }

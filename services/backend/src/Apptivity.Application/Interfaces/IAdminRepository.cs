@@ -21,6 +21,6 @@ public interface IAdminRepository
     Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken);
     Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken cancellationToken);
     Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken);
-    Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(bool? isResolved, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(ReportStatus? status, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task AddAuditLogAsync(AuditLog auditLog, CancellationToken cancellationToken);
 }

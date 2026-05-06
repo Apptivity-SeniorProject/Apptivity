@@ -11,31 +11,19 @@ public sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.ToTable("reports");
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
-        builder.Property(x => x.IsResolved).HasDefaultValue(false);
+        builder.Property(x => x.TargetId).IsRequired();
+        builder.Property(x => x.TargetType).HasConversion<int>().IsRequired();
+        builder.Property(x => x.ReasonCategory).HasConversion<int>().IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+        builder.Property(x => x.Status).HasConversion<int>().IsRequired();
 
-        builder.HasOne(x => x.ReporterAccount)
+        builder.HasOne(x => x.Reporter)
             .WithMany(x => x.FiledReports)
-            .HasForeignKey(x => x.ReporterAccountId)
+            .HasForeignKey(x => x.ReporterId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.TargetAccount)
-            .WithMany(x => x.ReceivedReports)
-            .HasForeignKey(x => x.TargetAccountId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.TargetEvent)
-            .WithMany(x => x.Reports)
-            .HasForeignKey(x => x.TargetEventId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.ResolvedByAccount)
-            .WithMany(x => x.ReviewedReports)
-            .HasForeignKey(x => x.ResolvedByAccountId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(x => x.IsResolved);
-        builder.HasIndex(x => x.TargetAccountId);
-        builder.HasIndex(x => x.TargetEventId);
+        builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => new { x.TargetType, x.TargetId });
+        builder.HasIndex(x => x.ReporterId);
     }
 }

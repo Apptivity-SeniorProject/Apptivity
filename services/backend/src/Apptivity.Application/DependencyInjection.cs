@@ -3,7 +3,9 @@ using Apptivity.Application.Contracts.Admin;
 using Apptivity.Application.Contracts.Chats;
 using Apptivity.Application.Contracts.Devices;
 using Apptivity.Application.Contracts.Events;
+using Apptivity.Application.Contracts.Notifications;
 using Apptivity.Application.Contracts.Profiles;
+using Apptivity.Application.Contracts.Reports;
 using Apptivity.Application.Interfaces;
 using Apptivity.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IEventReputationService, EventReputationService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<INotificationHistoryService, NotificationHistoryService>();
         services.AddScoped<ReputationCalculator>();
         return services;
     }
