@@ -141,3 +141,12 @@ Bu bolumde landing/login tarafinda yapilan son duzenlemeler listelenir.
 cd apps/web
 npm run lint
 ```
+
+
+'''
+neden olduğunu bilmiyorum ancak .net de bir hata alabiliyoruz çözümü ise powershell'den aşağıdaki komutu çalıştırabilirsiniz:
+
+Get-Process Apptivity.Api -ErrorAction SilentlyContinue | Stop-Process -Force
+
+yazdıktan sonra düzelmeli. api klasöründe yapılıyor run ettiğimiz yerde.
+'''
