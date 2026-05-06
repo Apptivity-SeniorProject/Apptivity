@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { getOrCreateDeviceId, loginWithPassword } from '../../services/authService'
+import { clearAuthSession, saveAuthSession } from '../../services/sessionService'
 
 const titleKeyByRole = {
     admin: 'login.adminLoginTitle',
@@ -13,29 +14,6 @@ const titleKeyByRole = {
 const subtitleKeyByRole = {
     admin: 'login.adminLoginSubtitle',
     organization: 'login.organizationLoginSubtitle',
-}
-
-const roleClaimType = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
-
-function decodeJwtPayload(token) {
-    try {
-        const payload = token.split('.')[1]
-        if (!payload) {
-            return null
-        }
-
-        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
-        const padding = '='.repeat((4 - (normalizedPayload.length % 4)) % 4)
-        return JSON.parse(atob(normalizedPayload + padding))
-    } catch {
-        return null
-    }
-}
-
-function extractRole(accessToken) {
-    const payload = decodeJwtPayload(accessToken)
-    const rawRole = payload?.role || payload?.[roleClaimType] || ''
-    return String(rawRole).toLowerCase()
 }
 
 const Login = ({ role = 'default' }) => {
@@ -77,20 +55,12 @@ const Login = ({ role = 'default' }) => {
                 return
             }
 
-            const tokenRole = extractRole(accessToken)
+            const tokenRole = saveAuthSession(accessToken, refreshToken)
             if (tokenRole !== expectedRole) {
+                clearAuthSession()
                 setErrorText(t(expectedRole === 'admin' ? 'login.adminRoleRequired' : 'login.organizationRoleRequired'))
                 return
             }
-
-            localStorage.setItem(
-                'apptivity.auth',
-                JSON.stringify({
-                    accessToken,
-                    refreshToken,
-                    role: tokenRole,
-                }),
-            )
 
             messageApi.success(t('login.loginSuccess'))
             navigate('/')
