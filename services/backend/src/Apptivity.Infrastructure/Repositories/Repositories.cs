@@ -654,6 +654,29 @@ public sealed class AdminRepository : IAdminRepository
         return (rows.Select(x => new AdminAccountListItem(x.Account, x.ReportCount)).ToArray(), totalCount);
     }
 
+    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetEventsAsync(
+        EventStatus? status,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.Events.AsNoTracking();
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken)
     {
         return _db.Clubs

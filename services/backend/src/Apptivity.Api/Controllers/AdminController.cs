@@ -70,6 +70,18 @@ public sealed class AdminController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpGet("events")]
+    public async Task<IActionResult> GetEvents(
+        [FromQuery] EventStatus? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AdminEventsFilterRequest(status, pageNumber, pageSize);
+        var result = await _adminService.GetEventsAsync(request, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("reports")]
     public async Task<IActionResult> GetReports(
         [FromQuery] ReportStatus? status,

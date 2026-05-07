@@ -63,6 +63,11 @@ const Login = ({ role = 'default' }) => {
             }
 
             messageApi.success(t('login.loginSuccess'))
+            if (tokenRole === 'admin') {
+                navigate('/admin')
+                return
+            }
+
             navigate('/')
         } catch {
             setErrorText(t('login.networkError'))

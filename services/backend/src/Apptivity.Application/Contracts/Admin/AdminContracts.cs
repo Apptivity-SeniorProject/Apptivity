@@ -47,6 +47,11 @@ public sealed record AdminEventModerationDto(
     bool IsFeatured,
     bool IsDeleted);
 
+public sealed record AdminEventsFilterRequest(
+    EventStatus? Status,
+    int PageNumber = 1,
+    int PageSize = 20);
+
 public sealed record ReportsFilterRequest(
     ReportStatus? Status,
     int PageNumber = 1,
@@ -68,6 +73,7 @@ public interface IAdminService
     Task<Result<PagedResult<AdminAccountDto>>> GetAccountsAsync(AdminAccountsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<AdminAccountDto>> UpdateAccountStatusAsync(Guid accountId, UpdateAccountStatusRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken);
+    Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminReportDto>>> GetReportsAsync(ReportsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<AdminEventModerationDto>> DeleteEventAsync(Guid eventId, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<AdminEventModerationDto>> ToggleFeaturedAsync(Guid eventId, ToggleEventFeaturedRequest request, UserContext adminContext, CancellationToken cancellationToken);

@@ -1,3 +1,5 @@
+import { getAuthSession } from './sessionService'
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 
 function normalizeEnvelope(payload) {
@@ -17,7 +19,16 @@ function normalizeEnvelope(payload) {
 }
 
 export async function apiRequest(path, options = {}) {
-    const response = await fetch(`${API_BASE_URL}${path}`, options)
+    const headers = new Headers(options.headers || {})
+    const session = getAuthSession()
+    if (session?.accessToken && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${session.accessToken}`)
+    }
+
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers,
+    })
     const payload = await response.json().catch(() => null)
     const normalized = normalizeEnvelope(payload)
 

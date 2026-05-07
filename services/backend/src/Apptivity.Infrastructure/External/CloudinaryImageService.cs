@@ -9,15 +9,23 @@ namespace Apptivity.Infrastructure.External;
 
 public sealed class CloudinaryImageService : IImageService
 {
-    private readonly Cloudinary _cloudinary;
+    private readonly Cloudinary? _cloudinary;
     private readonly CloudinaryOptions _options;
+    private readonly bool _isConfigured;
 
     public CloudinaryImageService(IOptions<CloudinaryOptions> options)
     {
         _options = options.Value;
+        _isConfigured =
+            !string.IsNullOrWhiteSpace(_options.CloudName) &&
+            !string.IsNullOrWhiteSpace(_options.ApiKey) &&
+            !string.IsNullOrWhiteSpace(_options.ApiSecret);
 
-        var account = new Account(_options.CloudName, _options.ApiKey, _options.ApiSecret);
-        _cloudinary = new Cloudinary(account);
+        if (_isConfigured)
+        {
+            var account = new Account(_options.CloudName, _options.ApiKey, _options.ApiSecret);
+            _cloudinary = new Cloudinary(account);
+        }
     }
 
     public Task<ImageUploadResultContract> UploadProfilePhotoAsync(Stream fileStream, string fileName, CancellationToken cancellationToken)
@@ -47,6 +55,11 @@ public sealed class CloudinaryImageService : IImageService
         Transformation transformation,
         CancellationToken cancellationToken)
     {
+        if (!_isConfigured || _cloudinary is null)
+        {
+            throw new InvalidOperationException("Cloudinary configuration is missing. Set Cloudinary:CloudName, Cloudinary:ApiKey and Cloudinary:ApiSecret.");
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var uploadParams = new ImageUploadParams

@@ -19,6 +19,7 @@ public interface IAdminRepository
     Task<int> CountActiveEventsAsync(CancellationToken cancellationToken);
     Task<int> CountRecentParticipationsAsync(DateTime fromUtc, CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<AdminAccountListItem> Items, int TotalCount)> GetAccountsAsync(AdminAccountFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetEventsAsync(EventStatus? status, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken);
     Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken cancellationToken);
     Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken);

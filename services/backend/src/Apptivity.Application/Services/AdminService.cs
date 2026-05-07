@@ -55,6 +55,28 @@ public sealed class AdminService : IAdminService
         return Result<PagedResult<AdminAccountDto>>.Success(new PagedResult<AdminAccountDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
+    public async Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken)
+    {
+        var paging = new PagedRequest
+        {
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize
+        };
+        paging.Normalize();
+
+        var (items, totalCount) = await _adminRepository.GetEventsAsync(request.Status, paging.PageNumber, paging.PageSize, cancellationToken);
+        var mapped = items
+            .Select(x => new AdminEventModerationDto(
+                x.Id,
+                x.Name,
+                x.Status,
+                x.IsFeatured,
+                x.IsDeleted))
+            .ToArray();
+
+        return Result<PagedResult<AdminEventModerationDto>>.Success(new PagedResult<AdminEventModerationDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
     public async Task<Result<AdminAccountDto>> UpdateAccountStatusAsync(Guid accountId, UpdateAccountStatusRequest request, UserContext adminContext, CancellationToken cancellationToken)
     {
         if (!IsAdmin(adminContext))
