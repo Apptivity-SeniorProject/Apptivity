@@ -6,8 +6,10 @@ using Apptivity.Api.Security;
 using Apptivity.Application;
 using Apptivity.Application.Interfaces;
 using Apptivity.Infrastructure;
+using Apptivity.Infrastructure.Persistence;
 using Apptivity.Infrastructure.Options;
 using Apptivity.Infrastructure.Security;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -111,6 +113,12 @@ if (builder.Environment.IsProduction())
 }
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
