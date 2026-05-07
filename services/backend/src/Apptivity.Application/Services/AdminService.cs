@@ -38,7 +38,7 @@ public sealed class AdminService : IAdminService
         };
         paging.Normalize();
 
-        var filter = new AdminAccountFilter(request.IsActive, request.Type, request.MinReportCount);
+        var filter = new AdminAccountFilter(request.IsActive, request.Status, request.Type, request.MinReportCount);
         var (items, totalCount) = await _adminRepository.GetAccountsAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
 
         var mapped = items.Select(x => new AdminAccountDto(
@@ -47,6 +47,7 @@ public sealed class AdminService : IAdminService
             x.Account.Phone,
             x.Account.Email,
             x.Account.Type,
+            x.Account.Status,
             x.Account.IsActive,
             x.ReportCount,
             x.Account.CreatedAt)).ToArray();
@@ -67,8 +68,9 @@ public sealed class AdminService : IAdminService
             return Result<AdminAccountDto>.Failure(ErrorCodes.AdminAccountNotFound, "Account not found.");
         }
 
-        account.IsActive = request.IsActive;
-        await AddAuditLogAsync(adminContext.AccountId, "AccountStatusUpdated", "Account", account.Id, $"isActive={request.IsActive}", cancellationToken);
+        account.Status = request.Status;
+        account.IsActive = request.Status == AccountStatus.Active;
+        await AddAuditLogAsync(adminContext.AccountId, "AccountStatusUpdated", "Account", account.Id, $"status={request.Status}", cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<AdminAccountDto>.Success(new AdminAccountDto(
@@ -77,6 +79,7 @@ public sealed class AdminService : IAdminService
             account.Phone,
             account.Email,
             account.Type,
+            account.Status,
             account.IsActive,
             0,
             account.CreatedAt));

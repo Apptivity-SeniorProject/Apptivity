@@ -52,6 +52,23 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "Organization,Admin")]
+    public async Task<IActionResult> UpdateEventStatus(Guid id, [FromBody] UpdateEventStatusRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _eventService.UpdateEventStatusAsync(id, request, context, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> CancelEvent(Guid id, CancellationToken cancellationToken)
     {
@@ -262,7 +279,12 @@ public sealed class EventsController : ApiControllerBase
         @event.IsVotingClosed = true;
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Ok(ApiEnvelope<object>.Success(new { message = "Voting closed and reputations updated." }));
+        return Ok(ApiEnvelope<object>.Success(new
+        {
+            message = "Voting closed and reputations updated.",
+            eventId = id,
+            status = @event.Status
+        }));
     }
 
     [HttpGet("{id:guid}/participants")]

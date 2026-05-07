@@ -5,6 +5,7 @@ namespace Apptivity.Application.Interfaces;
 
 public sealed record AdminAccountFilter(
     bool? IsActive,
+    AccountStatus? Status,
     AccountType? Type,
     int? MinReportCount);
 

@@ -11,6 +11,7 @@ public sealed record AdminDashboardStatsDto(
 
 public sealed record AdminAccountsFilterRequest(
     bool? IsActive,
+    AccountStatus? Status,
     AccountType? Type,
     int? MinReportCount,
     int PageNumber = 1,
@@ -22,11 +23,12 @@ public sealed record AdminAccountDto(
     string Phone,
     string? Email,
     AccountType Type,
+    AccountStatus Status,
     bool IsActive,
     int ReportCount,
     DateTime CreatedAt);
 
-public sealed record UpdateAccountStatusRequest(bool IsActive);
+public sealed record UpdateAccountStatusRequest(AccountStatus Status);
 
 public sealed record VerifyClubRequest(bool IsVerified = true);
 

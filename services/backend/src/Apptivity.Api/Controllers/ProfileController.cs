@@ -128,6 +128,38 @@ public sealed class ProfileController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpGet("me/status")]
+    public async Task<IActionResult> GetMyStatus(CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _profileService.GetMyStatusAsync(context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPatch("me/status")]
+    public async Task<IActionResult> UpdateMyStatus([FromBody] UpdateMyAccountStatusRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _profileService.UpdateMyStatusAsync(context, request, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("{id:guid}/events")]
     [AllowAnonymous]
     public async Task<IActionResult> GetEvents(

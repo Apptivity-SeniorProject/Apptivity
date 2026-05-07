@@ -29,7 +29,7 @@ public sealed record EventSummaryDto(
     decimal Price,
     string? LocationData);
 
-public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status);
+public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status, EventStatus EventStatus);
 
 public sealed record ManageParticipationStatusRequest(ParticipationStatus Status, string? RejectionReason);
 
@@ -37,7 +37,8 @@ public sealed record ParticipationStatusDto(
     Guid EventId,
     Guid UserId,
     ParticipationStatus Status,
-    string? RejectionReason);
+    string? RejectionReason,
+    EventStatus EventStatus);
 
 public sealed record MyParticipationDto(
     Guid EventId,
@@ -57,6 +58,8 @@ public sealed record EventParticipantProfileDto(
     ParticipationStatus? Status);
 
 public sealed record EventParticipantsResponse(
+    Guid EventId,
+    EventStatus EventStatus,
     EventParticipantProfileDto Organizer,
     IEnumerable<EventParticipantProfileDto> Participants);
 
@@ -79,6 +82,8 @@ public sealed record UpdateEventRequest(
     int DurationMinutes,
     int Capacity,
     string? LocationData);
+
+public sealed record UpdateEventStatusRequest(EventStatus Status);
 
 public sealed record EventDetailsDto(
     Guid Id,
@@ -110,10 +115,11 @@ public interface IEventService
     Task<Result<PagedResult<MyParticipationDto>>> GetMyParticipationsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, CancellationToken cancellationToken);
     
-    Task<Result<Guid>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<EventDetailsDto>> GetEventDetailsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<EventSummaryDto>> UpdateEventAsync(Guid eventId, UpdateEventRequest request, UserContext userContext, CancellationToken cancellationToken);
-    Task<Result> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<EventSummaryDto>> UpdateEventStatusAsync(Guid eventId, UpdateEventStatusRequest request, UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<EventSummaryDto>> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetMyCreatedEventsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken);
     Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);

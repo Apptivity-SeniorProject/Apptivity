@@ -31,7 +31,7 @@ public sealed class UserRepository : IUserRepository
     {
         var query = BuildProfileQuery()
             .AsNoTracking()
-            .Where(x => x.IsActive);
+            .Where(x => x.Status == AccountStatus.Active && x.IsActive);
 
         if (filter.AccountType.HasValue)
         {
@@ -247,7 +247,10 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Events
             .AsNoTracking()
-            .Where(x => x.Status != EventStatus.Draft && x.Status != EventStatus.Cancelled && x.Owner.IsActive);
+            .Where(x =>
+                (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing || x.Status == EventStatus.Completed)
+                && x.Owner.Status == AccountStatus.Active
+                && x.Owner.IsActive);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
@@ -613,6 +616,11 @@ public sealed class AdminRepository : IAdminRepository
         if (filter.IsActive.HasValue)
         {
             query = query.Where(x => x.IsActive == filter.IsActive.Value);
+        }
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(x => x.Status == filter.Status.Value);
         }
 
         if (filter.Type.HasValue)

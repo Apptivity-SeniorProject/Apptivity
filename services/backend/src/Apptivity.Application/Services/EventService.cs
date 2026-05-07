@@ -88,7 +88,7 @@ public sealed class EventService : IEventService
                 existingParticipation.RejectionReason = null;
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                return Result<ApplyToEventResponse>.Success(new ApplyToEventResponse(eventId, userContext.AccountId, existingParticipation.Status));
+                return Result<ApplyToEventResponse>.Success(new ApplyToEventResponse(eventId, userContext.AccountId, existingParticipation.Status, eventEntity.Status));
             }
 
             return Result<ApplyToEventResponse>.Failure(ErrorCodes.ParticipationInvalidState, "You already have an active participation for this event.");
@@ -106,7 +106,7 @@ public sealed class EventService : IEventService
         await _participationRepository.AddAsync(participation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<ApplyToEventResponse>.Success(new ApplyToEventResponse(eventId, userContext.AccountId, participation.Status));
+        return Result<ApplyToEventResponse>.Success(new ApplyToEventResponse(eventId, userContext.AccountId, participation.Status, eventEntity.Status));
     }
 
     public async Task<Result<ParticipationStatusDto>> UpdateParticipationStatusAsync(Guid eventId, Guid userId, ManageParticipationStatusRequest request, UserContext userContext, CancellationToken cancellationToken)
@@ -183,7 +183,7 @@ public sealed class EventService : IEventService
             cancellationToken);
 
         return Result<ParticipationStatusDto>.Success(
-            new ParticipationStatusDto(eventId, userId, participation.Status, participation.RejectionReason));
+            new ParticipationStatusDto(eventId, userId, participation.Status, participation.RejectionReason, eventEntity.Status));
     }
 
     public async Task<Result<ParticipationStatusDto>> WithdrawAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
@@ -206,20 +206,23 @@ public sealed class EventService : IEventService
 
         if (participation.Status == ParticipationStatus.Approved)
         {
-            var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
-            if (eventEntity is not null)
+            var eventEntityForCapacity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+            if (eventEntityForCapacity is not null)
             {
-                eventEntity.RemainingParticipationCount += 1;
+                eventEntityForCapacity.RemainingParticipationCount += 1;
             }
         }
 
         participation.Status = ParticipationStatus.Withdrawn;
         participation.RejectionReason = null;
 
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        var eventStatus = eventEntity?.Status ?? EventStatus.Cancelled;
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<ParticipationStatusDto>.Success(
-            new ParticipationStatusDto(eventId, userContext.AccountId, participation.Status, participation.RejectionReason));
+            new ParticipationStatusDto(eventId, userContext.AccountId, participation.Status, participation.RejectionReason, eventStatus));
     }
 
     public async Task<Result<PagedResult<MyParticipationDto>>> GetMyParticipationsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken)
@@ -279,10 +282,10 @@ public sealed class EventService : IEventService
             p.User.Name + " " + p.User.Surname,
             p.Status)).ToList();
 
-        return Result<EventParticipantsResponse>.Success(new EventParticipantsResponse(ownerDto, participantDtos));
+        return Result<EventParticipantsResponse>.Success(new EventParticipantsResponse(eventEntity.Id, eventEntity.Status, ownerDto, participantDtos));
     }
 
-    public async Task<Result<Guid>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
+    public async Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
     {
         var eventEntity = new Event
         {
@@ -298,13 +301,13 @@ public sealed class EventService : IEventService
             Price = request.Price,
             LocationData = request.LocationData,
             PrimaryTagId = request.PrimaryTagId,
-            Status = EventStatus.Published
+            Status = EventStatus.PendingApproval
         };
 
         await _eventRepository.AddAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<Guid>.Success(eventEntity.Id);
+        return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
     }
 
     public async Task<Result<EventDetailsDto>> GetEventDetailsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
@@ -372,9 +375,12 @@ public sealed class EventService : IEventService
             return Result<EventSummaryDto>.Failure(ErrorCodes.EventUnauthorized, "Only the owner can update the event.");
         }
 
-        if (eventEntity.Status != EventStatus.Draft && eventEntity.Status != EventStatus.Published)
+        if (eventEntity.Status != EventStatus.Draft
+            && eventEntity.Status != EventStatus.PendingApproval
+            && eventEntity.Status != EventStatus.Rejected
+            && eventEntity.Status != EventStatus.Published)
         {
-            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "Only Draft or Published events can be updated.");
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "Only Draft, PendingApproval, Rejected or Published events can be updated.");
         }
 
         eventEntity.Name = request.Name;
@@ -398,22 +404,55 @@ public sealed class EventService : IEventService
         return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
     }
 
-    public async Task<Result> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    public async Task<Result<EventSummaryDto>> UpdateEventStatusAsync(Guid eventId, UpdateEventStatusRequest request, UserContext userContext, CancellationToken cancellationToken)
     {
         var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
         if (eventEntity is null)
         {
-            return Result.Failure(ErrorCodes.EventNotFound, "Event not found.");
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        var isOwner = eventEntity.OwnerId == userContext.AccountId;
+        var isAdmin = userContext.AccountType == AccountType.Admin;
+
+        if (!isOwner && !isAdmin)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventUnauthorized, "Only the event owner or admin can update event status.");
+        }
+
+        var targetStatus = request.Status;
+        if (targetStatus == eventEntity.Status)
+        {
+            return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
+        }
+
+        if (!IsTransitionAllowed(eventEntity.Status, targetStatus, isAdmin))
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, $"Status transition from {eventEntity.Status} to {targetStatus} is not allowed.");
+        }
+
+        eventEntity.Status = targetStatus;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
+    }
+
+    public async Task<Result<EventSummaryDto>> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventNotFound, "Event not found.");
         }
 
         if (eventEntity.OwnerId != userContext.AccountId && userContext.AccountType != AccountType.Admin)
         {
-            return Result.Failure(ErrorCodes.EventUnauthorized, "Only the owner or an admin can cancel the event.");
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventUnauthorized, "Only the owner or an admin can cancel the event.");
         }
 
         if (eventEntity.Status == EventStatus.Cancelled || eventEntity.Status == EventStatus.Completed)
         {
-            return Result.Failure(ErrorCodes.EventInvalidState, "Event cannot be cancelled.");
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "Event cannot be cancelled.");
         }
 
         eventEntity.Status = EventStatus.Cancelled;
@@ -431,7 +470,7 @@ public sealed class EventService : IEventService
                 cancellationToken);
         }
 
-        return Result.Success();
+        return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
     }
 
     public async Task<Result<PagedResult<EventSummaryDto>>> GetMyCreatedEventsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken)
@@ -521,5 +560,40 @@ public sealed class EventService : IEventService
             eventEntity.Status,
             eventEntity.Price,
             eventEntity.LocationData);
+    }
+
+    private static bool IsTransitionAllowed(EventStatus current, EventStatus target, bool isAdmin)
+    {
+        if (target == EventStatus.Ongoing || target == EventStatus.Completed)
+        {
+            return isAdmin;
+        }
+
+        if (target == EventStatus.Cancelled)
+        {
+            return current is not (EventStatus.Completed or EventStatus.Cancelled);
+        }
+
+        if (target == EventStatus.PendingApproval)
+        {
+            return current is EventStatus.Draft or EventStatus.Rejected;
+        }
+
+        if (target == EventStatus.Published)
+        {
+            return isAdmin && current is EventStatus.PendingApproval or EventStatus.Draft;
+        }
+
+        if (target == EventStatus.Rejected)
+        {
+            return isAdmin && current is EventStatus.PendingApproval;
+        }
+
+        if (target == EventStatus.Draft)
+        {
+            return current is EventStatus.Draft;
+        }
+
+        return false;
     }
 }

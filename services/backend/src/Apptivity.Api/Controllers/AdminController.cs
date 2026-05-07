@@ -32,13 +32,14 @@ public sealed class AdminController : ApiControllerBase
     [HttpGet("accounts")]
     public async Task<IActionResult> GetAccounts(
         [FromQuery] bool? isActive,
+        [FromQuery] AccountStatus? status,
         [FromQuery] AccountType? type,
         [FromQuery] int? minReportCount,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var request = new AdminAccountsFilterRequest(isActive, type, minReportCount, pageNumber, pageSize);
+        var request = new AdminAccountsFilterRequest(isActive, status, type, minReportCount, pageNumber, pageSize);
         var result = await _adminService.GetAccountsAsync(request, cancellationToken);
         return FromResult(result);
     }

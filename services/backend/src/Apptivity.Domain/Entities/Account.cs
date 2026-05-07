@@ -12,6 +12,7 @@ public sealed class Account : BaseEntity
     public string? Password { get; set; }
     public string? ProfilePhoto { get; set; }
     public string? SocialLinks { get; set; }
+    public AccountStatus Status { get; set; } = AccountStatus.Active;
     public bool IsActive { get; set; } = true;
 
     public User? UserProfile { get; set; }

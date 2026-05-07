@@ -11,10 +11,14 @@ public sealed record ProfileDto(
     Guid AccountId,
     string Username,
     AccountType Type,
+    AccountStatus Status,
     string? ProfilePhoto,
     string? SocialLinks,
     UserProfileDto? UserProfile,
     ClubProfileDto? ClubProfile);
+
+public sealed record AccountStatusDto(Guid AccountId, AccountStatus Status, bool IsActive);
+public sealed record UpdateMyAccountStatusRequest(AccountStatus Status);
 
 public sealed record ProfileStatsDto(
     Guid AccountId,
@@ -58,4 +62,6 @@ public interface IProfileService
     Task<Result<ProfileDto>> UpdateMyPhotoAsync(UserContext userContext, Stream fileStream, string fileName, CancellationToken cancellationToken);
     Task<Result<PagedResult<ProfileEventDto>>> GetEventsAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Result> DeactivateMeAsync(UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<AccountStatusDto>> GetMyStatusAsync(UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<AccountStatusDto>> UpdateMyStatusAsync(UserContext userContext, UpdateMyAccountStatusRequest request, CancellationToken cancellationToken);
 }

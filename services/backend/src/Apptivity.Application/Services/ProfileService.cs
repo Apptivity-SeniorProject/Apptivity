@@ -212,9 +212,46 @@ public sealed class ProfileService : IProfileService
             return Result.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
         }
 
+        account.Status = AccountStatus.Deactivated;
         account.IsActive = false;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+
+    public async Task<Result<AccountStatusDto>> GetMyStatusAsync(UserContext userContext, CancellationToken cancellationToken)
+    {
+        var account = await _userRepository.GetAccountByIdAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<AccountStatusDto>.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
+        }
+
+        return Result<AccountStatusDto>.Success(new AccountStatusDto(account.Id, account.Status, account.IsActive));
+    }
+
+    public async Task<Result<AccountStatusDto>> UpdateMyStatusAsync(UserContext userContext, UpdateMyAccountStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Status is not (AccountStatus.Active or AccountStatus.Deactivated))
+        {
+            return Result<AccountStatusDto>.Failure(ErrorCodes.Validation, "You can only set your account status to Active or Deactivated.");
+        }
+
+        var account = await _userRepository.GetAccountByIdAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<AccountStatusDto>.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
+        }
+
+        if (account.Status is AccountStatus.Suspended or AccountStatus.Banned)
+        {
+            return Result<AccountStatusDto>.Failure(ErrorCodes.Unauthorized, "Suspended or banned accounts cannot change status.");
+        }
+
+        account.Status = request.Status;
+        account.IsActive = request.Status == AccountStatus.Active;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<AccountStatusDto>.Success(new AccountStatusDto(account.Id, account.Status, account.IsActive));
     }
 
     private static ProfileDto MapProfile(Account account)
@@ -231,6 +268,7 @@ public sealed class ProfileService : IProfileService
             account.Id,
             account.Username,
             account.Type,
+            account.Status,
             account.ProfilePhoto,
             account.SocialLinks,
             userProfile,

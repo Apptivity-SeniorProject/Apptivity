@@ -80,7 +80,7 @@ public sealed class AuthService : IAuthService
             return Result<AuthResponse>.Failure(ErrorCodes.AccountNotFound, "Account not found for this phone number.");
         }
 
-        if (!account.IsActive)
+        if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
         }
@@ -123,7 +123,7 @@ public sealed class AuthService : IAuthService
             return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid identifier or password.");
         }
 
-        if (!account.IsActive)
+        if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
         }
@@ -171,6 +171,7 @@ public sealed class AuthService : IAuthService
             Phone = normalizedPhone,
             Email = normalizedEmail,
             Password = _passwordHasher.Hash(request.Password),
+            Status = AccountStatus.Active,
             IsActive = true,
             IsDeleted = false
         };
@@ -242,6 +243,7 @@ public sealed class AuthService : IAuthService
             Phone = normalizedPhone,
             Email = normalizedEmail,
             Password = _passwordHasher.Hash(request.Password),
+            Status = AccountStatus.Active,
             IsActive = true,
             IsDeleted = false
         };
@@ -285,7 +287,7 @@ public sealed class AuthService : IAuthService
         existing.RevokedAt = DateTime.UtcNow;
 
         var account = existing.Account;
-        if (!account.IsActive)
+        if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
         }
@@ -306,7 +308,7 @@ public sealed class AuthService : IAuthService
             return Result.Failure(ErrorCodes.AccountNotFound, "Account not found.");
         }
 
-        if (!account.IsActive)
+        if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
         }
