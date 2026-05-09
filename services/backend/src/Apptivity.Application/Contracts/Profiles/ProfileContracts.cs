@@ -1,5 +1,6 @@
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
+using Apptivity.Application.Contracts.Tags;
 using Apptivity.Domain.Enums;
 
 namespace Apptivity.Application.Contracts.Profiles;
@@ -14,6 +15,7 @@ public sealed record ProfileDto(
     AccountStatus Status,
     string? ProfilePhoto,
     string? SocialLinks,
+    IReadOnlyCollection<TagDto> Interests,
     UserProfileDto? UserProfile,
     ClubProfileDto? ClubProfile);
 
@@ -36,6 +38,8 @@ public sealed record UpdateProfileRequest(
     string? ClubName,
     string? ClubDescription,
     string? City);
+
+public sealed record SetAccountInterestsRequest(IReadOnlyCollection<Guid> TagIds);
 
 public sealed record ProfileSearchRequest(
     string? Query,
@@ -64,4 +68,6 @@ public interface IProfileService
     Task<Result> DeactivateMeAsync(UserContext userContext, CancellationToken cancellationToken);
     Task<Result<AccountStatusDto>> GetMyStatusAsync(UserContext userContext, CancellationToken cancellationToken);
     Task<Result<AccountStatusDto>> UpdateMyStatusAsync(UserContext userContext, UpdateMyAccountStatusRequest request, CancellationToken cancellationToken);
+    Task<Result<ProfileDto>> SetAccountInterestsAsync(Guid accountId, IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken);
+    Task<Result<ProfileDto>> SetMyInterestsAsync(UserContext userContext, IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken);
 }

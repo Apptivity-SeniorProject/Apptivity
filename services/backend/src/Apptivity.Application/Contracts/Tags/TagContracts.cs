@@ -2,6 +2,12 @@ using Apptivity.Application.Common.Models;
 
 namespace Apptivity.Application.Contracts.Tags;
 
+public sealed record TagDto(
+    Guid Id,
+    string Name,
+    string? IconName,
+    string? ColorCode);
+
 public sealed record TagListItemDto(
     Guid Id,
     string Name,

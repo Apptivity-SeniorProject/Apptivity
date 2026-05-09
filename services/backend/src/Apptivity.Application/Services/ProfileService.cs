@@ -1,6 +1,7 @@
 using Apptivity.Application.Common.Constants;
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Profiles;
+using Apptivity.Application.Contracts.Tags;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
@@ -13,6 +14,7 @@ public sealed class ProfileService : IProfileService
     private readonly IEventRepository _eventRepository;
     private readonly IParticipationRepository _participationRepository;
     private readonly IReviewRepository _reviewRepository;
+    private readonly ITagRepository _tagRepository;
     private readonly IImageService _imageService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -21,6 +23,7 @@ public sealed class ProfileService : IProfileService
         IEventRepository eventRepository,
         IParticipationRepository participationRepository,
         IReviewRepository reviewRepository,
+        ITagRepository tagRepository,
         IImageService imageService,
         IUnitOfWork unitOfWork)
     {
@@ -28,6 +31,7 @@ public sealed class ProfileService : IProfileService
         _eventRepository = eventRepository;
         _participationRepository = participationRepository;
         _reviewRepository = reviewRepository;
+        _tagRepository = tagRepository;
         _imageService = imageService;
         _unitOfWork = unitOfWork;
     }
@@ -254,6 +258,50 @@ public sealed class ProfileService : IProfileService
         return Result<AccountStatusDto>.Success(new AccountStatusDto(account.Id, account.Status, account.IsActive));
     }
 
+    public Task<Result<ProfileDto>> SetMyInterestsAsync(UserContext userContext, IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken)
+    {
+        return SetAccountInterestsAsync(userContext.AccountId, tagIds, cancellationToken);
+    }
+
+    public async Task<Result<ProfileDto>> SetAccountInterestsAsync(Guid accountId, IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken)
+    {
+        var account = await _userRepository.GetAccountByIdWithInterestsAsync(accountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<ProfileDto>.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
+        }
+
+        var normalizedTagIds = tagIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        var tags = normalizedTagIds.Length == 0
+            ? Array.Empty<Tag>()
+            : await _tagRepository.GetActiveByIdsAsync(normalizedTagIds, cancellationToken);
+
+        if (tags.Count != normalizedTagIds.Length)
+        {
+            return Result<ProfileDto>.Failure(ErrorCodes.Validation, "One or more tags are invalid or inactive.");
+        }
+
+        account.InterestTags.Clear();
+        foreach (var tag in tags)
+        {
+            account.InterestTags.Add(tag);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var refreshed = await _userRepository.GetAccountByIdWithProfilesAsync(accountId, cancellationToken);
+        if (refreshed is null)
+        {
+            return Result<ProfileDto>.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
+        }
+
+        return Result<ProfileDto>.Success(MapProfile(refreshed));
+    }
+
     private static ProfileDto MapProfile(Account account)
     {
         var userProfile = account.UserProfile is null
@@ -264,6 +312,12 @@ public sealed class ProfileService : IProfileService
             ? null
             : new ClubProfileDto(account.ClubProfile.Name, account.ClubProfile.Description, account.ClubProfile.LocationCity);
 
+        var interests = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .OrderBy(x => x.Name)
+            .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
+            .ToArray();
+
         return new ProfileDto(
             account.Id,
             account.Username,
@@ -271,6 +325,7 @@ public sealed class ProfileService : IProfileService
             account.Status,
             account.ProfilePhoto,
             account.SocialLinks,
+            interests,
             userProfile,
             clubProfile);
     }

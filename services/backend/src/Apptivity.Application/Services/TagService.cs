@@ -89,12 +89,19 @@ public sealed class TagService : ITagService
 
     public async Task<Result> SoftDeleteAsync(Guid tagId, CancellationToken cancellationToken)
     {
-        var tag = await _tagRepository.GetByIdAsync(tagId, cancellationToken);
+        var tag = await _tagRepository.GetByIdWithRelationsAsync(tagId, cancellationToken);
         if (tag is null)
         {
             return Result.Failure(ErrorCodes.TagNotFound, "Tag not found.");
         }
 
+        foreach (var primaryTaggedEvent in tag.PrimaryTaggedEvents)
+        {
+            primaryTaggedEvent.PrimaryTagId = null;
+        }
+
+        tag.Events.Clear();
+        tag.Accounts.Clear();
         tag.IsActive = false;
         tag.IsDeleted = true;
         tag.DeletedAt = DateTime.UtcNow;

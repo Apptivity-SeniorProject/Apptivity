@@ -160,6 +160,23 @@ public sealed class ProfileController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpPut("me/interests")]
+    public async Task<IActionResult> SetMyInterests([FromBody] SetAccountInterestsRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var tagIds = request.TagIds ?? Array.Empty<Guid>();
+        var result = await _profileService.SetMyInterestsAsync(context, tagIds, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("{id:guid}/events")]
     [AllowAnonymous]
     public async Task<IActionResult> GetEvents(

@@ -1,6 +1,7 @@
 using Apptivity.Application.Common.Constants;
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Events;
+using Apptivity.Application.Contracts.Tags;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
@@ -12,6 +13,7 @@ public sealed class EventService : IEventService
     private readonly IEventRepository _eventRepository;
     private readonly IEventBookmarkRepository _eventBookmarkRepository;
     private readonly IParticipationRepository _participationRepository;
+    private readonly IUserRepository _userRepository;
     private readonly ITagRepository _tagRepository;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
@@ -21,6 +23,7 @@ public sealed class EventService : IEventService
         IEventRepository eventRepository,
         IEventBookmarkRepository eventBookmarkRepository,
         IParticipationRepository participationRepository,
+        IUserRepository userRepository,
         ITagRepository tagRepository,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
@@ -29,6 +32,7 @@ public sealed class EventService : IEventService
         _eventRepository = eventRepository;
         _eventBookmarkRepository = eventBookmarkRepository;
         _participationRepository = participationRepository;
+        _userRepository = userRepository;
         _tagRepository = tagRepository;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
@@ -50,6 +54,8 @@ public sealed class EventService : IEventService
             request.SearchTerm,
             request.LocationCity,
             request.PrimaryTagId,
+            request.TagIds,
+            request.MatchAllTags,
             request.StartDate,
             request.EndDate,
             request.IsPaid);
@@ -553,6 +559,38 @@ public sealed class EventService : IEventService
         return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
     }
 
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        if (userContext.AccountType != AccountType.Individual)
+        {
+            return Result<PagedResult<EventSummaryDto>>.Failure(ErrorCodes.EventUnauthorized, "Recommendations are available for individual accounts.");
+        }
+
+        var account = await _userRepository.GetAccountByIdWithInterestsAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<PagedResult<EventSummaryDto>>.Failure(ErrorCodes.AccountNotFound, "Account not found.");
+        }
+
+        var tagIds = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToArray();
+
+        var paging = new PagedRequest
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+        paging.Normalize();
+
+        var (items, totalCount) = await _eventRepository.GetRecommendedByTagIdsAsync(tagIds, paging.PageNumber, paging.PageSize, cancellationToken);
+        var mapped = items.Select(MapEventSummary).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
     private async Task EnsureRemainingCountIsInitializedAsync(Event eventEntity, CancellationToken cancellationToken)
     {
         if (eventEntity.RemainingParticipationCount > 0)
@@ -642,6 +680,7 @@ public sealed class EventService : IEventService
     private static IReadOnlyCollection<TagDto> MapTags(IEnumerable<Tag> tags)
     {
         return tags
+            .Where(x => x.IsActive && !x.IsDeleted)
             .OrderBy(x => x.Name)
             .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
             .ToArray();

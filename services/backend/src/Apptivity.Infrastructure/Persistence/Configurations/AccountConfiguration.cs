@@ -26,6 +26,26 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.HasIndex(x => x.Email).IsUnique();
         builder.HasIndex(x => x.Status);
 
+        builder.HasMany(x => x.InterestTags)
+            .WithMany(x => x.Accounts)
+            .UsingEntity<Dictionary<string, object>>(
+                "account_tags",
+                right => right
+                    .HasOne<Tag>()
+                    .WithMany()
+                    .HasForeignKey("tag_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                left => left
+                    .HasOne<Account>()
+                    .WithMany()
+                    .HasForeignKey("account_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                join =>
+                {
+                    join.ToTable("account_tags");
+                    join.HasKey("account_id", "tag_id");
+                });
+
         builder.HasData(ManualTestSeed.Accounts);
     }
 }

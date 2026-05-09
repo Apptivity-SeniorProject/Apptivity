@@ -1,5 +1,6 @@
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
+using Apptivity.Application.Contracts.Tags;
 using Apptivity.Domain.Enums;
 
 namespace Apptivity.Application.Contracts.Events;
@@ -8,6 +9,8 @@ public sealed record EventSearchRequest(
     string? SearchTerm,
     string? LocationCity,
     Guid? PrimaryTagId,
+    IReadOnlyCollection<Guid>? TagIds,
+    bool MatchAllTags,
     DateOnly? StartDate,
     DateOnly? EndDate,
     bool? IsPaid,
@@ -109,12 +112,6 @@ public sealed record EventDetailsDto(
     bool IsBookmarkedByCurrentUser,
     ParticipationStatus? CurrentUserParticipationStatus);
 
-public sealed record TagDto(
-    Guid Id,
-    string Name,
-    string? IconName,
-    string? ColorCode);
-
 public interface IEventService
 {
     Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, CancellationToken cancellationToken);
@@ -133,6 +130,7 @@ public interface IEventService
     Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken);
     Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken);
 }
 
 public interface IEventLifecycleService

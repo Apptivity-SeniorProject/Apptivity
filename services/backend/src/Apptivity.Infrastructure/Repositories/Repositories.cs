@@ -27,6 +27,13 @@ public sealed class UserRepository : IUserRepository
             .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
     }
 
+    public Task<Account?> GetAccountByIdWithInterestsAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        return _db.Accounts
+            .Include(x => x.InterestTags)
+            .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
     public async Task<(IReadOnlyCollection<Account> Items, int TotalCount)> SearchProfilesAsync(ProfileSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var query = BuildProfileQuery()
@@ -105,6 +112,7 @@ public sealed class UserRepository : IUserRepository
     private IQueryable<Account> BuildProfileQuery()
     {
         return _db.Accounts
+            .Include(x => x.InterestTags)
             .Include(x => x.UserProfile)
                 .ThenInclude(u => u!.Reputation)
             .Include(x => x.ClubProfile)
@@ -279,6 +287,26 @@ public sealed class EventRepository : IEventRepository
             query = query.Where(x => x.PrimaryTagId == filter.PrimaryTagId.Value);
         }
 
+        if (filter.TagIds is { Count: > 0 })
+        {
+            var normalizedTagIds = filter.TagIds
+                .Where(x => x != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+            if (normalizedTagIds.Length > 0)
+            {
+                query = filter.MatchAllTags
+                    ? query.Where(x =>
+                        x.Tags
+                            .Where(tag => normalizedTagIds.Contains(tag.Id))
+                            .Select(tag => tag.Id)
+                            .Distinct()
+                            .Count() == normalizedTagIds.Length)
+                    : query.Where(x => x.Tags.Any(tag => normalizedTagIds.Contains(tag.Id)));
+            }
+        }
+
         if (filter.StartDate.HasValue)
         {
             query = query.Where(x => x.Date >= filter.StartDate.Value);
@@ -301,6 +329,43 @@ public sealed class EventRepository : IEventRepository
         var items = await query
             .OrderByDescending(x => x.IsFeatured)
             .ThenBy(x => x.Date)
+            .ThenBy(x => x.Time)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetRecommendedByTagIdsAsync(IReadOnlyCollection<Guid> tagIds, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        if (tagIds.Count == 0)
+        {
+            return (Array.Empty<Event>(), 0);
+        }
+
+        var normalizedTagIds = tagIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (normalizedTagIds.Length == 0)
+        {
+            return (Array.Empty<Event>(), 0);
+        }
+
+        var query = _db.Events
+            .AsNoTracking()
+            .Include(x => x.Tags)
+            .Where(x =>
+                x.Status == EventStatus.Published &&
+                x.Owner.Status == AccountStatus.Active &&
+                x.Owner.IsActive &&
+                x.Tags.Any(tag => normalizedTagIds.Contains(tag.Id)));
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(x => x.Date)
             .ThenBy(x => x.Time)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -360,6 +425,15 @@ public sealed class TagRepository : ITagRepository
     public Task<Tag?> GetByIdAsync(Guid tagId, CancellationToken cancellationToken)
     {
         return _db.Tags.FirstOrDefaultAsync(x => x.Id == tagId, cancellationToken);
+    }
+
+    public Task<Tag?> GetByIdWithRelationsAsync(Guid tagId, CancellationToken cancellationToken)
+    {
+        return _db.Tags
+            .Include(x => x.PrimaryTaggedEvents)
+            .Include(x => x.Events)
+            .Include(x => x.Accounts)
+            .FirstOrDefaultAsync(x => x.Id == tagId, cancellationToken);
     }
 
     public Task<bool> ExistsByNameAsync(string name, Guid? exceptId, CancellationToken cancellationToken)

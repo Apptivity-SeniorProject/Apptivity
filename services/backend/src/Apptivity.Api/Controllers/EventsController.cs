@@ -128,9 +128,11 @@ public sealed class EventsController : ApiControllerBase
         [FromQuery] string? searchTerm,
         [FromQuery] string? locationCity,
         [FromQuery] Guid? primaryTagId,
-        [FromQuery] DateOnly? startDate,
-        [FromQuery] DateOnly? endDate,
-        [FromQuery] bool? isPaid,
+        [FromQuery] List<Guid>? tagIds,
+        [FromQuery] DateOnly? startDate = null,
+        [FromQuery] DateOnly? endDate = null,
+        [FromQuery] bool? isPaid = null,
+        [FromQuery] bool matchAllTags = false,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -139,6 +141,8 @@ public sealed class EventsController : ApiControllerBase
             searchTerm,
             locationCity,
             primaryTagId,
+            tagIds,
+            matchAllTags,
             startDate,
             endDate,
             isPaid,
@@ -146,6 +150,26 @@ public sealed class EventsController : ApiControllerBase
             pageSize);
 
         var result = await _eventService.SearchAsync(request, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("recommended")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> GetRecommended(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }));
+        }
+
+        var result = await _eventService.GetRecommendedAsync(context, pageNumber, pageSize, cancellationToken);
         return FromResult(result);
     }
 

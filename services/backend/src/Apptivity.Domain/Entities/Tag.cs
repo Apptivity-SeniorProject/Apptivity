@@ -11,4 +11,5 @@ public sealed class Tag : BaseEntity
 
     public ICollection<Event> PrimaryTaggedEvents { get; set; } = new List<Event>();
     public ICollection<Event> Events { get; set; } = new List<Event>();
+    public ICollection<Account> Accounts { get; set; } = new List<Account>();
 }

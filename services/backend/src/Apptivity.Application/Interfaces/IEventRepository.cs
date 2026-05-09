@@ -6,6 +6,8 @@ public sealed record EventSearchFilter(
     string? SearchTerm,
     string? LocationCity,
     Guid? PrimaryTagId,
+    IReadOnlyCollection<Guid>? TagIds,
+    bool MatchAllTags,
     DateOnly? StartDate,
     DateOnly? EndDate,
     bool? IsPaid);
@@ -20,6 +22,7 @@ public interface IEventRepository
     Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<Event> Items, int TotalCount)> SearchAsync(EventSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetRecommendedByTagIdsAsync(IReadOnlyCollection<Guid> tagIds, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken);
     IQueryable<Event> Query();
     Task AddAsync(Event entity, CancellationToken cancellationToken);
