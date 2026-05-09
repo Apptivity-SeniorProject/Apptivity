@@ -68,6 +68,11 @@ const Login = ({ role = 'default' }) => {
                 return
             }
 
+            if (tokenRole === 'organization') {
+                navigate('/organization')
+                return
+            }
+
             navigate('/')
         } catch {
             setErrorText(t('login.networkError'))
