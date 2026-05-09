@@ -1,7 +1,10 @@
-import { apiClient } from '@/src/api/apiClient';
-import type { EventDto } from '@/src/types/event';
+import {
+  applyToEvent,
+  getEventDetail,
+  getEvents,
+  getMyEvents,
+  getMyParticipations,
+  withdrawFromEvent,
+} from '@/src/api/eventService';
 
-export async function getEvents(): Promise<EventDto[]> {
-  const response = await apiClient.get<EventDto[]>('/events');
-  return response.data;
-}
+export { getEvents, getEventDetail, applyToEvent, withdrawFromEvent, getMyEvents, getMyParticipations };

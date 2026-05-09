@@ -6,6 +6,7 @@ using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Contracts.Notifications;
 using Apptivity.Application.Contracts.Profiles;
 using Apptivity.Application.Contracts.Reports;
+using Apptivity.Application.Contracts.Tags;
 using Apptivity.Application.Interfaces;
 using Apptivity.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<INotificationHistoryService, NotificationHistoryService>();
+        services.AddScoped<ITagService, TagService>();
         services.AddScoped<ReputationCalculator>();
         return services;
     }

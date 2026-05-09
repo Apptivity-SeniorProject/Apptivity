@@ -1,98 +1,202 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { CategorySelector } from '@/src/components/events/category-selector';
+import { EventCard } from '@/src/components/events/event-card';
+import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
+import { SearchBar } from '@/src/components/events/search-bar';
+import { Button } from '@/src/components/ui/button';
+import { CITY_OPTIONS } from '@/src/constants/events';
+import { cn } from '@/src/utils/cn';
+import { useEvents } from '@/src/hooks/useEvents';
+import { useTags } from '@/src/hooks/useTags';
+
+type PriceFilter = 'all' | 'free' | 'paid';
+type CategoryOption = { id: string; name: string };
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
+  const [selectedCity, setSelectedCity] = useState<string | undefined>(undefined);
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchInput.trim());
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const isPaid = useMemo(() => {
+    if (priceFilter === 'free') {
+      return false;
+    }
+    if (priceFilter === 'paid') {
+      return true;
+    }
+    return undefined;
+  }, [priceFilter]);
+
+  const { events, isPending, isRefetching, hasNextPage, fetchNextPage, isFetchingNextPage, refresh } =
+    useEvents({
+      searchTerm: debouncedSearchTerm || undefined,
+      city: selectedCity,
+      tagId: selectedTagId,
+      isPaid,
+      pageSize: 10,
+    });
+
+  const handleCategorySelect = (category: CategoryOption) => {
+    setSelectedCategoryId(category.id);
+    setSelectedTagId(category.id === 'all' ? undefined : category.id);
+  };
+
+  const renderHeader = () => {
+    return (
+      <View className="gap-4 pb-4">
+        <Text className="text-3xl font-bold text-slate-900">Etkinlikleri Keşfet</Text>
+
+        <SearchBar value={searchInput} onChangeText={setSearchInput} />
+
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2"
+            onPress={() => setIsCityModalOpen(true)}>
+            <Text className="text-sm font-medium text-slate-700">
+              {selectedCity ? `Şehir: ${selectedCity}` : 'Şehir Seç'}
+            </Text>
+          </TouchableOpacity>
+
+          {selectedCity ? (
+            <Pressable onPress={() => setSelectedCity(undefined)}>
+              <Text className="text-sm font-medium text-red-500">Temizle</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <CategorySelector
+          categories={categories}
+          selectedId={selectedCategoryId}
+          onSelect={handleCategorySelect}
+        />
+
+        <View className="flex-row gap-2">
+          <Pressable
+            className={cn(
+              'rounded-full border px-4 py-2',
+              priceFilter === 'all' ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+            )}
+            onPress={() => setPriceFilter('all')}>
+            <Text className={cn('text-sm', priceFilter === 'all' ? 'text-white' : 'text-slate-700')}>Tümü</Text>
+          </Pressable>
+          <Pressable
+            className={cn(
+              'rounded-full border px-4 py-2',
+              priceFilter === 'free' ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+            )}
+            onPress={() => setPriceFilter('free')}>
+            <Text className={cn('text-sm', priceFilter === 'free' ? 'text-white' : 'text-slate-700')}>Ücretsiz</Text>
+          </Pressable>
+          <Pressable
+            className={cn(
+              'rounded-full border px-4 py-2',
+              priceFilter === 'paid' ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+            )}
+            onPress={() => setPriceFilter('paid')}>
+            <Text className={cn('text-sm', priceFilter === 'paid' ? 'text-white' : 'text-slate-700')}>Ücretli</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-slate-50">
+      {isPending ? (
+        <View className="gap-4 px-4 pt-6">
+          {renderHeader()}
+          {Array.from({ length: 4 }).map((_, index) => (
+            <EventCardSkeleton key={`skeleton-${index}`} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          contentContainerClassName="px-4 pb-8 pt-6"
+          data={events}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
+          renderItem={({ item }) => (
+            <View className="mb-4">
+              <EventCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+            </View>
+          )}
+          ListEmptyComponent={
+            <View className="mt-16 items-center justify-center">
+              <Text className="text-base text-slate-500">Etkinlik bulunamadı</Text>
+            </View>
+          }
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View className="mt-2">
+                <EventCardSkeleton />
+              </View>
+            ) : null
+          }
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
+        />
+      )}
+
+      <Modal animationType="slide" transparent visible={isCityModalOpen}>
+        <Pressable className="flex-1 justify-end bg-black/30" onPress={() => setIsCityModalOpen(false)}>
+          <View className="rounded-t-3xl bg-white px-5 py-5">
+            <Text className="mb-4 text-lg font-semibold text-slate-900">Şehir Seç</Text>
+            <View className="gap-2">
+              {CITY_OPTIONS.map((city) => (
+                <Button
+                  key={city}
+                  label={city}
+                  className={cn('bg-slate-100', selectedCity === city && 'bg-blue-600')}
+                  textClassName={cn('text-slate-800', selectedCity === city && 'text-white')}
+                  onPress={() => {
+                    setSelectedCity(city);
+                    setIsCityModalOpen(false);
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
   );
 }
+  const { data: tags } = useTags();
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+  const categories = useMemo<CategoryOption[]>(() => {
+    const dynamicCategories = (tags ?? []).map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+    }));
+
+    return [{ id: 'all', name: 'Tumu' }, ...dynamicCategories];
+  }, [tags]);

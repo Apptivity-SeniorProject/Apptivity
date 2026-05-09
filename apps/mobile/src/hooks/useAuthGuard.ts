@@ -12,17 +12,18 @@ export function useAuthGuard(): AuthGuardState {
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
-  const isOnLoginScreen = segments[0] === 'login';
+  const authScreens = ['login', 'otp'];
+  const isOnAuthScreen = authScreens.includes(segments[0] ?? '');
 
   if (!hasHydrated) {
     return { isReady: false, redirectTo: null };
   }
 
-  if (!accessToken && !isOnLoginScreen) {
+  if (!accessToken && !isOnAuthScreen) {
     return { isReady: true, redirectTo: '/login' };
   }
 
-  if (accessToken && isOnLoginScreen) {
+  if (accessToken && isOnAuthScreen) {
     return { isReady: true, redirectTo: '/(tabs)' };
   }
 

@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOtpVerificationRepository, OtpVerificationRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IEventBookmarkRepository, EventBookmarkRepository>();
         services.AddScoped<IParticipationRepository, ParticipationRepository>();
         services.AddScoped<IChatRepository, ChatRepository>();

@@ -168,7 +168,10 @@ public sealed class EventRepository : IEventRepository
 
     public Task<Event?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken)
     {
-        return _db.Events.FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        return _db.Events
+            .Include(x => x.PrimaryTag)
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     }
 
     public IQueryable<Event> Query()
@@ -180,6 +183,8 @@ public sealed class EventRepository : IEventRepository
     {
         return _db.Events
             .Include(x => x.Owner)
+            .Include(x => x.PrimaryTag)
+            .Include(x => x.Tags)
             .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     }
 
@@ -190,6 +195,8 @@ public sealed class EventRepository : IEventRepository
                 .ThenInclude(o => o.UserProfile)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
+            .Include(x => x.PrimaryTag)
+            .Include(x => x.Tags)
             .Include(x => x.Participations)
                 .ThenInclude(p => p.User)
                     .ThenInclude(u => u.Account)
@@ -205,6 +212,7 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Events
             .AsNoTracking()
+            .Include(x => x.Tags)
             .Where(x => x.OwnerId == ownerId);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -223,7 +231,8 @@ public sealed class EventRepository : IEventRepository
         var query = _db.Participations
             .AsNoTracking()
             .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved)
-            .Select(x => x.Event);
+            .Select(x => x.Event)
+            .Include(x => x.Tags);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -247,6 +256,7 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Events
             .AsNoTracking()
+            .Include(x => x.Tags)
             .Where(x =>
                 (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing || x.Status == EventStatus.Completed)
                 && x.Owner.Status == AccountStatus.Active
@@ -304,6 +314,7 @@ public sealed class EventRepository : IEventRepository
     {
         return await _db.Events
             .AsNoTracking()
+            .Include(x => x.Tags)
             .Where(x => x.Id != eventId && x.PrimaryTagId == primaryTagId && x.Status == EventStatus.Published)
             .OrderByDescending(x => x.CreatedAt)
             .Take(count)
@@ -313,6 +324,55 @@ public sealed class EventRepository : IEventRepository
     public async Task AddAsync(Event entity, CancellationToken cancellationToken)
     {
         await _db.Events.AddAsync(entity, cancellationToken);
+    }
+}
+
+public sealed class TagRepository : ITagRepository
+{
+    private readonly AppDbContext _db;
+
+    public TagRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyCollection<Tag>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        return await _db.Tags
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Tag>> GetActiveByIdsAsync(IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken)
+    {
+        if (tagIds.Count == 0)
+        {
+            return Array.Empty<Tag>();
+        }
+
+        return await _db.Tags
+            .Where(x => x.IsActive && tagIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Tag?> GetByIdAsync(Guid tagId, CancellationToken cancellationToken)
+    {
+        return _db.Tags.FirstOrDefaultAsync(x => x.Id == tagId, cancellationToken);
+    }
+
+    public Task<bool> ExistsByNameAsync(string name, Guid? exceptId, CancellationToken cancellationToken)
+    {
+        var normalizedName = name.Trim();
+        return _db.Tags.AnyAsync(
+            x => x.Name.ToLower() == normalizedName.ToLower() && (!exceptId.HasValue || x.Id != exceptId.Value),
+            cancellationToken);
+    }
+
+    public async Task AddAsync(Tag tag, CancellationToken cancellationToken)
+    {
+        await _db.Tags.AddAsync(tag, cancellationToken);
     }
 }
 
@@ -816,6 +876,7 @@ public sealed class EventBookmarkRepository : IEventBookmarkRepository
         var query = _db.EventBookmarks
             .AsNoTracking()
             .Include(x => x.Event)
+                .ThenInclude(e => e.Tags)
             .Where(x => x.AccountId == accountId);
 
         var totalCount = await query.CountAsync(cancellationToken);

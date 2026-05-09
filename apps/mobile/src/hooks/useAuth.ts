@@ -7,6 +7,7 @@ export function useAuth() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
+  const authenticate = useAuthStore((state) => state.authenticate);
   const logout = useAuthStore((state) => state.logout);
 
   return {
@@ -17,6 +18,7 @@ export function useAuth() {
     isAuthenticated: Boolean(accessToken),
     setTokens,
     setUser,
+    authenticate,
     logout,
   };
 }

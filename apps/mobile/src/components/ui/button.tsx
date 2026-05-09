@@ -1,30 +1,38 @@
-import { Pressable, StyleSheet, Text, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
 
-interface ButtonProps extends PressableProps {
+import { cn } from '@/src/utils/cn';
+
+interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string;
-  containerStyle?: StyleProp<ViewStyle>;
+  isLoading?: boolean;
+  className?: string;
+  textClassName?: string;
 }
 
-export function Button({ label, containerStyle, ...props }: ButtonProps) {
+export function Button({
+  label,
+  isLoading = false,
+  disabled = false,
+  className,
+  textClassName,
+  ...props
+}: ButtonProps) {
+  const isDisabled = disabled || isLoading;
+
   return (
-    <Pressable style={[styles.button, containerStyle]} {...props}>
-      <Text style={styles.label}>{label}</Text>
+    <Pressable
+      className={cn(
+        'h-12 items-center justify-center rounded-xl bg-blue-600',
+        isDisabled && 'bg-blue-400',
+        className
+      )}
+      disabled={isDisabled}
+      {...props}>
+      {isLoading ? (
+        <ActivityIndicator color="#FFFFFF" />
+      ) : (
+        <Text className={cn('text-base font-semibold text-white', textClassName)}>{label}</Text>
+      )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  label: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

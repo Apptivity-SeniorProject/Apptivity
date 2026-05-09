@@ -1,6 +1,7 @@
 export interface AuthUser {
   id: string;
-  email: string;
+  phoneNumber: string;
+  email?: string;
   fullName?: string;
 }
 
@@ -10,16 +11,23 @@ export interface AuthTokens {
 }
 
 export interface LoginRequestDto {
-  email: string;
-  password: string;
+  phoneNumber: string;
 }
 
 export interface LoginResponseDto {
+  success: boolean;
+  verificationId?: string;
+  resendAfterSeconds?: number;
+}
+
+export interface VerifyOtpRequestDto {
+  phoneNumber: string;
+  otpCode: string;
+  verificationId?: string;
+}
+
+export interface VerifyOtpResponseDto {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
-}
-
-export interface RefreshTokenRequestDto {
-  refreshToken: string;
 }

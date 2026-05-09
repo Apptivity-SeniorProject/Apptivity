@@ -45,4 +45,8 @@ public static class ErrorCodes
 
     // Notification
     public const string NotificationNotFound = "NOTIF_404";
+
+    // Tag
+    public const string TagNotFound = "TAG_404";
+    public const string TagAlreadyExists = "TAG_409";
 }

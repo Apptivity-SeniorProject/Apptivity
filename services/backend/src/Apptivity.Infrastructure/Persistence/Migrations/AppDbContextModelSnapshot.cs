@@ -950,15 +950,24 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ColorCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(400)
-                        .HasColumnType("character varying(400)");
+                    b.Property<string>("IconName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -982,25 +991,34 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = new Guid("96a9f6b2-40d7-4e15-9f8e-cb7596ed59f1"),
+                            ColorCode = "#10B981",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "football",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Spor",
+                            Name = "Sports",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = new Guid("40fd6d4c-0f95-49d5-bb6a-7a6419d15231"),
+                            ColorCode = "#3B82F6",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "cpu",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Teknoloji",
+                            Name = "Technology",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = new Guid("8ba4efa4-9f4a-4a56-8646-644a8e3f079d"),
+                            ColorCode = "#EC4899",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "music-note",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Muzik",
+                            Name = "Music",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -1103,6 +1121,21 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                             Surname = "Kara",
                             UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
+                });
+
+            modelBuilder.Entity("event_tags", b =>
+                {
+                    b.Property<Guid>("event_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("tag_id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("event_id", "tag_id");
+
+                    b.HasIndex("tag_id");
+
+                    b.ToTable("event_tags", (string)null);
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.AuditLog", b =>
@@ -1323,6 +1356,21 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("event_tags", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Event", null)
+                        .WithMany()
+                        .HasForeignKey("event_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("tag_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Account", b =>

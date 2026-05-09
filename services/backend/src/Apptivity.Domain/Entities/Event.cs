@@ -25,6 +25,7 @@ public sealed class Event : BaseEntity
     public bool IsFeatured { get; set; }
     public bool IsVotingClosed { get; set; } = false;
 
+    public ICollection<Tag> Tags { get; set; } = new List<Tag>();
     public ICollection<Participation> Participations { get; set; } = new List<Participation>();
     public ICollection<Chat> Chats { get; set; } = new List<Chat>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();

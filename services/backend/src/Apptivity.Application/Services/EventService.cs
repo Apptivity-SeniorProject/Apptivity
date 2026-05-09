@@ -12,6 +12,7 @@ public sealed class EventService : IEventService
     private readonly IEventRepository _eventRepository;
     private readonly IEventBookmarkRepository _eventBookmarkRepository;
     private readonly IParticipationRepository _participationRepository;
+    private readonly ITagRepository _tagRepository;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
@@ -20,6 +21,7 @@ public sealed class EventService : IEventService
         IEventRepository eventRepository,
         IEventBookmarkRepository eventBookmarkRepository,
         IParticipationRepository participationRepository,
+        ITagRepository tagRepository,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
@@ -27,6 +29,7 @@ public sealed class EventService : IEventService
         _eventRepository = eventRepository;
         _eventBookmarkRepository = eventBookmarkRepository;
         _participationRepository = participationRepository;
+        _tagRepository = tagRepository;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
@@ -287,6 +290,18 @@ public sealed class EventService : IEventService
 
     public async Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
     {
+        var normalizedTagIds = NormalizeTagIds(request.PrimaryTagId, request.TagIds);
+        var tags = normalizedTagIds.Count == 0
+            ? Array.Empty<Tag>()
+            : await _tagRepository.GetActiveByIdsAsync(normalizedTagIds, cancellationToken);
+
+        if (tags.Count != normalizedTagIds.Count)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, "One or more tags are invalid or inactive.");
+        }
+
+        var resolvedPrimaryTagId = request.PrimaryTagId ?? normalizedTagIds.FirstOrDefault();
+
         var eventEntity = new Event
         {
             Id = Guid.NewGuid(),
@@ -300,9 +315,14 @@ public sealed class EventService : IEventService
             RemainingParticipationCount = request.Capacity,
             Price = request.Price,
             LocationData = request.LocationData,
-            PrimaryTagId = request.PrimaryTagId,
+            PrimaryTagId = resolvedPrimaryTagId == Guid.Empty ? null : resolvedPrimaryTagId,
             Status = EventStatus.PendingApproval
         };
+
+        foreach (var tag in tags)
+        {
+            eventEntity.Tags.Add(tag);
+        }
 
         await _eventRepository.AddAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -346,6 +366,7 @@ public sealed class EventService : IEventService
             eventEntity.Owner.ProfilePhoto,
             eventEntity.PrimaryTagId,
             eventEntity.PrimaryTag?.Name,
+            MapTags(eventEntity.Tags),
             eventEntity.Name,
             eventEntity.Description,
             eventEntity.Date,
@@ -550,6 +571,7 @@ public sealed class EventService : IEventService
             eventEntity.Id,
             eventEntity.OwnerId,
             eventEntity.PrimaryTagId,
+            MapTags(eventEntity.Tags),
             eventEntity.Name,
             eventEntity.Description,
             eventEntity.Date,
@@ -595,5 +617,33 @@ public sealed class EventService : IEventService
         }
 
         return false;
+    }
+
+    private static IReadOnlyCollection<Guid> NormalizeTagIds(Guid? primaryTagId, IReadOnlyCollection<Guid>? tagIds)
+    {
+        var result = new HashSet<Guid>();
+
+        if (tagIds is not null)
+        {
+            foreach (var tagId in tagIds.Where(x => x != Guid.Empty))
+            {
+                result.Add(tagId);
+            }
+        }
+
+        if (primaryTagId.HasValue && primaryTagId.Value != Guid.Empty)
+        {
+            result.Add(primaryTagId.Value);
+        }
+
+        return result.ToArray();
+    }
+
+    private static IReadOnlyCollection<TagDto> MapTags(IEnumerable<Tag> tags)
+    {
+        return tags
+            .OrderBy(x => x.Name)
+            .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
+            .ToArray();
     }
 }

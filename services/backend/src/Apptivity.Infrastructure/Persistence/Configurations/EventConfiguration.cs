@@ -31,6 +31,26 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
             .HasForeignKey(x => x.PrimaryTagId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasMany(x => x.Tags)
+            .WithMany(x => x.Events)
+            .UsingEntity<Dictionary<string, object>>(
+                "event_tags",
+                right => right
+                    .HasOne<Tag>()
+                    .WithMany()
+                    .HasForeignKey("tag_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                left => left
+                    .HasOne<Event>()
+                    .WithMany()
+                    .HasForeignKey("event_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                join =>
+                {
+                    join.ToTable("event_tags");
+                    join.HasKey("event_id", "tag_id");
+                });
+
         builder.HasIndex(x => x.IsFeatured);
     }
 }

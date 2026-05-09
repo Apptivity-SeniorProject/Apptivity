@@ -1,11 +1,91 @@
-import { useQuery } from '@tanstack/react-query';
+import {
+  type InfiniteData,
+  type QueryKey,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-import { getEvents } from '@/src/api/services/eventService';
-import type { EventDto } from '@/src/types/event';
+import { getEventDetail, getEvents, getMyEvents, getMyParticipations } from '@/src/api/eventService';
+import type { EventDetail, EventFilters, EventListItem, PagedResult } from '@/src/types/event';
 
-export function useEvents() {
-  return useQuery<EventDto[]>({
-    queryKey: ['events'],
-    queryFn: getEvents,
+interface UseEventsOptions {
+  pageSize?: number;
+}
+
+const DEFAULT_PAGE_SIZE = 10;
+
+export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
+  const pageSize = options?.pageSize ?? filters.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  const queryResult = useInfiniteQuery<
+    PagedResult<EventListItem>,
+    Error,
+    InfiniteData<PagedResult<EventListItem>>,
+    QueryKey,
+    number
+  >({
+    queryKey: ['events', filters.searchTerm ?? '', filters.city ?? '', filters.tagId ?? '', filters.isPaid ?? 'all', pageSize],
+    queryFn: ({ pageParam }) =>
+      getEvents({
+        searchTerm: filters.searchTerm,
+        city: filters.city,
+        tagId: filters.tagId,
+        isPaid: filters.isPaid,
+        pageNumber: pageParam,
+        pageSize,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const loadedCount = lastPage.pageNumber * lastPage.pageSize;
+      if (loadedCount >= lastPage.totalCount) {
+        return undefined;
+      }
+      return lastPage.pageNumber + 1;
+    },
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+
+  const events = useMemo(() => {
+    return queryResult.data?.pages.flatMap((page) => page.items) ?? [];
+  }, [queryResult.data?.pages]);
+
+  const refresh = async () => {
+    await queryResult.refetch();
+  };
+
+  return {
+    ...queryResult,
+    events,
+    refresh,
+  };
+}
+
+export function useEventDetail(eventId: string) {
+  return useQuery<EventDetail>({
+    queryKey: ['event-detail', eventId],
+    queryFn: () => getEventDetail(eventId),
+    enabled: Boolean(eventId),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+}
+
+export function useMyEvents(pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['my-events', pageSize],
+    queryFn: () => getMyEvents(1, pageSize),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+}
+
+export function useMyParticipations(pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['my-participations', pageSize],
+    queryFn: () => getMyParticipations(1, pageSize),
+    staleTime: 120000,
+    gcTime: 900000,
   });
 }

@@ -18,6 +18,7 @@ public sealed record EventSummaryDto(
     Guid Id,
     Guid OwnerId,
     Guid? PrimaryTagId,
+    IReadOnlyCollection<TagDto> Tags,
     string Name,
     string Description,
     DateOnly Date,
@@ -72,7 +73,8 @@ public sealed record CreateEventRequest(
     int Capacity,
     decimal Price,
     string? LocationData,
-    Guid? PrimaryTagId);
+    Guid? PrimaryTagId,
+    IReadOnlyCollection<Guid>? TagIds);
 
 public sealed record UpdateEventRequest(
     string Name,
@@ -93,6 +95,7 @@ public sealed record EventDetailsDto(
     string? OwnerProfilePhoto,
     Guid? PrimaryTagId,
     string? PrimaryTagName,
+    IReadOnlyCollection<TagDto> Tags,
     string Name,
     string Description,
     DateOnly Date,
@@ -105,6 +108,12 @@ public sealed record EventDetailsDto(
     string? LocationData,
     bool IsBookmarkedByCurrentUser,
     ParticipationStatus? CurrentUserParticipationStatus);
+
+public sealed record TagDto(
+    Guid Id,
+    string Name,
+    string? IconName,
+    string? ColorCode);
 
 public interface IEventService
 {
