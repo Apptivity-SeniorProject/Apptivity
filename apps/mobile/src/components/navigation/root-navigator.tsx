@@ -30,6 +30,7 @@ export function RootNavigator() {
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="otp" options={{ headerShown: false }} />
           <Stack.Screen name="event/[id]" options={{ headerShown: true, title: 'Etkinlik' }} />
+          <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />

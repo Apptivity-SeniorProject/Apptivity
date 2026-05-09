@@ -1,12 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react-native';
-import { Alert, ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
+import { Alert, ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
 
 import { applyToEvent, withdrawFromEvent } from '@/src/api/eventService';
+import { ReportModal } from '@/src/components/reports/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail } from '@/src/hooks/useEvents';
+import { useChatStore } from '@/src/store/useChatStore';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
@@ -61,6 +64,9 @@ export function EventDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = params.id ?? '';
   const queryClient = useQueryClient();
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const unreadCount = useChatStore((state) => state.unreadByEvent[eventId] ?? 0);
+  const clearUnread = useChatStore((state) => state.clearUnread);
 
   const { data, isPending } = useEventDetail(eventId);
 
@@ -152,6 +158,7 @@ export function EventDetailScreen() {
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
   const isJoined =
     data.currentUserParticipationStatus === 'Pending' || data.currentUserParticipationStatus === 'Approved';
+  const canOpenChat = data.currentUserParticipationStatus === 'Approved';
   const canJoin = !data.isPast && !data.isFull;
   const joinButtonDisabled = !canJoin && !isJoined;
   const actionLoading = joinMutation.isPending || withdrawMutation.isPending;
@@ -169,7 +176,12 @@ export function EventDetailScreen() {
 
         <View className="gap-5 px-5 pt-5">
           <View className="gap-2">
-            <Text className="text-2xl font-bold text-slate-900">{data.title}</Text>
+            <View className="flex-row items-start justify-between gap-3">
+              <Text className="flex-1 text-2xl font-bold text-slate-900">{data.title}</Text>
+              <Pressable onPress={() => setIsReportModalOpen(true)}>
+                <Flag size={20} color="#ef4444" />
+              </Pressable>
+            </View>
             <Text className="text-sm text-slate-500">
               {data.primaryTagName ? `Kategori: ${data.primaryTagName}` : 'Kategori belirtilmedi'}
             </Text>
@@ -231,6 +243,23 @@ export function EventDetailScreen() {
           </View>
 
           <Button
+            label={canOpenChat ? (unreadCount > 0 ? `Sohbete Git (${unreadCount} yeni)` : 'Sohbete Git') : 'Sohbet Kilitli'}
+            className={canOpenChat ? 'bg-slate-900' : 'bg-slate-300'}
+            textClassName={canOpenChat ? 'text-white' : 'text-slate-600'}
+            disabled={!canOpenChat}
+            onPress={() => {
+              clearUnread(eventId);
+              router.push(`/event/${eventId}/chat`);
+            }}
+          />
+          {!canOpenChat ? (
+            <View className="flex-row items-center gap-2">
+              <MessageCircle size={14} color="#64748B" />
+              <Text className="text-xs text-slate-500">Sohbet sadece onayli katilimcilara aciktir.</Text>
+            </View>
+          ) : null}
+
+          <Button
             label={isJoined ? 'Ayril' : 'Katil'}
             isLoading={actionLoading}
             disabled={joinButtonDisabled}
@@ -251,6 +280,12 @@ export function EventDetailScreen() {
           ) : null}
         </View>
       </ScrollView>
+      <ReportModal
+        visible={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        targetId={eventId}
+        targetType={1}
+      />
     </View>
   );
 }

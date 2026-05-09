@@ -1,8 +1,11 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Flag } from 'lucide-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { EventCard } from '@/src/components/events/event-card';
+import { ReportModal } from '@/src/components/reports/report-modal';
 import { useMyEvents, useMyParticipations } from '@/src/hooks/useEvents';
 import { useMyProfile, useProfileStats } from '@/src/hooks/useProfile';
 
@@ -15,6 +18,7 @@ function getDisplayName(username: string, name?: string, surname?: string): stri
 }
 
 export function ProfileScreen() {
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;
 
@@ -51,6 +55,11 @@ export function ProfileScreen() {
         />
       }>
       <View className="items-center rounded-2xl border border-slate-200 bg-white p-5">
+        <View className="w-full flex-row justify-end">
+          <Pressable onPress={() => setIsReportModalOpen(true)}>
+            <Flag size={18} color="#ef4444" />
+          </Pressable>
+        </View>
         <Image
           source={{ uri: profile?.profilePhoto ?? AVATAR_PLACEHOLDER }}
           style={{ width: 90, height: 90, borderRadius: 45 }}
@@ -64,6 +73,14 @@ export function ProfileScreen() {
           <Text className="mt-3 text-center text-sm text-slate-600">{profile.userProfile.bio}</Text>
         ) : null}
       </View>
+      {profile?.accountId ? (
+        <ReportModal
+          visible={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          targetId={profile.accountId}
+          targetType={2}
+        />
+      ) : null}
 
       <View className="rounded-2xl border border-slate-200 bg-white p-4">
         <Text className="text-base font-semibold text-slate-900">Istatistikler</Text>
