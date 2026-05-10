@@ -1,10 +1,11 @@
 import { CalendarOutlined, LeftOutlined, LogoutOutlined, RightOutlined, UserSwitchOutlined } from '@ant-design/icons'
-import { Button, ConfigProvider, Layout, Menu, Typography } from 'antd'
+import { Button, ConfigProvider, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import EventApprovalSection from '../components/admin/EventApprovalSection'
 import UserApprovalSection from '../components/admin/UserApprovalSection'
+import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
 function AdminHomePage() {
@@ -70,15 +71,18 @@ function AdminHomePage() {
                     <Typography.Title level={5} style={{ margin: 0 }}>
                         {t('admin.brand')}
                     </Typography.Title>
-                    <Button
-                        icon={<LogoutOutlined />}
-                        onClick={() => {
-                            clearAuthSession()
-                            navigate('/login/admin', { replace: true })
-                        }}
-                    >
-                        {t('admin.logout')}
-                    </Button>
+                    <Space size={12}>
+                        <LanguageSwitcher />
+                        <Button
+                            icon={<LogoutOutlined />}
+                            onClick={() => {
+                                clearAuthSession()
+                                navigate('/login/admin', { replace: true })
+                            }}
+                        >
+                            {t('admin.logout')}
+                        </Button>
+                    </Space>
                 </Layout.Header>
 
                 <Layout style={{ flex: 1, minHeight: 0 }}>

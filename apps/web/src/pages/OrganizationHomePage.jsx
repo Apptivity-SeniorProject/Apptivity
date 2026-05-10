@@ -1,8 +1,11 @@
 import { CalendarOutlined, LeftOutlined, LogoutOutlined, RightOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
-import { Button, ConfigProvider, Layout, Menu, Typography } from 'antd'
+import { Button, ConfigProvider, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import LanguageSwitcher from '../components/common/LanguageSwitcher'
+import OrganizationApplicationsSection from '../components/organization/OrganizationApplicationsSection'
+import OrganizationMyEventsSection from '../components/organization/OrganizationMyEventsSection'
 import OrganizationProfileSection from '../components/organization/OrganizationProfileSection'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
@@ -74,15 +77,18 @@ function OrganizationHomePage() {
                     <Typography.Title level={5} style={{ margin: 0 }}>
                         {t('organization.brand')}
                     </Typography.Title>
-                    <Button
-                        icon={<LogoutOutlined />}
-                        onClick={() => {
-                            clearAuthSession()
-                            navigate('/login/organization', { replace: true })
-                        }}
-                    >
-                        {t('organization.logout')}
-                    </Button>
+                    <Space size={12}>
+                        <LanguageSwitcher />
+                        <Button
+                            icon={<LogoutOutlined />}
+                            onClick={() => {
+                                clearAuthSession()
+                                navigate('/login/organization', { replace: true })
+                            }}
+                        >
+                            {t('organization.logout')}
+                        </Button>
+                    </Space>
                 </Layout.Header>
 
                 <Layout style={{ flex: 1, minHeight: 0 }}>
@@ -147,6 +153,10 @@ function OrganizationHomePage() {
                             </Typography.Title>
                             {selectedKey === 'profile' ? (
                                 <OrganizationProfileSection />
+                            ) : selectedKey === 'my-events' ? (
+                                <OrganizationMyEventsSection />
+                            ) : selectedKey === 'applications' ? (
+                                <OrganizationApplicationsSection />
                             ) : (
                                 <Typography.Text style={{ color: '#6b7280' }}>
                                     {t('organization.placeholderText')}

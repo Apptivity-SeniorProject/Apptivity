@@ -51,8 +51,6 @@ function AuthPage({ role = 'admin' }) {
                             >
                                 {t('landing.brand')}
                             </Typography.Title>
-
-                            <LanguageSwitcher />
                         </Flex>
 
                         <Flex align="center" gap={8} wrap={isMobile}>
@@ -93,6 +91,8 @@ function AuthPage({ role = 'admin' }) {
                             >
                                 {t('landing.organizationLogin')}
                             </Button>
+
+                            <LanguageSwitcher />
                         </Flex>
                     </Flex>
                 </Layout.Header>
