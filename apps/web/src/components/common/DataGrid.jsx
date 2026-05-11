@@ -1,4 +1,4 @@
-import { Button, Table } from 'antd'
+import { Button, Grid, Table } from 'antd'
 
 function DataGrid({
     columns,
@@ -14,6 +14,9 @@ function DataGrid({
     infoCardColumnTitle = 'Info Card',
     infoCardLabel = 'View',
 }) {
+    const screens = Grid.useBreakpoint()
+    const isMobile = !screens.md
+
     const mergedColumns = onInfoCardClick
         ? [
             ...columns,
@@ -22,7 +25,7 @@ function DataGrid({
                 key: '__info_card_action',
                 align: 'center',
                 render: (_, row) => (
-                    <Button onClick={() => onInfoCardClick(row)}>
+                    <Button size={isMobile ? 'small' : 'middle'} onClick={() => onInfoCardClick(row)}>
                         {infoCardLabel}
                     </Button>
                 ),
@@ -36,11 +39,13 @@ function DataGrid({
             columns={mergedColumns}
             dataSource={rows}
             loading={loading}
+            size={isMobile ? 'small' : 'middle'}
+            scroll={{ x: 'max-content' }}
             pagination={{
                 current: currentPage,
                 pageSize,
                 total: totalCount,
-                showSizeChanger: true,
+                showSizeChanger: !isMobile,
                 pageSizeOptions: ['10', '20', '50'],
                 onChange: (page, nextPageSize) => {
                     onPageChange?.(page, nextPageSize)

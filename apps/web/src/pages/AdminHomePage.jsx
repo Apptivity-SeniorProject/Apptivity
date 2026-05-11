@@ -1,5 +1,5 @@
-import { CalendarOutlined, LeftOutlined, LogoutOutlined, RightOutlined, UserSwitchOutlined } from '@ant-design/icons'
-import { Button, ConfigProvider, Layout, Menu, Space, Typography } from 'antd'
+import { CalendarOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined } from '@ant-design/icons'
+import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -11,10 +11,13 @@ import { clearAuthSession, getAuthSession } from '../services/sessionService'
 function AdminHomePage() {
     const navigate = useNavigate()
     const { t } = useTranslation()
+    const screens = Grid.useBreakpoint()
+    const isMobile = !screens.md
     const session = getAuthSession()
     const isAdmin = session?.role === 'admin'
     const [selectedKey, setSelectedKey] = useState('event-approval')
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
     useEffect(() => {
         if (!isAdmin) {
@@ -62,15 +65,35 @@ function AdminHomePage() {
                     style={{
                         background: '#ffffff',
                         borderBottom: '1px solid #e5e7eb',
-                        paddingInline: 24,
+                        paddingInline: isMobile ? 12 : 24,
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                     }}
                 >
-                    <Typography.Title level={5} style={{ margin: 0 }}>
-                        {t('admin.brand')}
-                    </Typography.Title>
+                    <Space size={10}>
+                        {isMobile ? (
+                            <Button
+                                type="text"
+                                icon={<MenuOutlined />}
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                aria-label="Open admin menu"
+                            />
+                        ) : null}
+                        <Typography.Title
+                            level={5}
+                            style={{
+                                margin: 0,
+                                maxWidth: isMobile ? '42vw' : 'none',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontSize: isMobile ? 14 : undefined,
+                            }}
+                        >
+                            {t('admin.brand')}
+                        </Typography.Title>
+                    </Space>
                     <Space size={12}>
                         <LanguageSwitcher />
                         <Button
@@ -80,64 +103,66 @@ function AdminHomePage() {
                                 navigate('/login/admin', { replace: true })
                             }}
                         >
-                            {t('admin.logout')}
+                            {isMobile ? null : t('admin.logout')}
                         </Button>
                     </Space>
                 </Layout.Header>
 
                 <Layout style={{ flex: 1, minHeight: 0 }}>
-                <Layout.Sider
-                    width={280}
-                    collapsedWidth={72}
-                    collapsed={isCollapsed}
-                    trigger={null}
-                    style={{
-                        background: '#ffffff',
-                        borderRight: '1px solid #e5e7eb',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minHeight: 0,
-                        overflow: 'hidden',
-                    }}
-                >
-                    <div style={{ width: '100%', flex: 1, minHeight: 0, overflow: 'hidden', padding: '12px 10px 8px' }}>
-                        <Menu
-                            mode="inline"
-                            inlineCollapsed={isCollapsed}
-                            selectedKeys={[selectedKey]}
-                            items={menuItems}
-                            onClick={({ key }) => setSelectedKey(key)}
-                            style={{ borderInlineEnd: 'none', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
-                        />
-                    </div>
-
-                    <div
-                        style={{
-                            borderTop: '1px solid #e5e7eb',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            flexShrink: 0,
-                            background: '#ffffff',
-                            minHeight: 38,
-                        }}
-                    >
-                        <Button
-                            type="text"
-                            icon={isCollapsed ? <RightOutlined /> : <LeftOutlined />}
-                            onClick={() => setIsCollapsed((prev) => !prev)}
+                    {isMobile ? null : (
+                        <Layout.Sider
+                            width={280}
+                            collapsedWidth={72}
+                            collapsed={isCollapsed}
+                            trigger={null}
                             style={{
-                                color: '#374151',
-                                paddingInline: 8,
-                                height: 28,
+                                background: '#ffffff',
+                                borderRight: '1px solid #e5e7eb',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                minHeight: 0,
+                                overflow: 'hidden',
                             }}
-                            aria-label={isCollapsed ? 'Open admin menu' : 'Close admin menu'}
-                        />
-                    </div>
-                </Layout.Sider>
+                        >
+                            <div style={{ width: '100%', flex: 1, minHeight: 0, overflow: 'hidden', padding: '12px 10px 8px' }}>
+                                <Menu
+                                    mode="inline"
+                                    inlineCollapsed={isCollapsed}
+                                    selectedKeys={[selectedKey]}
+                                    items={menuItems}
+                                    onClick={({ key }) => setSelectedKey(key)}
+                                    style={{ borderInlineEnd: 'none', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
+                                />
+                            </div>
+
+                            <div
+                                style={{
+                                    borderTop: '1px solid #e5e7eb',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    flexShrink: 0,
+                                    background: '#ffffff',
+                                    minHeight: 38,
+                                }}
+                            >
+                                <Button
+                                    type="text"
+                                    icon={isCollapsed ? <RightOutlined /> : <LeftOutlined />}
+                                    onClick={() => setIsCollapsed((prev) => !prev)}
+                                    style={{
+                                        color: '#374151',
+                                        paddingInline: 8,
+                                        height: 28,
+                                    }}
+                                    aria-label={isCollapsed ? 'Open admin menu' : 'Close admin menu'}
+                                />
+                            </div>
+                        </Layout.Sider>
+                    )}
 
                 <Layout>
-                    <Layout.Content style={{ padding: 24 }}>
+                    <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
                         <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
                             {selectedKey === 'user-approval' ? t('admin.menu.userApproval') : t('admin.menu.eventApproval')}
                         </Typography.Title>
@@ -155,6 +180,24 @@ function AdminHomePage() {
                 </Layout>
                 </Layout>
             </Layout>
+            <Drawer
+                title={t('admin.brand')}
+                placement="left"
+                open={isMobile && isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
+                width={280}
+            >
+                <Menu
+                    mode="inline"
+                    selectedKeys={[selectedKey]}
+                    items={menuItems}
+                    onClick={({ key }) => {
+                        setSelectedKey(key)
+                        setIsMobileMenuOpen(false)
+                    }}
+                    style={{ borderInlineEnd: 'none' }}
+                />
+            </Drawer>
         </ConfigProvider>
     )
 }

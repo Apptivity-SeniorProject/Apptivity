@@ -1,4 +1,4 @@
-import { Button, Descriptions, Drawer, Segmented, Space, Spin, Tag, Typography, message } from 'antd'
+import { Button, Descriptions, Drawer, Grid, Segmented, Space, Spin, Tag, Typography, message } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataGrid from '../common/DataGrid'
@@ -39,6 +39,8 @@ function normalizeParticipationStatus(value) {
 
 function OrganizationApplicationsSection() {
     const { t } = useTranslation()
+    const screens = Grid.useBreakpoint()
+    const isMobile = !screens.md
     const [statusFilter, setStatusFilter] = useState('pending')
     const [allRows, setAllRows] = useState([])
     const [isLoading, setIsLoading] = useState(false)
@@ -236,6 +238,7 @@ function OrganizationApplicationsSection() {
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
             {contextHolder}
             <Segmented
+                block={isMobile}
                 value={statusFilter}
                 onChange={(nextStatus) => {
                     setStatusFilter(nextStatus)
@@ -274,7 +277,7 @@ function OrganizationApplicationsSection() {
                 title={t('organization.applications.detailsTitle')}
                 open={isDetailOpen}
                 onClose={() => setIsDetailOpen(false)}
-                width={720}
+                width={isMobile ? '100%' : 720}
                 extra={(
                     <Space>
                         <Button onClick={() => setIsDetailOpen(false)}>

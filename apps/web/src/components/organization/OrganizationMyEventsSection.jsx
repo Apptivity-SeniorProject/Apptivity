@@ -1,4 +1,4 @@
-import { Button, Descriptions, Drawer, Segmented, Space, Spin, Tag, Typography } from 'antd'
+import { Button, Descriptions, Drawer, Grid, Segmented, Space, Spin, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataGrid from '../common/DataGrid'
@@ -30,6 +30,8 @@ function resolveIsPast(value, dateValue) {
 
 function OrganizationMyEventsSection() {
     const { t } = useTranslation()
+    const screens = Grid.useBreakpoint()
+    const isMobile = !screens.md
     const [timeFilter, setTimeFilter] = useState('future')
     const [allRows, setAllRows] = useState([])
     const [isLoading, setIsLoading] = useState(false)
@@ -149,6 +151,7 @@ function OrganizationMyEventsSection() {
     return (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Segmented
+                block={isMobile}
                 value={timeFilter}
                 onChange={(nextFilter) => {
                     setTimeFilter(nextFilter)
@@ -186,7 +189,7 @@ function OrganizationMyEventsSection() {
                 title={t('organization.events.detailsTitle')}
                 open={isDetailOpen}
                 onClose={() => setIsDetailOpen(false)}
-                width={720}
+                width={isMobile ? '100%' : 720}
                 extra={(
                     <Button onClick={() => setIsDetailOpen(false)}>
                         {t('organization.events.close')}

@@ -1,5 +1,5 @@
-import { CalendarOutlined, LeftOutlined, LogoutOutlined, RightOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
-import { Button, ConfigProvider, Layout, Menu, Space, Typography } from 'antd'
+import { CalendarOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -12,10 +12,13 @@ import { clearAuthSession, getAuthSession } from '../services/sessionService'
 function OrganizationHomePage() {
     const navigate = useNavigate()
     const { t } = useTranslation()
+    const screens = Grid.useBreakpoint()
+    const isMobile = !screens.md
     const session = getAuthSession()
     const isOrganization = session?.role === 'organization'
-    const [selectedKey, setSelectedKey] = useState('profile')
+    const [selectedKey, setSelectedKey] = useState('my-events')
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
     useEffect(() => {
         if (!isOrganization) {
@@ -68,15 +71,35 @@ function OrganizationHomePage() {
                     style={{
                         background: '#ffffff',
                         borderBottom: '1px solid #e5e7eb',
-                        paddingInline: 24,
+                        paddingInline: isMobile ? 12 : 24,
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                     }}
                 >
-                    <Typography.Title level={5} style={{ margin: 0 }}>
-                        {t('organization.brand')}
-                    </Typography.Title>
+                    <Space size={10}>
+                        {isMobile ? (
+                            <Button
+                                type="text"
+                                icon={<MenuOutlined />}
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                aria-label="Open organization menu"
+                            />
+                        ) : null}
+                        <Typography.Title
+                            level={5}
+                            style={{
+                                margin: 0,
+                                maxWidth: isMobile ? '42vw' : 'none',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontSize: isMobile ? 14 : undefined,
+                            }}
+                        >
+                            {t('organization.brand')}
+                        </Typography.Title>
+                    </Space>
                     <Space size={12}>
                         <LanguageSwitcher />
                         <Button
@@ -86,64 +109,66 @@ function OrganizationHomePage() {
                                 navigate('/login/organization', { replace: true })
                             }}
                         >
-                            {t('organization.logout')}
+                            {isMobile ? null : t('organization.logout')}
                         </Button>
                     </Space>
                 </Layout.Header>
 
                 <Layout style={{ flex: 1, minHeight: 0 }}>
-                    <Layout.Sider
-                        width={280}
-                        collapsedWidth={72}
-                        collapsed={isCollapsed}
-                        trigger={null}
-                        style={{
-                            background: '#ffffff',
-                            borderRight: '1px solid #e5e7eb',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            minHeight: 0,
-                            overflow: 'hidden',
-                        }}
-                    >
-                        <div style={{ width: '100%', flex: 1, minHeight: 0, overflow: 'hidden', padding: '12px 10px 8px' }}>
-                            <Menu
-                                mode="inline"
-                                inlineCollapsed={isCollapsed}
-                                selectedKeys={[selectedKey]}
-                                items={menuItems}
-                                onClick={({ key }) => setSelectedKey(key)}
-                                style={{ borderInlineEnd: 'none', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
-                            />
-                        </div>
-
-                        <div
+                    {isMobile ? null : (
+                        <Layout.Sider
+                            width={280}
+                            collapsedWidth={72}
+                            collapsed={isCollapsed}
+                            trigger={null}
                             style={{
-                                borderTop: '1px solid #e5e7eb',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                flexShrink: 0,
                                 background: '#ffffff',
-                                minHeight: 38,
+                                borderRight: '1px solid #e5e7eb',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                minHeight: 0,
+                                overflow: 'hidden',
                             }}
                         >
-                            <Button
-                                type="text"
-                                icon={isCollapsed ? <RightOutlined /> : <LeftOutlined />}
-                                onClick={() => setIsCollapsed((prev) => !prev)}
+                            <div style={{ width: '100%', flex: 1, minHeight: 0, overflow: 'hidden', padding: '12px 10px 8px' }}>
+                                <Menu
+                                    mode="inline"
+                                    inlineCollapsed={isCollapsed}
+                                    selectedKeys={[selectedKey]}
+                                    items={menuItems}
+                                    onClick={({ key }) => setSelectedKey(key)}
+                                    style={{ borderInlineEnd: 'none', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
+                                />
+                            </div>
+
+                            <div
                                 style={{
-                                    color: '#374151',
-                                    paddingInline: 8,
-                                    height: 28,
+                                    borderTop: '1px solid #e5e7eb',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    flexShrink: 0,
+                                    background: '#ffffff',
+                                    minHeight: 38,
                                 }}
-                                aria-label={isCollapsed ? 'Open organization menu' : 'Close organization menu'}
-                            />
-                        </div>
-                    </Layout.Sider>
+                            >
+                                <Button
+                                    type="text"
+                                    icon={isCollapsed ? <RightOutlined /> : <LeftOutlined />}
+                                    onClick={() => setIsCollapsed((prev) => !prev)}
+                                    style={{
+                                        color: '#374151',
+                                        paddingInline: 8,
+                                        height: 28,
+                                    }}
+                                    aria-label={isCollapsed ? 'Open organization menu' : 'Close organization menu'}
+                                />
+                            </div>
+                        </Layout.Sider>
+                    )}
 
                     <Layout>
-                        <Layout.Content style={{ padding: 24 }}>
+                        <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
                             <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
                                 {selectedKey === 'applications'
                                     ? t('organization.menu.applications')
@@ -166,6 +191,24 @@ function OrganizationHomePage() {
                     </Layout>
                 </Layout>
             </Layout>
+            <Drawer
+                title={t('organization.brand')}
+                placement="left"
+                open={isMobile && isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
+                width={280}
+            >
+                <Menu
+                    mode="inline"
+                    selectedKeys={[selectedKey]}
+                    items={menuItems}
+                    onClick={({ key }) => {
+                        setSelectedKey(key)
+                        setIsMobileMenuOpen(false)
+                    }}
+                    style={{ borderInlineEnd: 'none' }}
+                />
+            </Drawer>
         </ConfigProvider>
     )
 }
