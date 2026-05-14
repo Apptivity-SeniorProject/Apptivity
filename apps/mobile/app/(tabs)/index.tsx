@@ -33,6 +33,17 @@ export default function HomeScreen() {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
 
+  const { data: tags } = useTags();
+
+  const categories = useMemo<CategoryOption[]>(() => {
+    const dynamicCategories = (tags ?? []).map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+    }));
+
+    return [{ id: 'all', name: 'Tümü' }, ...dynamicCategories];
+  }, [tags]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearchTerm(searchInput.trim());
@@ -190,13 +201,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-  const { data: tags } = useTags();
-
-  const categories = useMemo<CategoryOption[]>(() => {
-    const dynamicCategories = (tags ?? []).map((tag) => ({
-      id: tag.id,
-      name: tag.name,
-    }));
-
-    return [{ id: 'all', name: 'Tumu' }, ...dynamicCategories];
-  }, [tags]);

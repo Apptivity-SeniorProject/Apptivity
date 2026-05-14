@@ -1,7 +1,4 @@
 {
   "name": "apptivity-monorepo",
-  "private": true,
-  "workspaces": [
-    "apps/*"
-  ]
+  "private": true
 }

@@ -14,25 +14,21 @@ export function RootNavigator() {
   const colorScheme = useColorScheme();
   const { isReady, redirectTo } = useAuthGuard();
 
-  if (!isReady) {
-    return null;
-  }
-
-  if (redirectTo) {
-    return <Redirect href={redirectTo} />;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="otp" options={{ headerShown: false }} />
-          <Stack.Screen name="event/[id]" options={{ headerShown: true, title: 'Etkinlik' }} />
-          <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
+        {!isReady ? null : redirectTo ? (
+          <Redirect href={redirectTo} />
+        ) : (
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="otp" options={{ headerShown: false }} />
+            <Stack.Screen name="event/[id]" options={{ headerShown: true, title: 'Etkinlik' }} />
+            <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+        )}
         <StatusBar style="auto" />
       </ThemeProvider>
     </QueryClientProvider>
