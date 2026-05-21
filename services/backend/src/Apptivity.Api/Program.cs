@@ -115,8 +115,11 @@ if (builder.Environment.IsProduction())
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+var autoMigrateOnStartup = app.Configuration.GetValue("Database:AutoMigrateOnStartup", true);
+var isTestingEnvironment = app.Environment.IsEnvironment("Testing");
+if (autoMigrateOnStartup && !isTestingEnvironment)
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 }

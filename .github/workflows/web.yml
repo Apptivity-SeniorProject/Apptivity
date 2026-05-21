@@ -1,4 +1,4 @@
-name: "🌐 Web CI"
+name: Web CI
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -17,31 +17,29 @@ on:
 
 jobs:
   build:
-    name: Lint & Build
+    name: Lint and Build
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
 
-      - name: 🗑️ Workaround for NPM Native Binding Bug
-        run: rm -f package-lock.json
-
-      - name: 📦 Install Dependencies
+      - name: Install Dependencies
         run: npm install
+        working-directory: apps/web
 
-      - name: 🔍 Lint
-        run: npm run lint -w web
+      - name: Lint
+        run: npm run lint
+        working-directory: apps/web
 
-      - name: 🏗️ Build
-        run: npm run build -w web
+      - name: Build
+        run: npm run build
+        working-directory: apps/web
 
   docker:
     name: Docker Build
@@ -49,8 +47,8 @@ jobs:
     needs: build
 
     steps:
-      - name: 📥 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🐳 Build Docker Image
+      - name: Build Docker Image
         run: docker build -t apptivity-web:ci -f apps/web/Dockerfile .

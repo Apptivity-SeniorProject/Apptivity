@@ -25,7 +25,8 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
                     ["Jwt:SigningKey"] = "SuperSecretDummyKeyForTestingPurposesOnlyWhichIsAtLeast32BytesLong!",
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
-                    ["ConnectionStrings:PostgreSql"] = "Host=localhost;Database=dummy;Username=dummy;Password=dummy"
+                    ["ConnectionStrings:PostgreSql"] = "Host=localhost;Database=dummy;Username=dummy;Password=dummy",
+                    ["Database:AutoMigrateOnStartup"] = "false"
                 });
             });
         });

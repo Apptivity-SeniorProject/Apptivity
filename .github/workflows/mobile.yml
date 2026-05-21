@@ -1,4 +1,4 @@
-name: "📱 Mobile CI"
+name: Mobile CI
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -15,29 +15,33 @@ on:
 
 jobs:
   check:
-    name: Lint & Type Check
+    name: Lint and Type Check
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: apps/mobile/package-lock.json
 
-      - name: 📦 Install Dependencies
-        run: npm install
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: apps/mobile
 
-      - name: 🩺 Expo Doctor
-        run: npx -w mobile expo-doctor
+      - name: Expo Doctor
+        run: npx expo-doctor
+        working-directory: apps/mobile
         continue-on-error: true
 
-      - name: 🔍 Lint
-        run: npm run lint -w mobile
+      - name: Lint
+        run: npm run lint
+        working-directory: apps/mobile
 
-      - name: 🔎 TypeScript Type Check
-        run: npm exec -w mobile -- tsc --noEmit
+      - name: TypeScript Type Check
+        run: npx tsc --noEmit
+        working-directory: apps/mobile
