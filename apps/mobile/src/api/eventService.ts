@@ -29,6 +29,19 @@ function parseLocationData(locationData?: string | null): EventLocation {
     return {};
   }
 
+  const toNumber = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return undefined;
+  };
+
   try {
     const parsed = JSON.parse(locationData) as Record<string, unknown>;
     return {
@@ -40,8 +53,8 @@ function parseLocationData(locationData?: string | null): EventLocation {
             ? parsed.address
             : undefined,
       locationLabel: typeof parsed.locationLabel === 'string' ? parsed.locationLabel : undefined,
-      lat: typeof parsed.lat === 'number' ? parsed.lat : undefined,
-      lng: typeof parsed.lng === 'number' ? parsed.lng : undefined,
+      lat: toNumber(parsed.lat),
+      lng: toNumber(parsed.lng),
     };
   } catch {
     return {
@@ -73,6 +86,8 @@ function toEventDateTime(date: string, time: string): Date {
 }
 
 function mapEventSummary(dto: EventSummaryDto): EventListItem {
+  const participantCount = Math.max(0, dto.capacity - dto.remainingParticipationCount);
+
   return {
     id: dto.id,
     title: dto.name,
@@ -88,6 +103,8 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     remainingParticipationCount: dto.remainingParticipationCount,
     capacity: dto.capacity,
     primaryTagId: dto.primaryTagId,
+    tags: dto.tags ?? [],
+    participantCount,
   };
 }
 
@@ -102,9 +119,12 @@ function mapMyParticipation(dto: MyParticipationDto): EventListItem {
     price: 0,
     isPaid: false,
     organizerName: 'Organizator',
+    organizerProfilePhoto: undefined,
     status: dto.eventStatus,
     remainingParticipationCount: 0,
     capacity: 0,
+    tags: [],
+    participantCount: 0,
     currentUserParticipationStatus: normalizeParticipationStatus(dto.participationStatus),
   };
 }
@@ -149,9 +169,11 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
   throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
 }
 
-function buildEventQueryParams(request: EventListRequest): Record<string, string | number | boolean> {
+function buildEventQueryParams(
+  request: EventListRequest
+): Record<string, string | number | boolean | string[]> {
   const pageSize = request.pageSize > 0 ? request.pageSize : DEFAULT_PAGE_SIZE;
-  const queryParams: Record<string, string | number | boolean> = {
+  const queryParams: Record<string, string | number | boolean | string[]> = {
     pageNumber: request.pageNumber,
     pageSize,
   };
@@ -165,8 +187,17 @@ function buildEventQueryParams(request: EventListRequest): Record<string, string
   if (request.tagId && isUuid(request.tagId)) {
     queryParams.primaryTagId = request.tagId;
   }
+  if (request.tagIds?.length) {
+    const validTagIds = request.tagIds.filter(isUuid);
+    if (validTagIds.length > 0) {
+      queryParams.tagIds = validTagIds;
+    }
+  }
   if (typeof request.isPaid === 'boolean') {
     queryParams.isPaid = request.isPaid;
+  }
+  if (typeof request.matchAllTags === 'boolean') {
+    queryParams.matchAllTags = request.matchAllTags;
   }
   if (request.startDate) {
     queryParams.startDate = request.startDate;
@@ -179,9 +210,46 @@ function buildEventQueryParams(request: EventListRequest): Record<string, string
 }
 
 export async function getEvents(request: EventListRequest): Promise<PagedResult<EventListItem>> {
+  const params = buildEventQueryParams(request);
   const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>('/api/events', {
-    params: buildEventQueryParams(request),
+    params,
+    paramsSerializer: {
+      serialize: (rawParams) => {
+        const urlParams = new URLSearchParams();
+
+        Object.entries(rawParams).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach((item) => {
+              urlParams.append(key, String(item));
+            });
+            return;
+          }
+
+          urlParams.append(key, String(value));
+        });
+
+        return urlParams.toString();
+      },
+    },
   });
+
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map(mapEventSummary),
+  };
+}
+
+export async function getRecommendedEvents(
+  pageNumber = 1,
+  pageSize = 10
+): Promise<PagedResult<EventListItem>> {
+  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>(
+    '/api/events/recommended',
+    {
+      params: { pageNumber, pageSize },
+    }
+  );
 
   const payload = unwrapEnvelope(response.data);
   return {

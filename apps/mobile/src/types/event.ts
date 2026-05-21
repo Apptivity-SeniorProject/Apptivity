@@ -2,7 +2,9 @@ export interface EventFilters {
   searchTerm?: string;
   city?: string;
   tagId?: string;
+  tagIds?: string[];
   isPaid?: boolean;
+  matchAllTags?: boolean;
   startDate?: string;
   endDate?: string;
   pageSize?: number;
@@ -12,11 +14,20 @@ export interface EventListRequest {
   searchTerm?: string;
   city?: string;
   tagId?: string;
+  tagIds?: string[];
   isPaid?: boolean;
+  matchAllTags?: boolean;
   startDate?: string;
   endDate?: string;
   pageNumber: number;
   pageSize: number;
+}
+
+export interface EventTag {
+  id: string;
+  name: string;
+  iconName?: string | null;
+  colorCode?: string | null;
 }
 
 export interface PagedResult<T> {
@@ -30,6 +41,7 @@ export interface EventSummaryDto {
   id: string;
   ownerId?: string;
   primaryTagId?: string | null;
+  tags?: EventTag[];
   name: string;
   description: string;
   date: string;
@@ -114,6 +126,9 @@ export interface EventListItem {
   remainingParticipationCount: number;
   capacity: number;
   primaryTagId?: string | null;
+  tags: EventTag[];
+  participantCount: number;
+  organizerProfilePhoto?: string;
   currentUserParticipationStatus?: ParticipationStatus | null;
 }
 

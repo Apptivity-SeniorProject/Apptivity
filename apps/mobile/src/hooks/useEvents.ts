@@ -6,7 +6,13 @@ import {
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { getEventDetail, getEvents, getMyEvents, getMyParticipations } from '@/src/api/eventService';
+import {
+  getEventDetail,
+  getEvents,
+  getMyEvents,
+  getMyParticipations,
+  getRecommendedEvents,
+} from '@/src/api/eventService';
 import type { EventDetail, EventFilters, EventListItem, PagedResult } from '@/src/types/event';
 
 interface UseEventsOptions {
@@ -17,6 +23,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
   const pageSize = options?.pageSize ?? filters.pageSize ?? DEFAULT_PAGE_SIZE;
+  const tagIdsKey = (filters.tagIds ?? []).slice().sort().join(',');
 
   const queryResult = useInfiniteQuery<
     PagedResult<EventListItem>,
@@ -30,7 +37,9 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
       filters.searchTerm ?? '',
       filters.city ?? '',
       filters.tagId ?? '',
+      tagIdsKey,
       filters.isPaid ?? 'all',
+      filters.matchAllTags ?? false,
       filters.startDate ?? '',
       filters.endDate ?? '',
       pageSize,
@@ -40,7 +49,9 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
         searchTerm: filters.searchTerm,
         city: filters.city,
         tagId: filters.tagId,
+        tagIds: filters.tagIds,
         isPaid: filters.isPaid,
+        matchAllTags: filters.matchAllTags,
         startDate: filters.startDate,
         endDate: filters.endDate,
         pageNumber: pageParam,
@@ -71,6 +82,15 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
     events,
     refresh,
   };
+}
+
+export function useRecommendedEvents(pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['recommended-events', pageSize],
+    queryFn: () => getRecommendedEvents(1, pageSize),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
 }
 
 export function useEventDetail(eventId: string) {
