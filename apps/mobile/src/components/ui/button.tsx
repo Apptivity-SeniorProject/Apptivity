@@ -5,6 +5,7 @@ import { cn } from '@/src/utils/cn';
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string;
   isLoading?: boolean;
+  variant?: 'primary' | 'secondary';
   className?: string;
   textClassName?: string;
 }
@@ -12,6 +13,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
 export function Button({
   label,
   isLoading = false,
+  variant = 'primary',
   disabled = false,
   className,
   textClassName,
@@ -22,16 +24,26 @@ export function Button({
   return (
     <Pressable
       className={cn(
-        'h-12 items-center justify-center rounded-xl bg-blue-600',
-        isDisabled && 'bg-blue-400',
+        'h-12 items-center justify-center rounded-xl',
+        variant === 'primary' && 'bg-blue-600',
+        variant === 'secondary' && 'border border-slate-300 bg-white',
+        variant === 'primary' && isDisabled && 'bg-blue-400',
+        variant === 'secondary' && isDisabled && 'opacity-60',
         className
       )}
       disabled={isDisabled}
       {...props}>
       {isLoading ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={variant === 'secondary' ? '#0f172a' : '#FFFFFF'} />
       ) : (
-        <Text className={cn('text-base font-semibold text-white', textClassName)}>{label}</Text>
+        <Text
+          className={cn(
+            'text-base font-semibold',
+            variant === 'primary' ? 'text-white' : 'text-slate-900',
+            textClassName
+          )}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );

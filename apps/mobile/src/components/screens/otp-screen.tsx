@@ -3,10 +3,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, Text, View } from 'react-native';
 
-import { requestLoginOtp, verifyOtp } from '@/src/api/authService';
+import { sendOtp, verifyOtp } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
-import { DEFAULT_LOGIN_PASSWORD } from '@/src/constants/env';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
 import { getOrCreateDeviceId } from '@/src/utils/device';
@@ -17,17 +16,12 @@ const DEFAULT_RESEND_SECONDS = 60;
 export function OtpScreen() {
   const params = useLocalSearchParams<{
     phoneNumber?: string;
-    password?: string;
   }>();
 
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
 
   const phoneNumber = useMemo(() => params.phoneNumber?.trim() ?? '', [params.phoneNumber]);
-  const password = useMemo(
-    () => params.password?.trim() || DEFAULT_LOGIN_PASSWORD,
-    [params.password]
-  );
 
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -77,14 +71,7 @@ export function OtpScreen() {
   });
 
   const resendMutation = useMutation({
-    mutationFn: async () => {
-      const deviceId = await getOrCreateDeviceId();
-      return requestLoginOtp({
-        identifier: phoneNumber,
-        password,
-        deviceId,
-      });
-    },
+    mutationFn: async () => sendOtp({ phoneNumber }),
     onSuccess: () => {
       setRemainingSeconds(DEFAULT_RESEND_SECONDS);
       Alert.alert('Kod Gonderildi', 'Yeni dogrulama kodu gonderildi.');

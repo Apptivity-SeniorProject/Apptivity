@@ -1,3 +1,3 @@
-import { requestLoginOtp, verifyOtp } from '@/src/api/authService';
+import { login, sendOtp, verifyOtp } from '@/src/api/authService';
 
-export { requestLoginOtp, verifyOtp };
+export { login, sendOtp, verifyOtp };

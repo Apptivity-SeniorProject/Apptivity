@@ -12,14 +12,6 @@ export function useAuthGuard(): AuthGuardState {
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
-  // ─── TEST: Auth bypass ─────────────────────────────────────────
-  // Backend hazır olunca aşağıdaki satırı silin veya false yapın
-  const DEV_BYPASS_AUTH = true;
-  if (DEV_BYPASS_AUTH) {
-    return { isReady: true, redirectTo: null };
-  }
-  // ───────────────────────────────────────────────────────────────
-
   const authScreens = ['login', 'otp'];
   const isOnAuthScreen = authScreens.includes(segments[0] ?? '');
 

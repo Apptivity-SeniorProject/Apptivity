@@ -21,6 +21,10 @@ export interface LoginResponseDto {
   refreshToken?: string;
 }
 
+export interface SendOtpRequestDto {
+  phoneNumber: string;
+}
+
 export interface VerifyOtpRequestDto {
   phoneNumber: string;
   code: string;
