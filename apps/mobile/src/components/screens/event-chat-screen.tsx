@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -45,7 +45,6 @@ function senderDisplayName(message: MessageDto, myAccountId?: string): string {
 export function EventChatScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = params.id ?? '';
-  const queryClient = useQueryClient();
 
   const accessToken = useAuthStore((state) => state.accessToken);
   const myAccountId = useAuthStore((state) => state.user?.id);

@@ -80,6 +80,23 @@ export interface MyParticipationDto {
 }
 
 export type ParticipationStatus = 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn';
+export type EventStatus = 'Draft' | 'PendingApproval' | 'Published' | 'Ongoing' | 'Completed' | 'Cancelled' | 'Rejected';
+
+export interface EventParticipantProfileDto {
+  accountId: string;
+  type: string;
+  username: string;
+  profilePhoto?: string | null;
+  displayName: string;
+  status?: ParticipationStatus | null;
+}
+
+export interface EventParticipantsResponseDto {
+  eventId: string;
+  eventStatus: EventStatus;
+  organizer: EventParticipantProfileDto;
+  participants: EventParticipantProfileDto[];
+}
 
 export interface EventDetailsDto {
   id: string;

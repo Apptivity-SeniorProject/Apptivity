@@ -7,6 +7,8 @@ import type {
   EventListItem,
   EventListRequest,
   EventLocation,
+  EventParticipantProfileDto,
+  EventParticipantsResponseDto,
   EventSummaryDto,
   MyParticipationDto,
   PagedResult,
@@ -79,6 +81,15 @@ function normalizeParticipationStatus(value?: string | null): ParticipationStatu
   if (normalized === 'rejected') return 'Rejected';
   if (normalized === 'withdrawn') return 'Withdrawn';
   return null;
+}
+
+function mapEventParticipant(
+  participant: EventParticipantProfileDto
+): EventParticipantProfileDto {
+  return {
+    ...participant,
+    status: normalizeParticipationStatus(participant.status as string | null),
+  };
 }
 
 function toEventDateTime(date: string, time: string): Date {
@@ -264,6 +275,19 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
   return mapEventDetail(payload);
 }
 
+export async function getEventParticipants(eventId: string): Promise<EventParticipantsResponseDto> {
+  const response = await apiClient.get<ApiEnvelope<EventParticipantsResponseDto>>(
+    `/api/events/${eventId}/participants`
+  );
+  const payload = unwrapEnvelope(response.data);
+
+  return {
+    ...payload,
+    organizer: mapEventParticipant(payload.organizer),
+    participants: payload.participants.map(mapEventParticipant),
+  };
+}
+
 export async function applyToEvent(eventId: string): Promise<ParticipationStatus> {
   const response = await apiClient.post<ApiEnvelope<ApplyToEventResponseDto>>(`/api/events/${eventId}/apply`);
   const payload = unwrapEnvelope(response.data);
@@ -280,6 +304,23 @@ export async function getMyEvents(pageNumber = 1, pageSize = 10): Promise<PagedR
   const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>('/api/events/my-events', {
     params: { pageNumber, pageSize },
   });
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map(mapEventSummary),
+  };
+}
+
+export async function getMyBookmarks(
+  pageNumber = 1,
+  pageSize = 10
+): Promise<PagedResult<EventListItem>> {
+  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>(
+    '/api/events/my-bookmarks',
+    {
+      params: { pageNumber, pageSize },
+    }
+  );
   const payload = unwrapEnvelope(response.data);
   return {
     ...payload,

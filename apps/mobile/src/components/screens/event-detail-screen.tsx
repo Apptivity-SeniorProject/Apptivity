@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { applyToEvent, withdrawFromEvent } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/reports/report-modal';
 import { Button } from '@/src/components/ui/button';
-import { useEventDetail } from '@/src/hooks/useEvents';
+import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useChatStore } from '@/src/store/useChatStore';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
@@ -69,6 +69,7 @@ export function EventDetailScreen() {
   const clearUnread = useChatStore((state) => state.clearUnread);
 
   const { data, isPending } = useEventDetail(eventId);
+  const participantsQuery = useEventParticipants(eventId);
 
   const joinMutation = useMutation({
     mutationFn: () => applyToEvent(eventId),
@@ -99,6 +100,7 @@ export function EventDetailScreen() {
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] });
+      await queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] });
       await queryClient.invalidateQueries({ queryKey: ['my-participations'] });
     },
   });
@@ -132,6 +134,7 @@ export function EventDetailScreen() {
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] });
+      await queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] });
       await queryClient.invalidateQueries({ queryKey: ['my-participations'] });
     },
   });
@@ -162,6 +165,12 @@ export function EventDetailScreen() {
   const canJoin = !data.isPast && !data.isFull;
   const joinButtonDisabled = !canJoin && !isJoined;
   const actionLoading = joinMutation.isPending || withdrawMutation.isPending;
+  const approvedParticipants = participantsQuery.data?.participants.filter(
+    (participant) => participant.status === 'Approved'
+  ) ?? [];
+  const pendingParticipants = participantsQuery.data?.participants.filter(
+    (participant) => participant.status === 'Pending'
+  ) ?? [];
 
   return (
     <View className="flex-1 bg-slate-50">
@@ -240,6 +249,37 @@ export function EventDetailScreen() {
             {data.organizerType ? (
               <Text className="mt-1 text-xs uppercase text-slate-500">{data.organizerType}</Text>
             ) : null}
+          </View>
+
+          <View className="rounded-2xl border border-slate-200 bg-white p-4">
+            <Text className="text-base font-semibold text-slate-900">Katilim Durumlari</Text>
+            <View className="mt-3 flex-row gap-2">
+              <View className="rounded-full bg-emerald-100 px-3 py-1">
+                <Text className="text-xs font-semibold text-emerald-700">
+                  Approved: {approvedParticipants.length}
+                </Text>
+              </View>
+              <View className="rounded-full bg-amber-100 px-3 py-1">
+                <Text className="text-xs font-semibold text-amber-700">
+                  Pending: {pendingParticipants.length}
+                </Text>
+              </View>
+            </View>
+            <View className="mt-3 gap-2">
+              {(participantsQuery.data?.participants ?? []).slice(0, 6).map((participant) => (
+                <View
+                  key={participant.accountId}
+                  className="flex-row items-center justify-between rounded-xl bg-slate-100 px-3 py-2">
+                  <Text className="text-sm text-slate-800">{participant.displayName}</Text>
+                  <Text className="text-xs font-semibold text-slate-600">
+                    {participant.status ?? 'N/A'}
+                  </Text>
+                </View>
+              ))}
+              {(participantsQuery.data?.participants ?? []).length === 0 ? (
+                <Text className="text-xs text-slate-500">Henuz katilimci bulunmuyor.</Text>
+              ) : null}
+            </View>
           </View>
 
           <Button

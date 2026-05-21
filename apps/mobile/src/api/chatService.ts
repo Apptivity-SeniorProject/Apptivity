@@ -19,11 +19,13 @@ interface RawMessageDto {
   senderAccountId?: string;
   content?: string;
   sentAtUtc?: string;
+  senderName?: string;
   MessageId?: string;
   EventId?: string;
   SenderAccountId?: string;
   Content?: string;
   SentAtUtc?: string;
+  SenderName?: string;
 }
 
 function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
@@ -39,6 +41,7 @@ function mapMessage(raw: RawMessageDto): MessageDto {
     messageId: raw.messageId ?? raw.MessageId ?? '',
     eventId: raw.eventId ?? raw.EventId ?? '',
     senderAccountId: raw.senderAccountId ?? raw.SenderAccountId ?? '',
+    senderName: raw.senderName ?? raw.SenderName ?? undefined,
     content: raw.content ?? raw.Content ?? '',
     sentAtUtc: raw.sentAtUtc ?? raw.SentAtUtc ?? new Date().toISOString(),
   };

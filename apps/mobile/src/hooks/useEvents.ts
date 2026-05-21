@@ -8,12 +8,20 @@ import { useMemo } from 'react';
 
 import {
   getEventDetail,
+  getEventParticipants,
   getEvents,
+  getMyBookmarks,
   getMyEvents,
   getMyParticipations,
   getRecommendedEvents,
 } from '@/src/api/eventService';
-import type { EventDetail, EventFilters, EventListItem, PagedResult } from '@/src/types/event';
+import type {
+  EventDetail,
+  EventFilters,
+  EventListItem,
+  EventParticipantsResponseDto,
+  PagedResult,
+} from '@/src/types/event';
 
 interface UseEventsOptions {
   pageSize?: number;
@@ -103,6 +111,16 @@ export function useEventDetail(eventId: string) {
   });
 }
 
+export function useEventParticipants(eventId: string) {
+  return useQuery<EventParticipantsResponseDto>({
+    queryKey: ['event-participants', eventId],
+    queryFn: () => getEventParticipants(eventId),
+    enabled: Boolean(eventId),
+    staleTime: 30000,
+    gcTime: 900000,
+  });
+}
+
 export function useMyEvents(pageSize = 10) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['my-events', pageSize],
@@ -116,6 +134,15 @@ export function useMyParticipations(pageSize = 10) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['my-participations', pageSize],
     queryFn: () => getMyParticipations(1, pageSize),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+}
+
+export function useMyBookmarks(pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['my-bookmarks', pageSize],
+    queryFn: () => getMyBookmarks(1, pageSize),
     staleTime: 120000,
     gcTime: 900000,
   });

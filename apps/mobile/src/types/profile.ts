@@ -10,6 +10,13 @@ export interface ClubProfileDto {
   city?: string | null;
 }
 
+export interface ProfileInterestTag {
+  id: string;
+  name: string;
+  iconName?: string | null;
+  colorCode?: string | null;
+}
+
 export interface ProfileDto {
   accountId: string;
   username: string;
@@ -17,6 +24,7 @@ export interface ProfileDto {
   status: string;
   profilePhoto?: string | null;
   socialLinks?: string | null;
+  interests: ProfileInterestTag[];
   userProfile?: UserProfileDto | null;
   clubProfile?: ClubProfileDto | null;
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getMyProfile, getProfileStats, updateMyProfile } from '@/src/api/profileService';
+import { getMyProfile, getProfileStats, setMyInterests, updateMyProfile } from '@/src/api/profileService';
 import type { ProfileDto, ProfileStatsDto, UpdateProfilePayload } from '@/src/types/profile';
 
 export function useMyProfile() {
@@ -29,6 +29,18 @@ export function useUpdateProfile() {
     mutationFn: (payload: UpdateProfilePayload) => updateMyProfile(payload),
     onSuccess: (updatedProfile) => {
       queryClient.setQueryData(['profile-me'], updatedProfile);
+    },
+  });
+}
+
+export function useSetMyInterests() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (tagIds: string[]) => setMyInterests(tagIds),
+    onSuccess: (updatedProfile) => {
+      queryClient.setQueryData(['profile-me'], updatedProfile);
+      queryClient.invalidateQueries({ queryKey: ['recommended-events'] });
     },
   });
 }

@@ -24,3 +24,10 @@ export async function getProfileStats(accountId: string): Promise<ProfileStatsDt
   const response = await apiClient.get<ApiEnvelope<ProfileStatsDto>>(`/api/profiles/${accountId}/stats`);
   return unwrapEnvelope(response.data);
 }
+
+export async function setMyInterests(tagIds: string[]): Promise<ProfileDto> {
+  const response = await apiClient.put<ApiEnvelope<ProfileDto>>('/api/profiles/me/interests', {
+    tagIds,
+  });
+  return unwrapEnvelope(response.data);
+}
