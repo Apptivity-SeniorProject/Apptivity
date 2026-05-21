@@ -168,7 +168,7 @@ export default function HomeScreen() {
         </View>
 
         <View className="mt-2 flex-row items-center justify-between">
-          <Text className="text-lg font-semibold text-slate-900">Populer Etkinlikler</Text>
+          <Text className="text-lg font-semibold text-slate-900">Genel Akis</Text>
           <Text className="text-sm text-slate-500">{events.length} sonuc</Text>
         </View>
       </View>

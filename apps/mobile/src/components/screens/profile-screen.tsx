@@ -4,7 +4,6 @@ import { Flag } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -13,12 +12,13 @@ import {
 } from 'react-native';
 
 import { EditProfileModal } from '@/src/components/profile/edit-profile-modal';
-import { ReportModal } from '@/src/components/reports/report-modal';
+import { ReportModal } from '@/src/components/report-modal';
 import { EventCard } from '@/src/components/events/event-card';
 import { Button } from '@/src/components/ui/button';
 import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/useEvents';
 import { useMyProfile, useProfileStats, useSetMyInterests } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
+import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { cn } from '@/src/utils/cn';
@@ -50,6 +50,7 @@ export function ProfileScreen() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draftInterestTagIds, setDraftInterestTagIds] = useState<string[]>([]);
+  const toast = useToast();
 
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;
@@ -249,7 +250,7 @@ export function ProfileScreen() {
               setIsEditModalOpen(false);
             },
             onError: (error) => {
-              Alert.alert('Kayit Hatasi', getApiErrorMessage(error));
+              toast.error(getApiErrorMessage(error));
             },
           });
         }}

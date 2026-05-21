@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 export function EventCardSkeleton() {
   return (
-    <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <View className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <View className="h-44 bg-slate-200" />
       <View className="gap-3 p-4">
         <View className="h-5 w-2/3 rounded bg-slate-200" />

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import MapView, { Callout, Marker, type Region } from 'react-native-maps';
+import { Image } from 'expo-image';
 
 import { useEvents } from '@/src/hooks/useEvents';
 import type { EventListItem } from '@/src/types/event';
@@ -104,11 +105,22 @@ export default function MapScreen() {
     const locationText = event.location.locationLabel ?? event.location.city ?? 'Lokasyon belirtilmedi';
 
     return (
-      <View className="min-w-48 max-w-56 rounded-xl bg-white p-2">
+      <View className="min-w-56 max-w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <Image
+          source={{
+            uri:
+              event.bannerImageUrl ??
+              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80',
+          }}
+          style={{ width: '100%', height: 90 }}
+          contentFit="cover"
+        />
+        <View className="p-3">
         <Text className="text-sm font-semibold text-slate-900">{event.title}</Text>
         <Text className="mt-1 text-xs text-slate-600">{formatEventDate(event.date)} - {event.time.slice(0, 5)}</Text>
         <Text className="mt-1 text-xs text-slate-500" numberOfLines={1}>{locationText}</Text>
         <Text className="mt-1 text-xs font-semibold text-blue-700">{formatEventPrice(event.price, event.isPaid)}</Text>
+        </View>
       </View>
     );
   };

@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 
 import { queryClient } from '@/src/api/queryClient';
 import { useAuthGuard } from '@/src/hooks/useAuthGuard';
+import { ToastHost } from '@/src/components/ui/toast-host';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import '../../../global.css';
@@ -29,6 +30,7 @@ export function RootNavigator() {
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
         )}
+        <ToastHost />
         <StatusBar style="auto" />
       </ThemeProvider>
     </QueryClientProvider>

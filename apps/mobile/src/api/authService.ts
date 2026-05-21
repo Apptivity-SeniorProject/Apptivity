@@ -1,4 +1,5 @@
 import { apiClient } from '@/src/api/apiClient';
+import { DEFAULT_LOGIN_PASSWORD } from '@/src/constants/env';
 import type { ApiEnvelope } from '@/src/types/api';
 import type {
   LoginRequestDto,
@@ -7,6 +8,7 @@ import type {
   VerifyOtpRequestDto,
   VerifyOtpResponseDto,
 } from '@/src/types/auth';
+import { getOrCreateDeviceId } from '@/src/utils/device';
 
 function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
   if (responseData.isSuccess && responseData.data) {
@@ -23,6 +25,15 @@ export async function login(payload: LoginRequestDto): Promise<LoginResponseDto>
     },
   });
   return unwrapEnvelope(response.data);
+}
+
+export async function loginWithPhoneNumber(phoneNumber: string): Promise<LoginResponseDto> {
+  const deviceId = await getOrCreateDeviceId();
+  return login({
+    identifier: phoneNumber,
+    password: DEFAULT_LOGIN_PASSWORD,
+    deviceId,
+  });
 }
 
 export async function sendOtp(payload: SendOtpRequestDto): Promise<void> {
@@ -48,4 +59,12 @@ export async function verifyOtp(payload: VerifyOtpRequestDto): Promise<VerifyOtp
     }
   );
   return unwrapEnvelope(response.data);
+}
+
+export async function verifyOtpCode(code: string): Promise<VerifyOtpResponseDto> {
+  const deviceId = await getOrCreateDeviceId();
+  return verifyOtp({
+    code,
+    deviceId,
+  });
 }

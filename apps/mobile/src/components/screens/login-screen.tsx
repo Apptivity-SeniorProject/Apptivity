@@ -1,15 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, SafeAreaView, Text, View } from 'react-native';
 
-import { login, sendOtp } from '@/src/api/authService';
+import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
-import { getOrCreateDeviceId } from '@/src/utils/device';
 import { getApiErrorMessage } from '@/src/utils/error';
+import { useToast } from '@/src/hooks/useToast';
 
 interface CountryCodeOption {
   label: string;
@@ -32,10 +32,9 @@ export function LoginScreen() {
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [countryCode, setCountryCode] = useState('+90');
   const [phoneInput, setPhoneInput] = useState('');
-  const [password, setPassword] = useState('');
   const [inputError, setInputError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
 
+  const toast = useToast();
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -45,33 +44,18 @@ export function LoginScreen() {
   );
 
   const loginMutation = useMutation({
-    mutationFn: async (payload: { identifier: string; password: string }) => {
-      const deviceId = await getOrCreateDeviceId();
-      return login({
-        identifier: payload.identifier,
-        password: payload.password,
-        deviceId,
-      });
+    mutationFn: async (identifier: string) => {
+      return loginWithPhoneNumber(identifier);
     },
     onSuccess: (response) => {
-      if (!response.accessToken || !response.refreshToken) {
-        Alert.alert('Giris Basarisiz', 'Token bilgisi alinamadi.');
+      if (response.accessToken && response.refreshToken) {
+        setTokens(response.accessToken, response.refreshToken);
+        setUser(buildAuthUser(response.accessToken, phoneNumber));
+        router.replace('/(tabs)');
         return;
       }
 
-      setTokens(response.accessToken, response.refreshToken);
-      setUser(buildAuthUser(response.accessToken, phoneNumber));
-      router.replace('/(tabs)');
-    },
-    onError: (error) => {
-      Alert.alert('Giris Basarisiz', getApiErrorMessage(error));
-    },
-  });
-
-  const sendOtpMutation = useMutation({
-    mutationFn: async (phone: string) => sendOtp({ phoneNumber: phone }),
-    onSuccess: () => {
-      Alert.alert('Kod Gonderildi', 'Dogrulama kodu gonderildi.');
+      toast.info('Dogrulama adimina yonlendiriliyorsun.');
       router.push({
         pathname: '/otp',
         params: {
@@ -80,43 +64,20 @@ export function LoginScreen() {
       });
     },
     onError: (error) => {
-      Alert.alert('Kod Gonderilemedi', getApiErrorMessage(error));
+      toast.error(getApiErrorMessage(error, 'Giris basarisiz.'));
     },
   });
 
-  const validatePhone = (): boolean => {
+  const handleLogin = () => {
     const digitsOnly = phoneInput.replace(/\D/g, '');
     if (digitsOnly.length < 7 || digitsOnly.length > 15) {
       setInputError('Gecerli bir telefon numarasi girin.');
-      Alert.alert('Hatali Numara', 'Telefon numarasi gecersiz.');
-      return false;
+      toast.error('Telefon numarasi gecersiz.');
+      return;
     }
 
     setInputError('');
-    return true;
-  };
-
-  const handleLogin = () => {
-    if (!validatePhone()) {
-      return;
-    }
-
-    if (!password.trim()) {
-      setPasswordError('Sifre alani bos birakilamaz.');
-      Alert.alert('Hatali Sifre', 'Lutfen sifrenizi girin.');
-      return;
-    }
-
-    setPasswordError('');
-    loginMutation.mutate({ identifier: phoneNumber, password: password.trim() });
-  };
-
-  const handleSendOtp = () => {
-    if (!validatePhone()) {
-      return;
-    }
-
-    sendOtpMutation.mutate(phoneNumber);
+    loginMutation.mutate(phoneNumber);
   };
 
   return (
@@ -124,7 +85,7 @@ export function LoginScreen() {
       <View className="flex-1 px-6 pt-20">
         <Text className="text-3xl font-bold text-slate-900">Giris Yap</Text>
         <Text className="mt-2 text-base text-slate-500">
-          Telefon numaran ve sifrenle giris yap. Istersen OTP ile de devam edebilirsin.
+          Telefon numaranla giris yap. Guvenlik icin gerekiyorsa OTP dogrulamasi acilir.
         </Text>
 
         <View className="mt-10 flex-row gap-3">
@@ -145,29 +106,11 @@ export function LoginScreen() {
           />
         </View>
 
-        <Input
-          label="Sifre"
-          placeholder="Sifrenizi girin"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          error={passwordError}
-          containerClassName="mt-4"
-        />
-
         <Button
           className="mt-8"
           label="Giris Yap"
           isLoading={loginMutation.isPending}
           onPress={handleLogin}
-        />
-
-        <Button
-          className="mt-3"
-          variant="secondary"
-          label="OTP Kodu Gonder"
-          isLoading={sendOtpMutation.isPending}
-          onPress={handleSendOtp}
         />
       </View>
 

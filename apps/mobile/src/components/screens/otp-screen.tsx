@@ -1,15 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, SafeAreaView, Text, View } from 'react-native';
+import { SafeAreaView, Text, View } from 'react-native';
 
-import { sendOtp, verifyOtp } from '@/src/api/authService';
+import { sendOtp, verifyOtpCode } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
-import { getOrCreateDeviceId } from '@/src/utils/device';
 import { getApiErrorMessage } from '@/src/utils/error';
+import { useToast } from '@/src/hooks/useToast';
 
 const DEFAULT_RESEND_SECONDS = 60;
 
@@ -18,6 +18,7 @@ export function OtpScreen() {
     phoneNumber?: string;
   }>();
 
+  const toast = useToast();
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -29,7 +30,7 @@ export function OtpScreen() {
 
   useEffect(() => {
     if (!phoneNumber) {
-      Alert.alert('Eksik Bilgi', 'Telefon numarasi bulunamadi. Lutfen tekrar giris yapin.');
+      toast.error('Telefon numarasi bulunamadi. Lutfen tekrar giris yapin.');
       router.replace('/login');
       return;
     }
@@ -49,24 +50,17 @@ export function OtpScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [phoneNumber, remainingSeconds]);
+  }, [phoneNumber, remainingSeconds, toast]);
 
   const verifyMutation = useMutation({
-    mutationFn: async (code: string) => {
-      const deviceId = await getOrCreateDeviceId();
-      return verifyOtp({
-        phoneNumber,
-        code,
-        deviceId,
-      });
-    },
+    mutationFn: async (code: string) => verifyOtpCode(code),
     onSuccess: (response) => {
       setTokens(response.accessToken, response.refreshToken);
       setUser(buildAuthUser(response.accessToken, phoneNumber));
       router.replace('/(tabs)');
     },
     onError: (error) => {
-      Alert.alert('Dogrulama Basarisiz', getApiErrorMessage(error, 'OTP kodu dogrulanamadi.'));
+      toast.error(getApiErrorMessage(error, 'OTP kodu dogrulanamadi.'));
     },
   });
 
@@ -74,10 +68,10 @@ export function OtpScreen() {
     mutationFn: async () => sendOtp({ phoneNumber }),
     onSuccess: () => {
       setRemainingSeconds(DEFAULT_RESEND_SECONDS);
-      Alert.alert('Kod Gonderildi', 'Yeni dogrulama kodu gonderildi.');
+      toast.success('Yeni dogrulama kodu gonderildi.');
     },
     onError: (error) => {
-      Alert.alert('Kod Gonderilemedi', getApiErrorMessage(error));
+      toast.error(getApiErrorMessage(error));
     },
   });
 
@@ -85,7 +79,7 @@ export function OtpScreen() {
     const normalizedOtp = otpCode.replace(/\D/g, '');
     if (normalizedOtp.length !== 6) {
       setOtpError('OTP kodu 6 haneli olmali.');
-      Alert.alert('Gecersiz OTP', 'Lutfen 6 haneli OTP kodu girin.');
+      toast.error('Lutfen 6 haneli OTP kodu girin.');
       return;
     }
 

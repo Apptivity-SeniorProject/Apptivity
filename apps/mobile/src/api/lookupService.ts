@@ -9,6 +9,10 @@ const MOCK_TAGS: TagDto[] = [
   { id: 'art-mock-tag', name: 'Sanat' },
 ];
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 interface RawTagDto {
   id?: string;
   name?: string;
@@ -20,6 +24,10 @@ function mapRawTag(raw: RawTagDto): TagDto | null {
   const name = (raw.name ?? raw.label)?.trim();
 
   if (!id || !name) {
+    return null;
+  }
+
+  if (!isUuid(id)) {
     return null;
   }
 
@@ -38,7 +46,7 @@ async function tryGetTagsFromEndpoint(url: string): Promise<TagDto[]> {
 }
 
 export async function getTags(): Promise<TagDto[]> {
-  const endpoints = ['/api/lookups/tags', '/api/tags'];
+  const endpoints = ['/api/tags', '/api/lookups/tags'];
 
   for (const endpoint of endpoints) {
     try {

@@ -1,4 +1,10 @@
 {
   "name": "apptivity-monorepo",
-  "private": true
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix apps/mobile start",
+    "start:tunnel": "npm --prefix apps/mobile start -- --tunnel",
+    "mobile": "npm --prefix apps/mobile start",
+    "mobile:tunnel": "npm --prefix apps/mobile start -- --tunnel"
+  }
 }

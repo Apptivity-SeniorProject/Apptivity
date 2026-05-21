@@ -117,7 +117,7 @@ export default function CalendarScreen() {
                       <View
                         className={
                           isSelected
-                            ? 'h-8 w-8 items-center justify-center rounded-full bg-slate-900'
+                            ? 'h-8 w-8 items-center justify-center rounded-full bg-emerald-600'
                             : 'h-8 w-8 items-center justify-center rounded-full'
                         }>
                         <Text
@@ -131,7 +131,7 @@ export default function CalendarScreen() {
                           {format(day, 'd')}
                         </Text>
                       </View>
-                      {hasEvent ? <View className="mt-0.5 h-1.5 w-1.5 rounded-full bg-orange-500" /> : null}
+                      {hasEvent ? <View className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" /> : null}
                     </Pressable>
                   );
                 })}

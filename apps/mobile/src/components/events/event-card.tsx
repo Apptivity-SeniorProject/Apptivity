@@ -31,7 +31,9 @@ export function EventCard({ event, onPress, compact = false }: EventCardProps) {
           : undefined;
 
   return (
-    <Pressable className="overflow-hidden rounded-2xl border border-slate-200 bg-white" onPress={() => onPress(event.id)}>
+    <Pressable
+      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+      onPress={() => onPress(event.id)}>
       <Image
         source={{ uri: event.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
         style={{ width: '100%', height: compact ? 140 : 180 }}
@@ -49,7 +51,7 @@ export function EventCard({ event, onPress, compact = false }: EventCardProps) {
         <View className="flex-row items-center gap-2">
           <CalendarDays size={16} color="#64748B" />
           <Text className="text-sm text-slate-600">{formatEventDate(event.date)}</Text>
-          <Text className="text-sm text-slate-400">•</Text>
+          <Text className="text-sm text-slate-400">â€¢</Text>
           <Text className="text-sm text-slate-600">{event.time.slice(0, 5)}</Text>
         </View>
 
@@ -72,7 +74,10 @@ export function EventCard({ event, onPress, compact = false }: EventCardProps) {
 
         <View className="flex-row items-center gap-2">
           {event.organizerProfilePhoto ? (
-            <Image source={{ uri: event.organizerProfilePhoto }} style={{ width: 28, height: 28, borderRadius: 999 }} />
+            <Image
+              source={{ uri: event.organizerProfilePhoto }}
+              style={{ width: 28, height: 28, borderRadius: 999 }}
+            />
           ) : (
             <View className="h-7 w-7 items-center justify-center rounded-full bg-slate-200">
               <Text className="text-xs font-semibold text-slate-700">{organizerInitial}</Text>
@@ -81,7 +86,9 @@ export function EventCard({ event, onPress, compact = false }: EventCardProps) {
           <Text className="text-xs text-slate-500">Duzenleyen: {organizerLabel}</Text>
         </View>
 
-        {participationStatusLabel ? <Text className="text-xs font-semibold text-amber-700">{participationStatusLabel}</Text> : null}
+        {participationStatusLabel ? (
+          <Text className="text-xs font-semibold text-amber-700">{participationStatusLabel}</Text>
+        ) : null}
       </View>
     </Pressable>
   );

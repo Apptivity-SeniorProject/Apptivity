@@ -1,8 +1,10 @@
 import axios, {
   AxiosError,
+  create as createAxios,
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { API_BASE_URL } from '@/src/constants/env';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -15,10 +17,26 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 let isRefreshing = false;
-let pendingQueue: Array<{
+let pendingQueue: {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
-}> = [];
+}[] = [];
+
+async function persistAuthTokens(accessToken: string, refreshToken: string): Promise<void> {
+  const raw = await AsyncStorage.getItem('auth-storage');
+  const parsed = raw ? (JSON.parse(raw) as { state?: Record<string, unknown>; version?: number }) : {};
+
+  const next = {
+    state: {
+      ...(parsed.state ?? {}),
+      accessToken,
+      refreshToken,
+    },
+    version: parsed.version ?? 0,
+  };
+
+  await AsyncStorage.setItem('auth-storage', JSON.stringify(next));
+}
 
 function flushQueue(error: unknown, accessToken: string | null): void {
   pendingQueue.forEach((queueItem) => {
@@ -80,7 +98,7 @@ async function refreshTokens(): Promise<VerifyOtpResponseDto> {
   throw new Error(response.data.errors?.[0]?.message ?? 'Token yenileme basarisiz.');
 }
 
-export const apiClient = axios.create({
+export const apiClient = createAxios({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
@@ -135,6 +153,7 @@ apiClient.interceptors.response.use(
     try {
       const refreshed = await refreshTokens();
       useAuthStore.getState().setTokens(refreshed.accessToken, refreshed.refreshToken);
+      await persistAuthTokens(refreshed.accessToken, refreshed.refreshToken);
       flushQueue(null, refreshed.accessToken);
       originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`;
       return apiClient(originalRequest);

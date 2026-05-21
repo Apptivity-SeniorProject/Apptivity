@@ -26,7 +26,6 @@ export interface SendOtpRequestDto {
 }
 
 export interface VerifyOtpRequestDto {
-  phoneNumber: string;
   code: string;
   deviceId: string;
 }

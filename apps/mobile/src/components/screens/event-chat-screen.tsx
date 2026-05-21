@@ -187,16 +187,16 @@ export function EventChatScreen() {
                 <View
                   className={
                     isMine
-                      ? 'max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-3 py-2'
+                      ? 'max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2'
                       : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2'
                   }>
-                  <Text className={isMine ? 'text-xs font-semibold text-blue-100' : 'text-xs font-semibold text-slate-500'}>
+                  <Text className={isMine ? 'text-xs font-semibold text-emerald-100' : 'text-xs font-semibold text-slate-500'}>
                     {senderDisplayName(item, myAccountId)}
                   </Text>
                   <Text className={isMine ? 'mt-1 text-sm text-white' : 'mt-1 text-sm text-slate-800'}>
                     {item.content}
                   </Text>
-                  <Text className={isMine ? 'mt-1 text-[11px] text-blue-100' : 'mt-1 text-[11px] text-slate-400'}>
+                  <Text className={isMine ? 'mt-1 text-[11px] text-emerald-100' : 'mt-1 text-[11px] text-slate-400'}>
                     {formatTimestamp(item.sentAtUtc)}
                   </Text>
                 </View>

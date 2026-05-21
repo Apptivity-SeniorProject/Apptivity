@@ -6,7 +6,7 @@ import type { ApiEnvelope, ApiErrorResponse } from '@/src/types/api';
 const DEFAULT_ERROR_MESSAGE = 'Bir hata olustu. Lutfen tekrar deneyin.';
 
 interface EnvelopeLike {
-  errors?: Array<{ code?: string; message?: string }>;
+  errors?: { code?: string; message?: string }[];
 }
 
 function getCodeMessage(code?: string): string | null {

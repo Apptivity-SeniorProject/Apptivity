@@ -1,14 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { Alert, ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ArrowLeft, CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useState } from 'react';
 
 import { applyToEvent, withdrawFromEvent } from '@/src/api/eventService';
-import { ReportModal } from '@/src/components/reports/report-modal';
+import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
+import { useToast } from '@/src/hooks/useToast';
 import { useChatStore } from '@/src/store/useChatStore';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
@@ -65,6 +66,7 @@ export function EventDetailScreen() {
   const eventId = params.id ?? '';
   const queryClient = useQueryClient();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const toast = useToast();
   const unreadCount = useChatStore((state) => state.unreadByEvent[eventId] ?? 0);
   const clearUnread = useChatStore((state) => state.clearUnread);
 
@@ -90,7 +92,7 @@ export function EventDetailScreen() {
       if (context?.previous) {
         queryClient.setQueryData(['event-detail', eventId], context.previous);
       }
-      Alert.alert('Katilim Hatasi', getApiErrorMessage(error));
+      toast.error(getApiErrorMessage(error));
     },
     onSuccess: (status) => {
       queryClient.setQueryData<EventDetail>(['event-detail', eventId], (current) => {
@@ -124,7 +126,7 @@ export function EventDetailScreen() {
       if (context?.previous) {
         queryClient.setQueryData(['event-detail', eventId], context.previous);
       }
-      Alert.alert('Ayrilma Hatasi', getApiErrorMessage(error));
+      toast.error(getApiErrorMessage(error));
     },
     onSuccess: (status) => {
       queryClient.setQueryData<EventDetail>(['event-detail', eventId], (current) => {
@@ -174,14 +176,21 @@ export function EventDetailScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <Stack.Screen options={{ title: data.title, headerBackTitle: 'Geri' }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerClassName="pb-10">
-        <Image
-          source={{ uri: data.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
-          style={{ width: '100%', height: 250 }}
-          contentFit="cover"
-          transition={180}
-        />
+        <View>
+          <Image
+            source={{ uri: data.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
+            style={{ width: '100%', height: 280 }}
+            contentFit="cover"
+            transition={180}
+          />
+          <Pressable
+            className="absolute left-4 top-12 h-10 w-10 items-center justify-center rounded-full bg-black/35"
+            onPress={() => router.back()}>
+            <ArrowLeft size={18} color="#ffffff" />
+          </Pressable>
+        </View>
 
         <View className="gap-5 px-5 pt-5">
           <View className="gap-2">

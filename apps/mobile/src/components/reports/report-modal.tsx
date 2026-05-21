@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
 import { createReport } from '@/src/api/reportService';
 import { Button } from '@/src/components/ui/button';
+import { useToast } from '@/src/hooks/useToast';
 import { getApiErrorMessage } from '@/src/utils/error';
 import type { ReportReasonCategory, ReportReasonOption, ReportTargetType } from '@/src/types/report';
 
@@ -26,17 +27,18 @@ const REASONS: ReportReasonOption[] = [
 export function ReportModal({ visible, onClose, targetId, targetType }: ReportModalProps) {
   const [selectedReason, setSelectedReason] = useState<ReportReasonCategory>(1);
   const [description, setDescription] = useState('');
+  const toast = useToast();
 
   const reportMutation = useMutation({
     mutationFn: createReport,
     onSuccess: () => {
-      Alert.alert('Tesekkurler', 'Raporunuz alindi.');
+      toast.success('Raporunuz alindi.');
       setDescription('');
       setSelectedReason(1);
       onClose();
     },
     onError: (error) => {
-      Alert.alert('Rapor Gonderilemedi', getApiErrorMessage(error));
+      toast.error(getApiErrorMessage(error));
     },
   });
 
