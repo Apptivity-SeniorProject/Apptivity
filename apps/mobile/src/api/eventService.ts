@@ -168,6 +168,12 @@ function buildEventQueryParams(request: EventListRequest): Record<string, string
   if (typeof request.isPaid === 'boolean') {
     queryParams.isPaid = request.isPaid;
   }
+  if (request.startDate) {
+    queryParams.startDate = request.startDate;
+  }
+  if (request.endDate) {
+    queryParams.endDate = request.endDate;
+  }
 
   return queryParams;
 }

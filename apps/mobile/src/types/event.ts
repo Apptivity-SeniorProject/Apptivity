@@ -3,6 +3,8 @@ export interface EventFilters {
   city?: string;
   tagId?: string;
   isPaid?: boolean;
+  startDate?: string;
+  endDate?: string;
   pageSize?: number;
 }
 
@@ -11,6 +13,8 @@ export interface EventListRequest {
   city?: string;
   tagId?: string;
   isPaid?: boolean;
+  startDate?: string;
+  endDate?: string;
   pageNumber: number;
   pageSize: number;
 }

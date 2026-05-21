@@ -11,23 +11,28 @@ export interface AuthTokens {
 }
 
 export interface LoginRequestDto {
-  phoneNumber: string;
+  identifier: string;
+  password: string;
+  deviceId: string;
 }
 
 export interface LoginResponseDto {
-  success: boolean;
-  verificationId?: string;
-  resendAfterSeconds?: number;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface VerifyOtpRequestDto {
   phoneNumber: string;
-  otpCode: string;
-  verificationId?: string;
+  code: string;
+  deviceId: string;
 }
 
 export interface VerifyOtpResponseDto {
   accessToken: string;
   refreshToken: string;
-  user: AuthUser;
+}
+
+export interface RefreshTokenRequestDto {
+  refreshToken: string;
+  deviceId: string;
 }

@@ -25,13 +25,24 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
     QueryKey,
     number
   >({
-    queryKey: ['events', filters.searchTerm ?? '', filters.city ?? '', filters.tagId ?? '', filters.isPaid ?? 'all', pageSize],
+    queryKey: [
+      'events',
+      filters.searchTerm ?? '',
+      filters.city ?? '',
+      filters.tagId ?? '',
+      filters.isPaid ?? 'all',
+      filters.startDate ?? '',
+      filters.endDate ?? '',
+      pageSize,
+    ],
     queryFn: ({ pageParam }) =>
       getEvents({
         searchTerm: filters.searchTerm,
         city: filters.city,
         tagId: filters.tagId,
         isPaid: filters.isPaid,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
         pageNumber: pageParam,
         pageSize,
       }),

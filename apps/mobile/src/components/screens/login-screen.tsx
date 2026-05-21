@@ -6,7 +6,9 @@ import { Alert, FlatList, Modal, Pressable, SafeAreaView, Text, View } from 'rea
 import { requestLoginOtp } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
+import { DEFAULT_LOGIN_PASSWORD } from '@/src/constants/env';
 import { getApiErrorMessage } from '@/src/utils/error';
+import { getOrCreateDeviceId } from '@/src/utils/device';
 
 interface CountryCodeOption {
   label: string;
@@ -14,10 +16,10 @@ interface CountryCodeOption {
 }
 
 const COUNTRY_CODE_OPTIONS: CountryCodeOption[] = [
-  { label: 'Türkiye (+90)', value: '+90' },
+  { label: 'Turkiye (+90)', value: '+90' },
   { label: 'ABD (+1)', value: '+1' },
   { label: 'Almanya (+49)', value: '+49' },
-  { label: 'İngiltere (+44)', value: '+44' },
+  { label: 'Ingiltere (+44)', value: '+44' },
 ];
 
 function normalizePhoneNumber(countryCode: string, phoneInput: string): string {
@@ -37,41 +39,46 @@ export function LoginScreen() {
   );
 
   const loginMutation = useMutation({
-    mutationFn: requestLoginOtp,
-    onSuccess: (response) => {
+    mutationFn: async (identifier: string) => {
+      const deviceId = await getOrCreateDeviceId();
+      return requestLoginOtp({
+        identifier,
+        password: DEFAULT_LOGIN_PASSWORD,
+        deviceId,
+      });
+    },
+    onSuccess: () => {
       router.push({
         pathname: '/otp',
         params: {
           phoneNumber,
-          verificationId: response.verificationId ?? '',
-          resendAfterSeconds: String(response.resendAfterSeconds ?? 60),
+          password: DEFAULT_LOGIN_PASSWORD,
         },
       });
     },
     onError: (error) => {
-      Alert.alert('Doğrulama Gönderilemedi', getApiErrorMessage(error));
+      Alert.alert('Dogrulama Baslatilamadi', getApiErrorMessage(error));
     },
   });
 
-  const handleSendOtp = () => {
+  const handleStartAuth = () => {
     const digitsOnly = phoneInput.replace(/\D/g, '');
-
     if (digitsOnly.length < 7 || digitsOnly.length > 15) {
-      setInputError('Geçerli bir telefon numarası girin.');
-      Alert.alert('Hatalı Numara', 'Telefon numarası geçersiz.');
+      setInputError('Gecerli bir telefon numarasi girin.');
+      Alert.alert('Hatali Numara', 'Telefon numarasi gecersiz.');
       return;
     }
 
     setInputError('');
-    loginMutation.mutate({ phoneNumber });
+    loginMutation.mutate(phoneNumber);
   };
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <View className="flex-1 px-6 pt-20">
-        <Text className="text-3xl font-bold text-slate-900">Giriş Yap</Text>
+        <Text className="text-3xl font-bold text-slate-900">Giris Yap</Text>
         <Text className="mt-2 text-base text-slate-500">
-          Telefon numaranı gir, sana tek kullanımlık doğrulama kodu gönderelim.
+          Telefon numaranla giris yap. Sonraki adimda OTP kodunu dogrulayacaksin.
         </Text>
 
         <View className="mt-10 flex-row gap-3">
@@ -83,7 +90,7 @@ export function LoginScreen() {
 
           <Input
             keyboardType="phone-pad"
-            label="Telefon Numarası"
+            label="Telefon Numarasi"
             placeholder="5XX XXX XX XX"
             value={phoneInput}
             onChangeText={setPhoneInput}
@@ -94,20 +101,18 @@ export function LoginScreen() {
 
         <Button
           className="mt-8"
-          label="OTP Gönder"
+          label="Devam Et"
           isLoading={loginMutation.isPending}
-          onPress={handleSendOtp}
+          onPress={handleStartAuth}
         />
-
-        <Text className="mt-4 text-xs text-slate-400">
-          Devam ederek kullanım şartlarını kabul etmiş olursun.
-        </Text>
       </View>
 
       <Modal animationType="slide" transparent visible={isCountryModalOpen}>
-        <Pressable className="flex-1 justify-end bg-black/30" onPress={() => setIsCountryModalOpen(false)}>
+        <Pressable
+          className="flex-1 justify-end bg-black/30"
+          onPress={() => setIsCountryModalOpen(false)}>
           <View className="max-h-72 rounded-t-3xl bg-white px-5 py-4">
-            <Text className="mb-4 text-lg font-semibold text-slate-900">Ülke Kodu Seç</Text>
+            <Text className="mb-4 text-lg font-semibold text-slate-900">Ulke Kodu Sec</Text>
             <FlatList
               data={COUNTRY_CODE_OPTIONS}
               keyExtractor={(item) => item.value}
