@@ -1,5 +1,6 @@
 import {
   applyToEvent,
+  createEvent,
   getEventDetail,
   getEvents,
   getMyEvents,
@@ -7,4 +8,4 @@ import {
   withdrawFromEvent,
 } from '@/src/api/eventService';
 
-export { getEvents, getEventDetail, applyToEvent, withdrawFromEvent, getMyEvents, getMyParticipations };
+export { getEvents, getEventDetail, applyToEvent, withdrawFromEvent, getMyEvents, getMyParticipations, createEvent };

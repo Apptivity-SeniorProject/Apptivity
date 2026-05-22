@@ -5,6 +5,7 @@ using Apptivity.Application.Contracts.Tags;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
+using System.Text.Json;
 
 namespace Apptivity.Application.Services;
 
@@ -296,6 +297,12 @@ public sealed class EventService : IEventService
 
     public async Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)
     {
+        var validationError = ValidateCreateEventRequest(request);
+        if (validationError is not null)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, validationError);
+        }
+
         var normalizedTagIds = NormalizeTagIds(request.PrimaryTagId, request.TagIds);
         var tags = normalizedTagIds.Count == 0
             ? Array.Empty<Tag>()
@@ -312,15 +319,15 @@ public sealed class EventService : IEventService
         {
             Id = Guid.NewGuid(),
             OwnerId = userContext.AccountId,
-            Name = request.Name,
-            Description = request.Description,
+            Name = request.Name.Trim(),
+            Description = request.Description.Trim(),
             Date = request.Date,
             Time = request.Time,
             DurationMinutes = request.DurationMinutes,
             Capacity = request.Capacity,
             RemainingParticipationCount = request.Capacity,
             Price = request.Price,
-            LocationData = request.LocationData,
+            LocationData = request.LocationData?.Trim(),
             PrimaryTagId = resolvedPrimaryTagId == Guid.Empty ? null : resolvedPrimaryTagId,
             Status = EventStatus.PendingApproval
         };
@@ -684,5 +691,107 @@ public sealed class EventService : IEventService
             .OrderBy(x => x.Name)
             .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
             .ToArray();
+    }
+
+    private static string? ValidateCreateEventRequest(CreateEventRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return "Event name is required.";
+        }
+
+        if (request.Name.Trim().Length < 3)
+        {
+            return "Event name must be at least 3 characters.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return "Event description is required.";
+        }
+
+        if (request.DurationMinutes <= 0)
+        {
+            return "Duration must be greater than 0.";
+        }
+
+        if (request.Capacity <= 0)
+        {
+            return "Capacity must be greater than 0.";
+        }
+
+        if (request.Price < 0)
+        {
+            return "Price cannot be negative.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LocationData))
+        {
+            return "Location data is required.";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(request.LocationData);
+            var root = document.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return "Location data must be a JSON object.";
+            }
+
+            if (!root.TryGetProperty("city", out var cityElement) || cityElement.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(cityElement.GetString()))
+            {
+                return "Location city is required.";
+            }
+
+            if (!root.TryGetProperty("fullAddress", out var addressElement) || addressElement.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(addressElement.GetString()))
+            {
+                return "Location fullAddress is required.";
+            }
+
+            if (!root.TryGetProperty("imageUrls", out var imageUrlsElement) || imageUrlsElement.ValueKind != JsonValueKind.Array)
+            {
+                return "At least 1 image is required.";
+            }
+
+            var imageUrls = imageUrlsElement
+                .EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => x.GetString())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .ToArray();
+
+            if (imageUrls.Length < 1 || imageUrls.Length > 3)
+            {
+                return "Image count must be between 1 and 3.";
+            }
+
+            foreach (var imageUrl in imageUrls)
+            {
+                if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var parsedUri))
+                {
+                    return "Image URLs must be valid absolute URLs.";
+                }
+
+                if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps)
+                {
+                    return "Image URLs must use http or https.";
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return "Location data is not valid JSON.";
+        }
+
+        var eventDateTime = request.Date.ToDateTime(request.Time);
+        if (eventDateTime <= DateTime.UtcNow)
+        {
+            return "Event date and time must be in the future.";
+        }
+
+        return null;
     }
 }

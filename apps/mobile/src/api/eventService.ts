@@ -2,6 +2,7 @@ import { apiClient } from '@/src/api/apiClient';
 import type { ApiEnvelope } from '@/src/types/api';
 import type {
   ApplyToEventResponseDto,
+  CreateEventPayload,
   EventDetail,
   EventDetailsDto,
   EventListItem,
@@ -46,6 +47,10 @@ function parseLocationData(locationData?: string | null): EventLocation {
 
   try {
     const parsed = JSON.parse(locationData) as Record<string, unknown>;
+    const parsedImageUrls = Array.isArray(parsed.imageUrls)
+      ? parsed.imageUrls.filter((url): url is string => typeof url === 'string')
+      : [];
+
     return {
       city: typeof parsed.city === 'string' ? parsed.city : undefined,
       fullAddress:
@@ -57,6 +62,7 @@ function parseLocationData(locationData?: string | null): EventLocation {
       locationLabel: typeof parsed.locationLabel === 'string' ? parsed.locationLabel : undefined,
       lat: toNumber(parsed.lat),
       lng: toNumber(parsed.lng),
+      imageUrls: parsedImageUrls.length ? parsedImageUrls : undefined,
     };
   } catch {
     return {
@@ -98,6 +104,8 @@ function toEventDateTime(date: string, time: string): Date {
 
 function mapEventSummary(dto: EventSummaryDto): EventListItem {
   const participantCount = Math.max(0, dto.capacity - dto.remainingParticipationCount);
+  const location = parseLocationData(dto.locationData);
+  const bannerImageUrl = location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description);
 
   return {
     id: dto.id,
@@ -105,17 +113,18 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     description: dto.description,
     date: dto.date,
     time: dto.time,
-    location: parseLocationData(dto.locationData),
+    location,
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
     organizerName: 'Organizator',
-    bannerImageUrl: extractBannerImageUrl(dto.description),
+    bannerImageUrl,
     status: dto.status,
     remainingParticipationCount: dto.remainingParticipationCount,
     capacity: dto.capacity,
     primaryTagId: dto.primaryTagId,
     tags: dto.tags ?? [],
     participantCount,
+    imageUrls: location.imageUrls,
   };
 }
 
@@ -159,7 +168,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     organizerName: dto.ownerName ?? 'Organizator',
     organizerType: dto.ownerType,
     organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
-    bannerImageUrl: extractBannerImageUrl(dto.description),
+    bannerImageUrl: location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description),
     status: dto.status,
     capacity: dto.capacity,
     remainingParticipationCount: dto.remainingParticipationCount,
@@ -169,6 +178,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     currentUserParticipationStatus: participationStatus,
     isPast: eventDateTime.getTime() < Date.now(),
     isFull: dto.remainingParticipationCount <= 0,
+    imageUrls: location.imageUrls,
   };
 }
 
@@ -286,6 +296,12 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
     organizer: mapEventParticipant(payload.organizer),
     participants: payload.participants.map(mapEventParticipant),
   };
+}
+
+export async function createEvent(payload: CreateEventPayload): Promise<EventListItem> {
+  const response = await apiClient.post<ApiEnvelope<EventSummaryDto>>('/api/events', payload);
+  const created = unwrapEnvelope(response.data);
+  return mapEventSummary(created);
 }
 
 export async function applyToEvent(eventId: string): Promise<ParticipationStatus> {

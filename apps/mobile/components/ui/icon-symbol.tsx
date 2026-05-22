@@ -17,6 +17,7 @@ const MAPPING = {
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'map.fill': 'map',
+  'plus.circle.fill': 'add-circle',
   calendar: 'calendar-month',
   'person.fill': 'person',
   'chevron.left.forwardslash.chevron.right': 'code',

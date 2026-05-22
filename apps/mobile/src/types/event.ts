@@ -10,6 +10,19 @@ export interface EventFilters {
   pageSize?: number;
 }
 
+export interface CreateEventPayload {
+  name: string;
+  description: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  capacity: number;
+  price: number;
+  locationData: string;
+  primaryTagId?: string;
+  tagIds?: string[];
+}
+
 export interface EventListRequest {
   searchTerm?: string;
   city?: string;
@@ -126,6 +139,7 @@ export interface EventLocation {
   locationLabel?: string;
   lat?: number;
   lng?: number;
+  imageUrls?: string[];
 }
 
 export interface EventListItem {
@@ -147,6 +161,7 @@ export interface EventListItem {
   participantCount: number;
   organizerProfilePhoto?: string;
   currentUserParticipationStatus?: ParticipationStatus | null;
+  imageUrls?: string[];
 }
 
 export interface EventDetail {
@@ -171,4 +186,5 @@ export interface EventDetail {
   currentUserParticipationStatus?: ParticipationStatus | null;
   isPast: boolean;
   isFull: boolean;
+  imageUrls?: string[];
 }

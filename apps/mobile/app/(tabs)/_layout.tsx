@@ -15,6 +15,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          height: 68,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
       }}>
       <Tabs.Screen
         name="index"
@@ -28,6 +33,15 @@ export default function TabLayout() {
         options={{
           title: 'Map',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: 'Olustur',
+          tabBarIcon: ({ focused }) => (
+            <IconSymbol size={34} name="plus.circle.fill" color={focused ? '#2563eb' : '#64748b'} />
+          ),
         }}
       />
       <Tabs.Screen
