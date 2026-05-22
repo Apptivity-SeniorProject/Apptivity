@@ -33,6 +33,11 @@ interface ValidationResult {
   message?: string;
 }
 
+interface CreateEventMutationResult {
+  eventId: string;
+  bannerUploadErrorMessage?: string;
+}
+
 const DEFAULT_REGION: Region = {
   latitude: 41.015137,
   longitude: 28.97953,
@@ -285,7 +290,7 @@ export function CreateEventScreen() {
   };
 
   const createMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<CreateEventMutationResult> => {
       if (!selectedCoordinate) {
         throw new Error('Konum secilmedi.');
       }
@@ -318,24 +323,38 @@ export function CreateEventScreen() {
         throw new Error('Fotograf secimi zorunludur.');
       }
 
-      await uploadEventBanner(event.id, {
-        uri: firstImage.uri,
-        fileName: firstImage.fileName,
-        mimeType: firstImage.mimeType,
-      });
-
-      return event;
+      try {
+        await uploadEventBanner(event.id, {
+          uri: firstImage.uri,
+          fileName: firstImage.fileName,
+          mimeType: firstImage.mimeType,
+        });
+        return { eventId: event.id };
+      } catch (error) {
+        return {
+          eventId: event.id,
+          bannerUploadErrorMessage: getApiErrorMessage(
+            error,
+            'Etkinlik olusturuldu fakat fotograf yuklenemedi.'
+          ),
+        };
+      }
     },
-    onSuccess: async (event) => {
+    onSuccess: async ({ eventId, bannerUploadErrorMessage }) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['events'] }),
         queryClient.invalidateQueries({ queryKey: ['recommended-events'] }),
         queryClient.invalidateQueries({ queryKey: ['my-events'] }),
-        queryClient.invalidateQueries({ queryKey: ['event-detail', event.id] }),
+        queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
       ]);
 
-      toast.success('Etkinlik olusturuldu.');
-      router.push(`/event/${event.id}`);
+      if (bannerUploadErrorMessage) {
+        toast.info(bannerUploadErrorMessage);
+      } else {
+        toast.success('Etkinlik olusturuldu.');
+      }
+
+      router.push(`/event/${eventId}`);
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, 'Etkinlik olusturulamadi.'));

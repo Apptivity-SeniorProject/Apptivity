@@ -5,6 +5,7 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   OTP_TOO_MANY_ATTEMPTS: 'Cok fazla hatali deneme yaptiniz.',
   OTP_REQUIRED: 'Dogrulama kodu gerekli.',
   UNAUTHORIZED: 'Oturum dogrulanamadi.',
+  IMG_CONFIG_MISSING: 'Gorsel servisi su an hazir degil. Etkinlik olustu ama fotograf yuklenemedi.',
   EVENT_400_FULL: 'Etkinligin kontenjani dolu.',
   EVENT_404: 'Etkinlik bulunamadi.',
 };

@@ -70,8 +70,19 @@ public sealed class ImagesController : ApiControllerBase
             }, HttpContext.TraceIdentifier));
         }
 
-        await using var stream = file.OpenReadStream();
-        var upload = await _imageService.UploadProfilePhotoAsync(stream, file.FileName, cancellationToken);
+        ImageUploadResult upload;
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            upload = await _imageService.UploadProfilePhotoAsync(stream, file.FileName, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("IMG_CONFIG_MISSING", ex.Message)
+            }, HttpContext.TraceIdentifier));
+        }
 
         account.ProfilePhoto = upload.Url;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -125,8 +136,19 @@ public sealed class ImagesController : ApiControllerBase
             }, HttpContext.TraceIdentifier));
         }
 
-        await using var stream = file.OpenReadStream();
-        var upload = await _imageService.UploadEventBannerAsync(stream, file.FileName, cancellationToken);
+        ImageUploadResult upload;
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            upload = await _imageService.UploadEventBannerAsync(stream, file.FileName, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("IMG_CONFIG_MISSING", ex.Message)
+            }, HttpContext.TraceIdentifier));
+        }
 
         eventEntity.BannerImage = upload.Url;
         await _unitOfWork.SaveChangesAsync(cancellationToken);

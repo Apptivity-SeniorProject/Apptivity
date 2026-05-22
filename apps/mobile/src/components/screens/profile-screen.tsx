@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Flag } from 'lucide-react-native';
+import { Flag, LogOut } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/us
 import { useMyProfile, useProfileStats, useSetMyInterests } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
 import { useToast } from '@/src/hooks/useToast';
+import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventListItem } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { cn } from '@/src/utils/cn';
@@ -52,6 +53,7 @@ export function ProfileScreen() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draftInterestTagIds, setDraftInterestTagIds] = useState<string[]>([]);
   const toast = useToast();
+  const logout = useAuthStore((state) => state.logout);
 
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;
@@ -127,9 +129,19 @@ export function ProfileScreen() {
                   </View>
                 </View>
 
-                <Pressable className="rounded-full bg-white/20 p-2" onPress={() => setIsReportModalOpen(true)}>
-                  <Flag size={18} color="#ffffff" />
-                </Pressable>
+                <View className="flex-row items-center gap-2">
+                  <Pressable className="rounded-full bg-white/20 p-2" onPress={() => setIsReportModalOpen(true)}>
+                    <Flag size={18} color="#ffffff" />
+                  </Pressable>
+                  <Pressable
+                    className="rounded-full bg-white/20 p-2"
+                    onPress={() => {
+                      logout();
+                      router.replace('/login');
+                    }}>
+                    <LogOut size={18} color="#ffffff" />
+                  </Pressable>
+                </View>
               </View>
 
               <View className="mt-4 flex-row gap-2">
