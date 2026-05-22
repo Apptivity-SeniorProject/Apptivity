@@ -1,10 +1,19 @@
 import { router } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
-import MapView, { Callout, Marker, type Region } from 'react-native-maps';
 import { Image } from 'expo-image';
+import * as Location from 'expo-location';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import MapView, { Callout, Marker, type Region } from 'react-native-maps';
 
 import { useEvents } from '@/src/hooks/useEvents';
+import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
 import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
 
@@ -23,6 +32,8 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.28,
 };
 
+const NEARBY_RADIUS_KM = 30;
+
 function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const earthRadiusKm = 6371;
@@ -37,9 +48,56 @@ function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 
 export default function MapScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<MapView>(null);
+  const toast = useToast();
 
   const { events, isPending } = useEvents({ pageSize: 100 });
+
+  const requestLocationPermission = async () => {
+    setIsLocating(true);
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setLocationDenied(true);
+        toast.error('Yakin etkinlikler icin konum izni vermelisiniz.');
+        return;
+      }
+
+      setLocationDenied(false);
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const nextLocation = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+
+      setUserLocation(nextLocation);
+
+      const nextRegion: Region = {
+        ...nextLocation,
+        latitudeDelta: 0.12,
+        longitudeDelta: 0.12,
+      };
+
+      setRegion(nextRegion);
+      mapRef.current?.animateToRegion(nextRegion, 450);
+    } catch {
+      toast.error('Konum bilgisi alinamadi.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  useEffect(() => {
+    void requestLocationPermission();
+  }, []);
 
   const mappableEvents = useMemo(() => {
     return events.filter((event) => {
@@ -47,10 +105,28 @@ export default function MapScreen() {
     });
   }, [events]);
 
+  const nearbyEvents = useMemo(() => {
+    if (!userLocation) {
+      return mappableEvents;
+    }
+
+    return mappableEvents.filter((event) => {
+      const eventLat = event.location.lat as number;
+      const eventLng = event.location.lng as number;
+      const distance = haversineDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        eventLat,
+        eventLng
+      );
+      return distance <= NEARBY_RADIUS_KM;
+    });
+  }, [mappableEvents, userLocation]);
+
   const locationClusters = useMemo<LocationCluster[]>(() => {
     const grouped = new Map<string, { city: string; count: number; latitude: number; longitude: number }>();
 
-    mappableEvents.forEach((event) => {
+    nearbyEvents.forEach((event) => {
       const city = event.location.city ?? event.location.locationLabel ?? 'Bilinmeyen';
       const key = city.toLowerCase();
       const current = grouped.get(key);
@@ -87,7 +163,7 @@ export default function MapScreen() {
         const distanceB = haversineDistanceKm(region.latitude, region.longitude, b.latitude, b.longitude);
         return distanceA - distanceB;
       });
-  }, [mappableEvents, region.latitude, region.longitude]);
+  }, [nearbyEvents, region.latitude, region.longitude]);
 
   const focusLocation = (cluster: LocationCluster) => {
     const nextRegion: Region = {
@@ -116,10 +192,16 @@ export default function MapScreen() {
           contentFit="cover"
         />
         <View className="p-3">
-        <Text className="text-sm font-semibold text-slate-900">{event.title}</Text>
-        <Text className="mt-1 text-xs text-slate-600">{formatEventDate(event.date)} - {event.time.slice(0, 5)}</Text>
-        <Text className="mt-1 text-xs text-slate-500" numberOfLines={1}>{locationText}</Text>
-        <Text className="mt-1 text-xs font-semibold text-blue-700">{formatEventPrice(event.price, event.isPaid)}</Text>
+          <Text className="text-sm font-semibold text-slate-900">{event.title}</Text>
+          <Text className="mt-1 text-xs text-slate-600">
+            {formatEventDate(event.date)} - {event.time.slice(0, 5)}
+          </Text>
+          <Text className="mt-1 text-xs text-slate-500" numberOfLines={1}>
+            {locationText}
+          </Text>
+          <Text className="mt-1 text-xs font-semibold text-blue-700">
+            {formatEventPrice(event.price, event.isPaid)}
+          </Text>
         </View>
       </View>
     );
@@ -129,7 +211,7 @@ export default function MapScreen() {
     <SafeAreaView className="flex-1 bg-slate-50">
       <View className="px-4 pb-3 pt-5">
         <Text className="text-2xl font-bold text-slate-900">Kesfet</Text>
-        <Text className="mt-1 text-sm text-slate-500">Harita uzerinden etkinlikleri incele</Text>
+        <Text className="mt-1 text-sm text-slate-500">Konumuna yakin etkinlikler haritada</Text>
       </View>
 
       <View className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -138,8 +220,17 @@ export default function MapScreen() {
             ref={mapRef}
             style={{ flex: 1 }}
             initialRegion={DEFAULT_REGION}
+            showsUserLocation
             onRegionChangeComplete={setRegion}>
-            {mappableEvents.map((event) => (
+            {userLocation ? (
+              <Marker
+                coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+                pinColor="#16a34a"
+                title="Konumum"
+              />
+            ) : null}
+
+            {nearbyEvents.map((event) => (
               <Marker
                 key={event.id}
                 coordinate={{ latitude: event.location.lat as number, longitude: event.location.lng as number }}
@@ -152,8 +243,21 @@ export default function MapScreen() {
         </View>
       </View>
 
+      {locationDenied ? (
+        <View className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <Text className="text-sm text-amber-800">Konum izni kapali. Yakin etkinlikler sinirli gorunebilir.</Text>
+          <Pressable className="mt-2 self-start rounded-full bg-amber-200 px-3 py-1" onPress={requestLocationPermission}>
+            <Text className="text-xs font-semibold text-amber-900">Izni Tekrar Iste</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View className="mt-4 px-4">
-        <Text className="mb-2 text-base font-semibold text-slate-900">Yakin Konumlar</Text>
+        <View className="mb-2 flex-row items-center justify-between">
+          <Text className="text-base font-semibold text-slate-900">Yakin Konumlar</Text>
+          {isLocating ? <ActivityIndicator size="small" color="#0f172a" /> : null}
+        </View>
+
         {isPending ? (
           <View className="h-16 items-center justify-center rounded-xl border border-slate-200 bg-white">
             <ActivityIndicator color="#0f172a" />
@@ -183,7 +287,7 @@ export default function MapScreen() {
           </ScrollView>
         ) : (
           <View className="rounded-xl border border-slate-200 bg-white p-4">
-            <Text className="text-sm text-slate-500">Konum bilgisi olan etkinlik bulunamadi.</Text>
+            <Text className="text-sm text-slate-500">Yakinda konum bilgisi olan etkinlik bulunamadi.</Text>
           </View>
         )}
       </View>

@@ -85,7 +85,6 @@ public sealed class ImagesController : ApiControllerBase
     }
 
     [HttpPost("events/{eventId:guid}/banner")]
-    [Authorize(Roles = "Organization,Admin")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> UploadEventBanner(Guid eventId, [FromForm] EventBannerUploadRequest request, CancellationToken cancellationToken)

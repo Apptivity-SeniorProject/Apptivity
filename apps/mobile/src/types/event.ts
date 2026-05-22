@@ -57,6 +57,7 @@ export interface EventSummaryDto {
   tags?: EventTag[];
   name: string;
   description: string;
+  bannerImage?: string | null;
   date: string;
   time: string;
   durationMinutes: number;
@@ -121,6 +122,7 @@ export interface EventDetailsDto {
   primaryTagName?: string | null;
   name: string;
   description: string;
+  bannerImage?: string | null;
   date: string;
   time: string;
   durationMinutes: number;

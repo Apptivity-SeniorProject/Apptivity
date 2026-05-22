@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
 
-import { createEvent } from '@/src/api/eventService';
+import { createEvent, uploadEventBanner } from '@/src/api/eventService';
 import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -30,15 +32,6 @@ function isValidTime(value: string): boolean {
   return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
 }
 
-function isValidUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
-
 interface ValidationResult {
   isValid: boolean;
   message?: string;
@@ -57,7 +50,7 @@ export function CreateEventScreen() {
   const [locationLabel, setLocationLabel] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [photoUrls, setPhotoUrls] = useState<string[]>(['']);
+  const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const queryClient = useQueryClient();
@@ -75,30 +68,32 @@ export function CreateEventScreen() {
     );
   };
 
-  const addPhotoInput = () => {
-    setPhotoUrls((current) => {
-      if (current.length >= 3) {
-        return current;
-      }
-      return [...current, ''];
+  const selectPhotos = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      toast.error('Fotograf secimi icin galeri izni vermelisiniz.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      allowsMultipleSelection: true,
+      selectionLimit: 3,
+      quality: 0.85,
     });
+
+    if (result.canceled) {
+      return;
+    }
+
+    const nextAssets = result.assets.slice(0, 3);
+    setSelectedImages(nextAssets);
   };
 
-  const removePhotoInput = (index: number) => {
-    setPhotoUrls((current) => {
-      if (current.length <= 1) {
-        return current;
-      }
-      return current.filter((_, i) => i !== index);
-    });
-  };
-
-  const updatePhotoUrl = (index: number, value: string) => {
-    setPhotoUrls((current) => {
-      const next = [...current];
-      next[index] = value;
-      return next;
-    });
+  const removePhoto = (index: number) => {
+    setSelectedImages((current) => current.filter((_, i) => i !== index));
   };
 
   const validate = (): ValidationResult => {
@@ -125,14 +120,8 @@ export function CreateEventScreen() {
     if (!city.trim()) return { isValid: false, message: 'Sehir zorunludur.' };
     if (!fullAddress.trim()) return { isValid: false, message: 'Acik adres zorunludur.' };
 
-    const normalizedPhotos = photoUrls.map((item) => item.trim()).filter(Boolean);
-    if (normalizedPhotos.length < 1 || normalizedPhotos.length > 3) {
-      return { isValid: false, message: 'En az 1, en fazla 3 fotograf URL zorunludur.' };
-    }
-
-    const invalidPhoto = normalizedPhotos.find((item) => !isValidUrl(item));
-    if (invalidPhoto) {
-      return { isValid: false, message: 'Fotograf URLleri gecerli bir http/https adresi olmali.' };
+    if (selectedImages.length < 1 || selectedImages.length > 3) {
+      return { isValid: false, message: 'En az 1, en fazla 3 fotograf secmelisiniz.' };
     }
 
     if ((latitude.trim() && !longitude.trim()) || (!latitude.trim() && longitude.trim())) {
@@ -152,7 +141,6 @@ export function CreateEventScreen() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const normalizedPhotos = photoUrls.map((item) => item.trim()).filter(Boolean);
       const lat = latitude.trim() ? Number(latitude.trim()) : undefined;
       const lng = longitude.trim() ? Number(longitude.trim()) : undefined;
 
@@ -162,7 +150,6 @@ export function CreateEventScreen() {
         locationLabel: locationLabel.trim() || fullAddress.trim(),
         lat,
         lng,
-        imageUrls: normalizedPhotos,
       });
 
       const payload: CreateEventPayload = {
@@ -178,13 +165,16 @@ export function CreateEventScreen() {
         tagIds: selectedTagIds.length ? selectedTagIds : undefined,
       };
 
-      return createEvent(payload);
+      const event = await createEvent(payload);
+      await uploadEventBanner(event.id, selectedImages[0].uri);
+      return event;
     },
     onSuccess: async (event) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['events'] }),
         queryClient.invalidateQueries({ queryKey: ['recommended-events'] }),
         queryClient.invalidateQueries({ queryKey: ['my-events'] }),
+        queryClient.invalidateQueries({ queryKey: ['event-detail', event.id] }),
       ]);
 
       toast.success('Etkinlik olusturuldu.');
@@ -210,7 +200,7 @@ export function CreateEventScreen() {
       <ScrollView contentContainerClassName="px-4 pb-16 pt-6">
         <Text className="text-2xl font-bold text-slate-900">Yeni Etkinlik</Text>
         <Text className="mt-1 text-sm text-slate-500">
-          Tum zorunlu alanlari doldurun. Fotograf sayisi min 1, max 3 olmalidir.
+          Tum zorunlu alanlari doldurun. 1-3 fotograf secimi zorunludur.
         </Text>
 
         <View className="mt-6 gap-4">
@@ -331,35 +321,35 @@ export function CreateEventScreen() {
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-medium text-slate-700">Fotograflar (URL)</Text>
-              <Text className="text-xs text-slate-500">{photoUrls.length}/3</Text>
+              <Text className="text-sm font-medium text-slate-700">Fotograflar</Text>
+              <Text className="text-xs text-slate-500">{selectedImages.length}/3 secildi</Text>
             </View>
 
-            {photoUrls.map((url, index) => (
-              <View key={`photo-url-${index}`} className="flex-row items-end gap-2">
-                <Input
-                  label={`Fotograf URL ${index + 1}`}
-                  value={url}
-                  onChangeText={(value) => updatePhotoUrl(index, value)}
-                  placeholder="https://..."
-                  containerClassName="flex-1"
-                />
-                {photoUrls.length > 1 ? (
-                  <Pressable
-                    className="mb-2 h-12 items-center justify-center rounded-xl border border-slate-300 px-3"
-                    onPress={() => removePhotoInput(index)}>
-                    <Text className="text-sm font-semibold text-slate-700">Sil</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ))}
-
             <Button
-              label="Fotograf Ekle"
+              label="Galeriden Fotograf Sec"
               variant="secondary"
-              onPress={addPhotoInput}
-              disabled={photoUrls.length >= 3}
+              onPress={selectPhotos}
             />
+
+            {selectedImages.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+                {selectedImages.map((asset, index) => (
+                  <View key={`${asset.assetId ?? asset.uri}-${index}`} className="relative">
+                    <Image
+                      source={{ uri: asset.uri }}
+                      style={{ width: 110, height: 110 }}
+                      contentFit="cover"
+                      transition={120}
+                    />
+                    <Pressable
+                      className="absolute right-1 top-1 rounded-full bg-black/65 px-2 py-1"
+                      onPress={() => removePhoto(index)}>
+                      <Text className="text-xs font-semibold text-white">Sil</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
           </View>
 
           <Button label="Etkinligi Olustur" isLoading={createMutation.isPending} onPress={onSubmit} />

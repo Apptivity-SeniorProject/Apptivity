@@ -382,6 +382,7 @@ public sealed class EventService : IEventService
             MapTags(eventEntity.Tags),
             eventEntity.Name,
             eventEntity.Description,
+            eventEntity.BannerImage,
             eventEntity.Date,
             eventEntity.Time,
             eventEntity.DurationMinutes,
@@ -619,6 +620,7 @@ public sealed class EventService : IEventService
             MapTags(eventEntity.Tags),
             eventEntity.Name,
             eventEntity.Description,
+            eventEntity.BannerImage,
             eventEntity.Date,
             eventEntity.Time,
             eventEntity.DurationMinutes,
@@ -750,36 +752,6 @@ public sealed class EventService : IEventService
                 return "Location fullAddress is required.";
             }
 
-            if (!root.TryGetProperty("imageUrls", out var imageUrlsElement) || imageUrlsElement.ValueKind != JsonValueKind.Array)
-            {
-                return "At least 1 image is required.";
-            }
-
-            var imageUrls = imageUrlsElement
-                .EnumerateArray()
-                .Where(x => x.ValueKind == JsonValueKind.String)
-                .Select(x => x.GetString())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!.Trim())
-                .ToArray();
-
-            if (imageUrls.Length < 1 || imageUrls.Length > 3)
-            {
-                return "Image count must be between 1 and 3.";
-            }
-
-            foreach (var imageUrl in imageUrls)
-            {
-                if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var parsedUri))
-                {
-                    return "Image URLs must be valid absolute URLs.";
-                }
-
-                if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps)
-                {
-                    return "Image URLs must use http or https.";
-                }
-            }
         }
         catch (JsonException)
         {

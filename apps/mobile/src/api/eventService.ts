@@ -105,7 +105,7 @@ function toEventDateTime(date: string, time: string): Date {
 function mapEventSummary(dto: EventSummaryDto): EventListItem {
   const participantCount = Math.max(0, dto.capacity - dto.remainingParticipationCount);
   const location = parseLocationData(dto.locationData);
-  const bannerImageUrl = location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description);
+  const bannerImageUrl = dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description);
 
   return {
     id: dto.id,
@@ -168,7 +168,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     organizerName: dto.ownerName ?? 'Organizator',
     organizerType: dto.ownerType,
     organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
-    bannerImageUrl: location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description),
+    bannerImageUrl: dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description),
     status: dto.status,
     capacity: dto.capacity,
     remainingParticipationCount: dto.remainingParticipationCount,
@@ -302,6 +302,42 @@ export async function createEvent(payload: CreateEventPayload): Promise<EventLis
   const response = await apiClient.post<ApiEnvelope<EventSummaryDto>>('/api/events', payload);
   const created = unwrapEnvelope(response.data);
   return mapEventSummary(created);
+}
+
+function inferMimeType(uri: string): string {
+  const normalized = uri.toLowerCase();
+  if (normalized.endsWith('.png')) return 'image/png';
+  if (normalized.endsWith('.webp')) return 'image/webp';
+  if (normalized.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
+export async function uploadEventBanner(eventId: string, assetUri: string): Promise<string | undefined> {
+  const normalizedUri = assetUri.trim();
+  if (!normalizedUri) {
+    throw new Error('Fotograf URI bos olamaz.');
+  }
+
+  const fileName = normalizedUri.split('/').pop() || `event-banner-${Date.now()}.jpg`;
+  const formData = new FormData();
+  formData.append('file', {
+    uri: normalizedUri,
+    name: fileName,
+    type: inferMimeType(fileName),
+  } as never);
+
+  const response = await apiClient.post<ApiEnvelope<{ bannerUrl?: string }>>(
+    `/api/images/events/${eventId}/banner`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  const payload = unwrapEnvelope(response.data);
+  return payload.bannerUrl;
 }
 
 export async function applyToEvent(eventId: string): Promise<ParticipationStatus> {
