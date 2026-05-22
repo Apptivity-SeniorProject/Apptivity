@@ -1,5 +1,4 @@
 import { apiClient } from '@/src/api/apiClient';
-import { DEFAULT_LOGIN_PASSWORD } from '@/src/constants/env';
 import type { ApiEnvelope } from '@/src/types/api';
 import type {
   LoginRequestDto,
@@ -27,11 +26,11 @@ export async function login(payload: LoginRequestDto): Promise<LoginResponseDto>
   return unwrapEnvelope(response.data);
 }
 
-export async function loginWithPhoneNumber(phoneNumber: string): Promise<LoginResponseDto> {
+export async function loginWithPhoneNumber(phoneNumber: string, password: string): Promise<LoginResponseDto> {
   const deviceId = await getOrCreateDeviceId();
   return login({
     identifier: phoneNumber,
-    password: DEFAULT_LOGIN_PASSWORD,
+    password,
     deviceId,
   });
 }

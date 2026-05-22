@@ -32,6 +32,7 @@ export function LoginScreen() {
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [countryCode, setCountryCode] = useState('+90');
   const [phoneInput, setPhoneInput] = useState('');
+  const [password, setPassword] = useState('');
   const [inputError, setInputError] = useState('');
 
   const toast = useToast();
@@ -44,14 +45,14 @@ export function LoginScreen() {
   );
 
   const loginMutation = useMutation({
-    mutationFn: async (identifier: string) => {
-      return loginWithPhoneNumber(identifier);
+    mutationFn: async ({ identifier, pass }: { identifier: string; pass: string }) => {
+      return loginWithPhoneNumber(identifier, pass);
     },
     onSuccess: (response) => {
       if (response.accessToken && response.refreshToken) {
         setTokens(response.accessToken, response.refreshToken);
         setUser(buildAuthUser(response.accessToken, phoneNumber));
-        router.replace('/(tabs)');
+        router.replace('/');
         return;
       }
 
@@ -76,8 +77,14 @@ export function LoginScreen() {
       return;
     }
 
+    if (!password) {
+      setInputError('Sifre giriniz.');
+      toast.error('Sifre bos olamaz.');
+      return;
+    }
+
     setInputError('');
-    loginMutation.mutate(phoneNumber);
+    loginMutation.mutate({ identifier: phoneNumber, pass: password });
   };
 
   return (
@@ -105,6 +112,15 @@ export function LoginScreen() {
             containerClassName="flex-1"
           />
         </View>
+
+        <Input
+          label="Sifre"
+          placeholder="Sifrenizi girin"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          containerClassName="mt-4"
+        />
 
         <Button
           className="mt-8"

@@ -4,7 +4,7 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 
 interface AuthGuardState {
   isReady: boolean;
-  redirectTo: '/login' | '/(tabs)' | null;
+  redirectTo: '/login' | '/' | null;
 }
 
 export function useAuthGuard(): AuthGuardState {
@@ -24,7 +24,7 @@ export function useAuthGuard(): AuthGuardState {
   }
 
   if (accessToken && isOnAuthScreen) {
-    return { isReady: true, redirectTo: '/(tabs)' };
+    return { isReady: true, redirectTo: '/' };
   }
 
   return { isReady: true, redirectTo: null };
