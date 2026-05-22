@@ -13,6 +13,8 @@ import type { PagedResult } from '@/src/types/event';
 
 type ReceiveMessageHandler = (message: MessageDto) => void;
 
+const ENABLE_CHAT_LOGS = typeof __DEV__ !== 'undefined' && __DEV__;
+
 interface RawMessageDto {
   messageId?: string;
   eventId?: string;
@@ -69,7 +71,9 @@ class ChatSignalRService {
     }
 
     await this.stopConnection();
-    console.log('Attempting to connect to SignalR at:', CHAT_HUB_URL);
+    if (ENABLE_CHAT_LOGS) {
+      console.log('Attempting to connect to SignalR at:', CHAT_HUB_URL);
+    }
 
     const connection = new HubConnectionBuilder()
       .withUrl(CHAT_HUB_URL, {

@@ -67,7 +67,7 @@ export function ProfileScreen() {
     ? getDisplayName(profile.username, profile.userProfile?.name, profile.userProfile?.surname)
     : '';
 
-  const followerCount = statsQuery.data?.totalReviews ?? 0;
+  const reviewCount = statsQuery.data?.totalReviews ?? 0;
 
   const activeItems = useMemo<EventListItem[]>(() => {
     if (activeTab === 'my-events') {
@@ -155,8 +155,8 @@ export function ProfileScreen() {
                     <Text className="mt-1 text-lg font-bold text-slate-900">{myParticipationsQuery.data?.totalCount ?? 0}</Text>
                   </View>
                   <View className="flex-1 rounded-xl bg-slate-100 p-3">
-                    <Text className="text-xs text-slate-500">Takipci</Text>
-                    <Text className="mt-1 text-lg font-bold text-slate-900">{followerCount}</Text>
+                    <Text className="text-xs text-slate-500">Yorum</Text>
+                    <Text className="mt-1 text-lg font-bold text-slate-900">{reviewCount}</Text>
                   </View>
                 </View>
               </View>

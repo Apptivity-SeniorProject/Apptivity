@@ -16,6 +16,8 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+const ENABLE_API_LOGS = typeof __DEV__ !== 'undefined' && __DEV__;
+
 let isRefreshing = false;
 let pendingQueue: {
   resolve: (token: string) => void;
@@ -113,18 +115,30 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data ? JSON.stringify(config.data) : '');
+  if (ENABLE_API_LOGS) {
+    console.log(
+      `[API Request] ${config.method?.toUpperCase()} ${config.url}`,
+      config.data ? JSON.stringify(config.data) : ''
+    );
+  }
 
   return config;
 });
 
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] ${response.status} ${response.config.url}`);
+    if (ENABLE_API_LOGS) {
+      console.log(`[API Response] ${response.status} ${response.config.url}`);
+    }
     return response;
   },
   async (error: AxiosError) => {
-    console.error(`[API Error] ${error.response?.status || 'Network Error'} ${error.config?.url}`, error.response?.data || error.message);
+    if (ENABLE_API_LOGS) {
+      console.error(
+        `[API Error] ${error.response?.status || 'Network Error'} ${error.config?.url}`,
+        error.response?.data || error.message
+      );
+    }
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
     if (!originalRequest) {

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -56,7 +56,7 @@ export default function MapScreen() {
 
   const { events, isPending } = useEvents({ pageSize: 100 });
 
-  const requestLocationPermission = async () => {
+  const requestLocationPermission = useCallback(async () => {
     setIsLocating(true);
 
     try {
@@ -93,11 +93,11 @@ export default function MapScreen() {
     } finally {
       setIsLocating(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void requestLocationPermission();
-  }, []);
+  }, [requestLocationPermission]);
 
   const mappableEvents = useMemo(() => {
     return events.filter((event) => {
