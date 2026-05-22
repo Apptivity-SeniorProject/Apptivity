@@ -14,7 +14,8 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EventCard } from '@/src/components/events/event-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';

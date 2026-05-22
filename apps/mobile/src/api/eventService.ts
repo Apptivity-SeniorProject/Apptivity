@@ -304,26 +304,51 @@ export async function createEvent(payload: CreateEventPayload): Promise<EventLis
   return mapEventSummary(created);
 }
 
-function inferMimeType(uri: string): string {
-  const normalized = uri.toLowerCase();
-  if (normalized.endsWith('.png')) return 'image/png';
-  if (normalized.endsWith('.webp')) return 'image/webp';
-  if (normalized.endsWith('.gif')) return 'image/gif';
-  return 'image/jpeg';
+type BannerUploadAsset = {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+};
+
+const SUPPORTED_EXTENSIONS = new Set(['jpg', 'png', 'webp']);
+
+function normalizeBannerFileMeta(asset: BannerUploadAsset): { fileName: string; mimeType: string } {
+  const rawFileName = (asset.fileName ?? '').toLowerCase();
+  const rawMimeType = (asset.mimeType ?? '').toLowerCase();
+  const extensionFromFileName = rawFileName.includes('.') ? rawFileName.split('.').pop() ?? '' : '';
+
+  let extension = '';
+
+  if (rawMimeType.includes('png')) extension = 'png';
+  else if (rawMimeType.includes('webp')) extension = 'webp';
+  else if (rawMimeType.includes('jpeg') || rawMimeType.includes('jpg')) extension = 'jpg';
+  else if (SUPPORTED_EXTENSIONS.has(extensionFromFileName)) extension = extensionFromFileName;
+  else extension = 'jpg';
+
+  const mimeType =
+    extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg';
+
+  return {
+    fileName: `event-banner-${Date.now()}.${extension}`,
+    mimeType,
+  };
 }
 
-export async function uploadEventBanner(eventId: string, assetUri: string): Promise<string | undefined> {
-  const normalizedUri = assetUri.trim();
+export async function uploadEventBanner(
+  eventId: string,
+  asset: BannerUploadAsset
+): Promise<string | undefined> {
+  const normalizedUri = asset.uri.trim();
   if (!normalizedUri) {
     throw new Error('Fotograf URI bos olamaz.');
   }
 
-  const fileName = normalizedUri.split('/').pop() || `event-banner-${Date.now()}.jpg`;
+  const normalizedMeta = normalizeBannerFileMeta(asset);
   const formData = new FormData();
   formData.append('file', {
     uri: normalizedUri,
-    name: fileName,
-    type: inferMimeType(fileName),
+    name: normalizedMeta.fileName,
+    type: normalizedMeta.mimeType,
   } as never);
 
   const response = await apiClient.post<ApiEnvelope<{ bannerUrl?: string }>>(

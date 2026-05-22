@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient } from '@/src/api/queryClient';
 import { useAuthGuard } from '@/src/hooks/useAuthGuard';
@@ -17,22 +18,24 @@ export function RootNavigator() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {!isReady ? null : redirectTo ? (
-          <Redirect href={redirectTo} />
-        ) : (
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="otp" options={{ headerShown: false }} />
-            <Stack.Screen name="event/[id]/index" options={{ headerShown: true, title: 'Etkinlik' }} />
-            <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-        )}
-        <ToastHost />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          {!isReady ? null : redirectTo ? (
+            <Redirect href={redirectTo} />
+          ) : (
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="otp" options={{ headerShown: false }} />
+              <Stack.Screen name="event/[id]/index" options={{ headerShown: true, title: 'Etkinlik' }} />
+              <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+          )}
+          <ToastHost />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </SafeAreaProvider>
     </QueryClientProvider>
   );
 }

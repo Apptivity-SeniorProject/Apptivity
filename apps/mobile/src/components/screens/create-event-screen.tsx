@@ -1,9 +1,23 @@
+﻿import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 
 import { createEvent, uploadEventBanner } from '@/src/api/eventService';
 import { CategorySelector } from '@/src/components/events/category-selector';
@@ -14,42 +28,48 @@ import { useTags } from '@/src/hooks/useTags';
 import type { CreateEventPayload } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 
-function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00`);
-  return !Number.isNaN(date.getTime());
-}
-
-function isValidTime(value: string): boolean {
-  if (!/^\d{2}:\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const [hours, minutes] = value.split(':').map(Number);
-  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
-}
-
 interface ValidationResult {
   isValid: boolean;
   message?: string;
 }
 
+const DEFAULT_REGION: Region = {
+  latitude: 41.015137,
+  longitude: 28.97953,
+  latitudeDelta: 0.1,
+  longitudeDelta: 0.1,
+};
+
 export function CreateEventScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    const now = new Date();
+    now.setHours(now.getHours() + 2, 0, 0, 0);
+    return now;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   const [durationMinutes, setDurationMinutes] = useState('120');
   const [capacity, setCapacity] = useState('20');
   const [price, setPrice] = useState('0');
   const [city, setCity] = useState('');
   const [fullAddress, setFullAddress] = useState('');
   const [locationLabel, setLocationLabel] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  const [selectedCoordinate, setSelectedCoordinate] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [mapRegion, setMapRegion] = useState<Region>(DEFAULT_REGION);
+  const [mapDraftCoordinate, setMapDraftCoordinate] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+
   const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
@@ -61,6 +81,9 @@ export function CreateEventScreen() {
     () => (tags ?? []).map((tag) => ({ id: tag.id, name: tag.name })),
     [tags]
   );
+
+  const formattedDate = useMemo(() => format(scheduledAt, 'dd.MM.yyyy'), [scheduledAt]);
+  const formattedTime = useMemo(() => format(scheduledAt, 'HH:mm'), [scheduledAt]);
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((current) =>
@@ -96,11 +119,141 @@ export function CreateEventScreen() {
     setSelectedImages((current) => current.filter((_, i) => i !== index));
   };
 
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(false);
+
+    if (event.type !== 'set' || !selectedDate) {
+      return;
+    }
+
+    setScheduledAt((previous) => {
+      const next = new Date(previous);
+      next.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      return next;
+    });
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
+    setShowTimePicker(false);
+
+    if (event.type !== 'set' || !selectedTime) {
+      return;
+    }
+
+    setScheduledAt((previous) => {
+      const next = new Date(previous);
+      next.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      return next;
+    });
+  };
+
+  const openMapPicker = async () => {
+    setIsMapModalOpen(true);
+
+    if (selectedCoordinate) {
+      setMapDraftCoordinate(selectedCoordinate);
+      setMapRegion({
+        latitude: selectedCoordinate.latitude,
+        longitude: selectedCoordinate.longitude,
+        latitudeDelta: 0.04,
+        longitudeDelta: 0.04,
+      });
+      return;
+    }
+
+    setIsResolvingLocation(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        toast.error('Haritadan konum secmek icin konum izni vermelisiniz.');
+        return;
+      }
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const coordinate = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+
+      setMapDraftCoordinate(coordinate);
+      setMapRegion({
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        latitudeDelta: 0.04,
+        longitudeDelta: 0.04,
+      });
+    } catch {
+      toast.error('Konum bilgisi alinamadi. Haritadan manuel isaretleyebilirsiniz.');
+    } finally {
+      setIsResolvingLocation(false);
+    }
+  };
+
+  const handleMapPress = (event: MapPressEvent) => {
+    setMapDraftCoordinate(event.nativeEvent.coordinate);
+  };
+
+  const confirmMapSelection = async () => {
+    if (!mapDraftCoordinate) {
+      toast.error('Lutfen haritadan bir konum secin.');
+      return;
+    }
+
+    setSelectedCoordinate(mapDraftCoordinate);
+    setIsMapModalOpen(false);
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        return;
+      }
+
+      const reverseResult = await Location.reverseGeocodeAsync(mapDraftCoordinate);
+      const geo = reverseResult[0];
+
+      if (!geo) {
+        return;
+      }
+
+      if (!city.trim()) {
+        const derivedCity = geo.city ?? geo.subregion ?? geo.region;
+        if (derivedCity) {
+          setCity(derivedCity);
+        }
+      }
+
+      if (!fullAddress.trim()) {
+        const address = [geo.street, geo.name, geo.district, geo.subregion, geo.city]
+          .filter((part): part is string => Boolean(part))
+          .join(', ');
+
+        if (address) {
+          setFullAddress(address);
+        }
+      }
+
+      if (!locationLabel.trim()) {
+        const label = geo.name ?? geo.street ?? geo.city;
+        if (label) {
+          setLocationLabel(label);
+        }
+      }
+    } catch {
+      // Reverse geocode basarisiz olsa da koordinat secimi gecerli.
+    }
+  };
+
   const validate = (): ValidationResult => {
     if (!name.trim()) return { isValid: false, message: 'Etkinlik basligi zorunludur.' };
     if (!description.trim()) return { isValid: false, message: 'Etkinlik aciklamasi zorunludur.' };
-    if (!isValidDate(date.trim())) return { isValid: false, message: 'Tarih formati YYYY-AA-GG olmali.' };
-    if (!isValidTime(time.trim())) return { isValid: false, message: 'Saat formati SS:DD olmali.' };
+
+    if (scheduledAt.getTime() <= Date.now()) {
+      return { isValid: false, message: 'Etkinlik tarihi ve saati gelecekte olmalidir.' };
+    }
 
     const duration = Number(durationMinutes);
     if (!Number.isInteger(duration) || duration <= 0) {
@@ -117,6 +270,10 @@ export function CreateEventScreen() {
       return { isValid: false, message: 'Ucret 0 veya daha buyuk olmali.' };
     }
 
+    if (!selectedCoordinate) {
+      return { isValid: false, message: 'Konumu harita uzerinden secmelisiniz.' };
+    }
+
     if (!city.trim()) return { isValid: false, message: 'Sehir zorunludur.' };
     if (!fullAddress.trim()) return { isValid: false, message: 'Acik adres zorunludur.' };
 
@@ -124,39 +281,28 @@ export function CreateEventScreen() {
       return { isValid: false, message: 'En az 1, en fazla 3 fotograf secmelisiniz.' };
     }
 
-    if ((latitude.trim() && !longitude.trim()) || (!latitude.trim() && longitude.trim())) {
-      return { isValid: false, message: 'Konum icin enlem ve boylam birlikte girilmeli.' };
-    }
-
-    if (latitude.trim() && longitude.trim()) {
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return { isValid: false, message: 'Enlem ve boylam sayisal olmali.' };
-      }
-    }
-
     return { isValid: true };
   };
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const lat = latitude.trim() ? Number(latitude.trim()) : undefined;
-      const lng = longitude.trim() ? Number(longitude.trim()) : undefined;
+      if (!selectedCoordinate) {
+        throw new Error('Konum secilmedi.');
+      }
 
       const locationData = JSON.stringify({
         city: city.trim(),
         fullAddress: fullAddress.trim(),
         locationLabel: locationLabel.trim() || fullAddress.trim(),
-        lat,
-        lng,
+        lat: selectedCoordinate.latitude,
+        lng: selectedCoordinate.longitude,
       });
 
       const payload: CreateEventPayload = {
         name: name.trim(),
         description: description.trim(),
-        date: date.trim(),
-        time: time.trim(),
+        date: format(scheduledAt, 'yyyy-MM-dd'),
+        time: format(scheduledAt, 'HH:mm'),
         durationMinutes: Number(durationMinutes),
         capacity: Number(capacity),
         price: Number(price),
@@ -166,7 +312,18 @@ export function CreateEventScreen() {
       };
 
       const event = await createEvent(payload);
-      await uploadEventBanner(event.id, selectedImages[0].uri);
+      const firstImage = selectedImages[0];
+
+      if (!firstImage) {
+        throw new Error('Fotograf secimi zorunludur.');
+      }
+
+      await uploadEventBanner(event.id, {
+        uri: firstImage.uri,
+        fileName: firstImage.fileName,
+        mimeType: firstImage.mimeType,
+      });
+
       return event;
     },
     onSuccess: async (event) => {
@@ -200,7 +357,7 @@ export function CreateEventScreen() {
       <ScrollView contentContainerClassName="px-4 pb-16 pt-6">
         <Text className="text-2xl font-bold text-slate-900">Yeni Etkinlik</Text>
         <Text className="mt-1 text-sm text-slate-500">
-          Tum zorunlu alanlari doldurun. 1-3 fotograf secimi zorunludur.
+          Tarih ve saat secimi takvimden yapilir, konum haritadan isaretlenir.
         </Text>
 
         <View className="mt-6 gap-4">
@@ -223,21 +380,38 @@ export function CreateEventScreen() {
           />
 
           <View className="flex-row gap-3">
-            <Input
-              label="Tarih (YYYY-AA-GG)"
-              value={date}
-              onChangeText={setDate}
-              placeholder="2026-06-15"
-              containerClassName="flex-1"
-            />
-            <Input
-              label="Saat (SS:DD)"
-              value={time}
-              onChangeText={setTime}
-              placeholder="19:30"
-              containerClassName="flex-1"
-            />
+            <Pressable
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3"
+              onPress={() => setShowDatePicker(true)}>
+              <Text className="mb-1 text-xs font-medium text-slate-500">Tarih</Text>
+              <Text className="text-base font-semibold text-slate-900">{formattedDate}</Text>
+            </Pressable>
+
+            <Pressable
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3"
+              onPress={() => setShowTimePicker(true)}>
+              <Text className="mb-1 text-xs font-medium text-slate-500">Saat</Text>
+              <Text className="text-base font-semibold text-slate-900">{formattedTime}</Text>
+            </Pressable>
           </View>
+
+          {showDatePicker ? (
+            <DateTimePicker
+              value={scheduledAt}
+              mode="date"
+              minimumDate={new Date()}
+              onChange={handleDateChange}
+            />
+          ) : null}
+
+          {showTimePicker ? (
+            <DateTimePicker
+              value={scheduledAt}
+              mode="time"
+              is24Hour
+              onChange={handleTimeChange}
+            />
+          ) : null}
 
           <View className="flex-row gap-3">
             <Input
@@ -264,6 +438,25 @@ export function CreateEventScreen() {
             placeholder="0"
           />
 
+          <View className="rounded-2xl border border-slate-200 bg-white p-3">
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text className="text-sm font-medium text-slate-700">Harita Konumu</Text>
+                <Text className="mt-1 text-xs text-slate-500">
+                  {selectedCoordinate
+                    ? `${selectedCoordinate.latitude.toFixed(6)}, ${selectedCoordinate.longitude.toFixed(6)}`
+                    : 'Henüz secilmedi'}
+                </Text>
+              </View>
+              <Button
+                label={selectedCoordinate ? 'Konumu Guncelle' : 'Haritadan Sec'}
+                variant="secondary"
+                className="h-10 px-4"
+                onPress={openMapPicker}
+              />
+            </View>
+          </View>
+
           <Input
             label="Sehir"
             value={city}
@@ -284,25 +477,6 @@ export function CreateEventScreen() {
             onChangeText={setLocationLabel}
             placeholder="Ornek: Kadikoy Iskele"
           />
-
-          <View className="flex-row gap-3">
-            <Input
-              label="Enlem (Opsiyonel)"
-              value={latitude}
-              onChangeText={setLatitude}
-              placeholder="40.99"
-              keyboardType="decimal-pad"
-              containerClassName="flex-1"
-            />
-            <Input
-              label="Boylam (Opsiyonel)"
-              value={longitude}
-              onChangeText={setLongitude}
-              placeholder="29.03"
-              keyboardType="decimal-pad"
-              containerClassName="flex-1"
-            />
-          </View>
 
           <View>
             <Text className="mb-2 text-sm font-medium text-slate-700">Kategoriler (Opsiyonel)</Text>
@@ -325,11 +499,7 @@ export function CreateEventScreen() {
               <Text className="text-xs text-slate-500">{selectedImages.length}/3 secildi</Text>
             </View>
 
-            <Button
-              label="Galeriden Fotograf Sec"
-              variant="secondary"
-              onPress={selectPhotos}
-            />
+            <Button label="Galeriden Fotograf Sec" variant="secondary" onPress={selectPhotos} />
 
             {selectedImages.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
@@ -355,6 +525,44 @@ export function CreateEventScreen() {
           <Button label="Etkinligi Olustur" isLoading={createMutation.isPending} onPress={onSubmit} />
         </View>
       </ScrollView>
+
+      <Modal visible={isMapModalOpen} transparent animationType="slide" onRequestClose={() => setIsMapModalOpen(false)}>
+        <View className="flex-1 justify-end bg-black/35">
+          <View className="rounded-t-3xl bg-white px-4 pb-5 pt-4">
+            <Text className="text-lg font-semibold text-slate-900">Haritadan Konum Sec</Text>
+            <Text className="mt-1 text-sm text-slate-500">Haritada istedigin noktaya dokunup pin birak.</Text>
+
+            <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" style={{ height: 320 }}>
+              <MapView
+                style={{ flex: 1 }}
+                initialRegion={mapRegion}
+                region={mapRegion}
+                onRegionChangeComplete={setMapRegion}
+                onPress={handleMapPress}
+                showsUserLocation>
+                {mapDraftCoordinate ? <Marker coordinate={mapDraftCoordinate} /> : null}
+              </MapView>
+
+              {isResolvingLocation ? (
+                <View className="absolute inset-0 items-center justify-center bg-white/70">
+                  <ActivityIndicator color="#0f172a" />
+                </View>
+              ) : null}
+            </View>
+
+            <View className="mt-3 flex-row gap-3">
+              <Button
+                label="Iptal"
+                variant="secondary"
+                className="flex-1"
+                onPress={() => setIsMapModalOpen(false)}
+              />
+              <Button label="Konumu Kaydet" className="flex-1" onPress={confirmMapSelection} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+

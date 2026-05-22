@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';

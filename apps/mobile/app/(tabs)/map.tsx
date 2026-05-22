@@ -5,12 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import MapView, { Callout, Marker, type Region } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';

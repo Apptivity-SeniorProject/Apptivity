@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { sendOtp, verifyOtpCode } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';

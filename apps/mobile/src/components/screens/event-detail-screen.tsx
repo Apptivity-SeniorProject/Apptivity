@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useState } from 'react';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { applyToEvent, withdrawFromEvent } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
@@ -69,6 +70,7 @@ export function EventDetailScreen() {
   const toast = useToast();
   const unreadCount = useChatStore((state) => state.unreadByEvent[eventId] ?? 0);
   const clearUnread = useChatStore((state) => state.clearUnread);
+  const insets = useSafeAreaInsets();
 
   const { data, isPending } = useEventDetail(eventId);
   const participantsQuery = useEventParticipants(eventId);
@@ -175,7 +177,7 @@ export function EventDetailScreen() {
   ) ?? [];
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerClassName="pb-10">
         <View>
@@ -186,7 +188,8 @@ export function EventDetailScreen() {
             transition={180}
           />
           <Pressable
-            className="absolute left-4 top-12 h-10 w-10 items-center justify-center rounded-full bg-black/35"
+            className="absolute left-4 h-10 w-10 items-center justify-center rounded-full bg-black/35"
+            style={{ top: insets.top + 8 }}
             onPress={() => router.back()}>
             <ArrowLeft size={18} color="#ffffff" />
           </Pressable>
@@ -335,6 +338,6 @@ export function EventDetailScreen() {
         targetId={eventId}
         targetType={1}
       />
-    </View>
+    </SafeAreaView>
   );
 }

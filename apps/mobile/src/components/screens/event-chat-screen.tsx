@@ -8,11 +8,11 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { chatSignalRService, getEventMessages } from '@/src/api/chatService';
 import { Button } from '@/src/components/ui/button';
