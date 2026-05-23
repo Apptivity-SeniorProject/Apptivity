@@ -1,19 +1,19 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Flag, LogOut } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EditProfileModal } from '@/src/components/profile/edit-profile-modal';
-import { ReportModal } from '@/src/components/report-modal';
 import { EventCard } from '@/src/components/events/event-card';
 import { Button } from '@/src/components/ui/button';
 import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/useEvents';
@@ -28,13 +28,26 @@ import { cn } from '@/src/utils/cn';
 const AVATAR_PLACEHOLDER =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=300&q=80';
 
-type ProfileTab = 'my-events' | 'my-participations' | 'my-bookmarks';
+type ProfileTab = 'my-events' | 'my-participations' | 'my-bookmarks' | 'my-cancelled';
 
 const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'my-events', label: 'Etkinliklerim' },
   { key: 'my-participations', label: 'Katildiklarim' },
   { key: 'my-bookmarks', label: 'Begendiklerim' },
+  { key: 'my-cancelled', label: 'Iptal Ettiklerim' },
 ];
+
+function isCancelledStatus(status?: string | number | null): boolean {
+  if (typeof status === 'string') {
+    return status.toLowerCase() === 'cancelled';
+  }
+
+  if (typeof status === 'number') {
+    return status === 5;
+  }
+
+  return false;
+}
 
 function getDisplayName(username: string, name?: string, surname?: string): string {
   const fullName = [name, surname].filter(Boolean).join(' ').trim();
@@ -44,12 +57,12 @@ function getDisplayName(username: string, name?: string, surname?: string): stri
 function getEmptyStateText(tab: ProfileTab): string {
   if (tab === 'my-events') return 'Henuz olusturdugun etkinlik yok.';
   if (tab === 'my-participations') return 'Katilim kaydin bulunmuyor.';
+  if (tab === 'my-cancelled') return 'Iptal edilen etkinlik bulunmuyor.';
   return 'Begendigin etkinlik bulunmuyor.';
 }
 
 export function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('my-events');
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draftInterestTagIds, setDraftInterestTagIds] = useState<string[]>([]);
   const toast = useToast();
@@ -72,16 +85,37 @@ export function ProfileScreen() {
 
   const reviewCount = statsQuery.data?.totalReviews ?? 0;
 
+  const cancelledItems = useMemo<EventListItem[]>(() => {
+    const source = [
+      ...(myEventsQuery.data?.items ?? []),
+      ...(myParticipationsQuery.data?.items ?? []),
+      ...(myBookmarksQuery.data?.items ?? []),
+    ].filter((item) => isCancelledStatus(item.status));
+
+    const unique = new Map<string, EventListItem>();
+    source.forEach((item) => {
+      if (!unique.has(item.id)) {
+        unique.set(item.id, item);
+      }
+    });
+
+    return Array.from(unique.values());
+  }, [myBookmarksQuery.data?.items, myEventsQuery.data?.items, myParticipationsQuery.data?.items]);
+
   const activeItems = useMemo<EventListItem[]>(() => {
     if (activeTab === 'my-events') {
-      return myEventsQuery.data?.items ?? [];
+      return (myEventsQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
     }
     if (activeTab === 'my-participations') {
-      return myParticipationsQuery.data?.items ?? [];
+      return (myParticipationsQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
     }
-    return myBookmarksQuery.data?.items ?? [];
+    if (activeTab === 'my-cancelled') {
+      return cancelledItems;
+    }
+    return (myBookmarksQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
   }, [
     activeTab,
+    cancelledItems,
     myBookmarksQuery.data?.items,
     myEventsQuery.data?.items,
     myParticipationsQuery.data?.items,
@@ -129,19 +163,14 @@ export function ProfileScreen() {
                   </View>
                 </View>
 
-                <View className="flex-row items-center gap-2">
-                  <Pressable className="rounded-full bg-white/20 p-2" onPress={() => setIsReportModalOpen(true)}>
-                    <Flag size={18} color="#ffffff" />
-                  </Pressable>
-                  <Pressable
-                    className="rounded-full bg-white/20 p-2"
-                    onPress={() => {
-                      logout();
-                      router.replace('/login');
-                    }}>
-                    <LogOut size={18} color="#ffffff" />
-                  </Pressable>
-                </View>
+                <Pressable
+                  className="rounded-full bg-white/20 p-2"
+                  onPress={() => {
+                    logout();
+                    router.replace('/login');
+                  }}>
+                  <LogOut size={18} color="#ffffff" />
+                </Pressable>
               </View>
 
               <View className="mt-4 flex-row gap-2">
@@ -176,14 +205,17 @@ export function ProfileScreen() {
                 </View>
               </View>
 
-              <View className="mt-4 flex-row gap-2">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="mt-4 gap-2 pb-1">
                 {PROFILE_TABS.map((tab) => {
                   const isSelected = activeTab === tab.key;
                   return (
                     <Pressable
                       key={tab.key}
                       className={cn(
-                        'flex-1 rounded-full border px-3 py-2',
+                        'rounded-full border px-4 py-2',
                         isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
                       )}
                       onPress={() => setActiveTab(tab.key)}>
@@ -197,7 +229,7 @@ export function ProfileScreen() {
                     </Pressable>
                   );
                 })}
-              </View>
+              </ScrollView>
 
               {profile?.interests?.length ? (
                 <View className="mt-4 flex-row flex-wrap gap-2">
@@ -236,15 +268,6 @@ export function ProfileScreen() {
           />
         }
       />
-
-      {profile?.accountId ? (
-        <ReportModal
-          visible={isReportModalOpen}
-          onClose={() => setIsReportModalOpen(false)}
-          targetId={profile.accountId}
-          targetType={2}
-        />
-      ) : null}
 
       <EditProfileModal
         visible={isEditModalOpen}

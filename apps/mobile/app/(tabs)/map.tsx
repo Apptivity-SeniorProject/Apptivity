@@ -12,6 +12,7 @@ import {
 import MapView, { Callout, Marker, type Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EventRowCard } from '@/src/components/events/event-row-card';
 import { useEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
@@ -107,7 +108,7 @@ export default function MapScreen() {
 
   const nearbyEvents = useMemo(() => {
     if (!userLocation) {
-      return mappableEvents;
+      return [];
     }
 
     return mappableEvents.filter((event) => {
@@ -209,88 +210,111 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <View className="px-4 pb-3 pt-5">
-        <Text className="text-2xl font-bold text-slate-900">Kesfet</Text>
-        <Text className="mt-1 text-sm text-slate-500">Konumuna yakin etkinlikler haritada</Text>
-      </View>
-
-      <View className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <View style={{ height: 360 }}>
-          <MapView
-            ref={mapRef}
-            style={{ flex: 1 }}
-            initialRegion={DEFAULT_REGION}
-            showsUserLocation
-            onRegionChangeComplete={setRegion}>
-            {userLocation ? (
-              <Marker
-                coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
-                pinColor="#16a34a"
-                title="Konumum"
-              />
-            ) : null}
-
-            {nearbyEvents.map((event) => (
-              <Marker
-                key={event.id}
-                coordinate={{ latitude: event.location.lat as number, longitude: event.location.lng as number }}
-                pinColor={event.isPaid ? '#f97316' : '#0ea5e9'}
-                onCalloutPress={() => router.push(`/event/${event.id}`)}>
-                <Callout tooltip>{renderCalloutContent(event)}</Callout>
-              </Marker>
-            ))}
-          </MapView>
-        </View>
-      </View>
-
-      {locationDenied ? (
-        <View className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-          <Text className="text-sm text-amber-800">Konum izni kapali. Yakin etkinlikler sinirli gorunebilir.</Text>
-          <Pressable className="mt-2 self-start rounded-full bg-amber-200 px-3 py-1" onPress={requestLocationPermission}>
-            <Text className="text-xs font-semibold text-amber-900">Izni Tekrar Iste</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View className="mt-4 px-4">
-        <View className="mb-2 flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-slate-900">Yakin Konumlar</Text>
-          {isLocating ? <ActivityIndicator size="small" color="#0f172a" /> : null}
+      <ScrollView className="flex-1" contentContainerClassName="pb-6">
+        <View className="px-4 pb-3 pt-5">
+          <Text className="text-2xl font-bold text-slate-900">Kesfet</Text>
+          <Text className="mt-1 text-sm text-slate-500">Yalnizca 30 km yakinindaki etkinlikler</Text>
         </View>
 
-        {isPending ? (
-          <View className="h-16 items-center justify-center rounded-xl border border-slate-200 bg-white">
-            <ActivityIndicator color="#0f172a" />
+        <View className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <View style={{ height: 360 }}>
+            <MapView
+              ref={mapRef}
+              style={{ flex: 1 }}
+              initialRegion={DEFAULT_REGION}
+              showsUserLocation
+              onRegionChangeComplete={setRegion}>
+              {userLocation ? (
+                <Marker
+                  coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+                  pinColor="#16a34a"
+                  title="Konumum"
+                />
+              ) : null}
+
+              {nearbyEvents.map((event) => (
+                <Marker
+                  key={event.id}
+                  coordinate={{ latitude: event.location.lat as number, longitude: event.location.lng as number }}
+                  pinColor={event.isPaid ? '#f97316' : '#0ea5e9'}
+                  onCalloutPress={() => router.push(`/event/${event.id}`)}>
+                  <Callout tooltip>{renderCalloutContent(event)}</Callout>
+                </Marker>
+              ))}
+            </MapView>
           </View>
-        ) : locationClusters.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 pb-2">
-            {locationClusters.map((cluster) => {
-              const distance = haversineDistanceKm(
-                region.latitude,
-                region.longitude,
-                cluster.latitude,
-                cluster.longitude
-              );
+        </View>
 
-              return (
-                <Pressable
-                  key={cluster.key}
-                  className="w-56 rounded-2xl border border-slate-200 bg-white p-4"
-                  onPress={() => focusLocation(cluster)}>
-                  <Text className="text-base font-semibold text-slate-900">{cluster.city}</Text>
-                  <Text className="mt-1 text-sm text-slate-600">
-                    {distance.toFixed(1)} km - {cluster.count} etkinlik
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        ) : (
-          <View className="rounded-xl border border-slate-200 bg-white p-4">
-            <Text className="text-sm text-slate-500">Yakinda konum bilgisi olan etkinlik bulunamadi.</Text>
+        {locationDenied ? (
+          <View className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+            <Text className="text-sm text-amber-800">Konum izni kapali. Yakin etkinlikler gosterilemiyor.</Text>
+            <Pressable
+              className="mt-2 self-start rounded-full bg-amber-200 px-3 py-1"
+              onPress={requestLocationPermission}>
+              <Text className="text-xs font-semibold text-amber-900">Izni Tekrar Iste</Text>
+            </Pressable>
           </View>
-        )}
-      </View>
+        ) : null}
+      
+        <View className="mt-4 px-4">
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-base font-semibold text-slate-900">Yakin Konumlar</Text>
+            {isLocating ? <ActivityIndicator size="small" color="#0f172a" /> : null}
+          </View>
+
+          {isPending ? (
+            <View className="h-16 items-center justify-center rounded-xl border border-slate-200 bg-white">
+              <ActivityIndicator color="#0f172a" />
+            </View>
+          ) : locationClusters.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 pb-2">
+              {locationClusters.map((cluster) => {
+                const distance = haversineDistanceKm(
+                  region.latitude,
+                  region.longitude,
+                  cluster.latitude,
+                  cluster.longitude
+                );
+
+                return (
+                  <Pressable
+                    key={cluster.key}
+                    className="w-56 rounded-2xl border border-slate-200 bg-white p-4"
+                    onPress={() => focusLocation(cluster)}>
+                    <Text className="text-base font-semibold text-slate-900">{cluster.city}</Text>
+                    <Text className="mt-1 text-sm text-slate-600">
+                      {distance.toFixed(1)} km - {cluster.count} etkinlik
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View className="rounded-xl border border-slate-200 bg-white p-4">
+              <Text className="text-sm text-slate-500">Yakinda konum bilgisi olan etkinlik bulunamadi.</Text>
+            </View>
+          )}
+        </View>
+
+        <View className="mt-4 px-4">
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-base font-semibold text-slate-900">Yakin Etkinlikler</Text>
+            <Text className="text-xs text-slate-500">{nearbyEvents.length} etkinlik</Text>
+          </View>
+
+          {nearbyEvents.length ? (
+            <View className="gap-3">
+              {nearbyEvents.slice(0, 10).map((event) => (
+                <EventRowCard key={event.id} event={event} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+              ))}
+            </View>
+          ) : (
+            <View className="rounded-xl border border-slate-200 bg-white p-4">
+              <Text className="text-sm text-slate-500">Konumuna 30 km icinde etkinlik bulunamadi.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

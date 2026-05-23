@@ -42,6 +42,7 @@ public static class ErrorCodes
 
     // Report
     public const string ReportNotFound = "REPORT_404";
+    public const string ReportSelfTarget = "REPORT_400_SELF";
 
     // Notification
     public const string NotificationNotFound = "NOTIF_404";

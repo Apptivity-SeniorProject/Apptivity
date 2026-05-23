@@ -266,7 +266,7 @@ public sealed class EventRepository : IEventRepository
             .AsNoTracking()
             .Include(x => x.Tags)
             .Where(x =>
-                (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing || x.Status == EventStatus.Completed)
+                (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing || x.Status == EventStatus.Completed || x.Status == EventStatus.PendingApproval)
                 && x.Owner.Status == AccountStatus.Active
                 && x.Owner.IsActive);
 

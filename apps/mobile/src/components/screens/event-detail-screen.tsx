@@ -6,11 +6,12 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { applyToEvent, withdrawFromEvent } from '@/src/api/eventService';
+import { applyToEvent, cancelEvent, withdrawFromEvent } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
+import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
@@ -62,12 +63,25 @@ function applyOptimisticState(current: EventDetail, targetStatus: ParticipationS
   };
 }
 
+function isCancelledStatus(status: string | number | null | undefined): boolean {
+  if (typeof status === 'string') {
+    return status.toLowerCase() === 'cancelled';
+  }
+
+  if (typeof status === 'number') {
+    return status === 5;
+  }
+
+  return false;
+}
+
 export function EventDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = params.id ?? '';
   const queryClient = useQueryClient();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const toast = useToast();
+  const myAccountId = useAuthStore((state) => state.user?.id);
   const unreadCount = useChatStore((state) => state.unreadByEvent[eventId] ?? 0);
   const clearUnread = useChatStore((state) => state.clearUnread);
   const insets = useSafeAreaInsets();
@@ -143,6 +157,24 @@ export function EventDetailScreen() {
     },
   });
 
+  const cancelEventMutation = useMutation({
+    mutationFn: () => cancelEvent(eventId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['events'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-events'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-participations'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-bookmarks'] }),
+        queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
+      ]);
+      toast.success('Etkinlik silindi.');
+      router.replace('/(tabs)');
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, 'Etkinlik silinemedi.'));
+    },
+  });
+
   if (isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50">
@@ -163,6 +195,8 @@ export function EventDetailScreen() {
     data.location.fullAddress ?? data.location.locationLabel ?? data.location.city ?? 'Lokasyon belirtilmedi';
 
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
+  const isOwner = Boolean(myAccountId && data.ownerId && myAccountId === data.ownerId);
+  const isCancelledEvent = isCancelledStatus(data.status as string | number | null | undefined);
   const isJoined =
     data.currentUserParticipationStatus === 'Pending' || data.currentUserParticipationStatus === 'Approved';
   const canOpenChat = data.currentUserParticipationStatus === 'Approved';
@@ -199,9 +233,11 @@ export function EventDetailScreen() {
           <View className="gap-2">
             <View className="flex-row items-start justify-between gap-3">
               <Text className="flex-1 text-2xl font-bold text-slate-900">{data.title}</Text>
-              <Pressable onPress={() => setIsReportModalOpen(true)}>
-                <Flag size={20} color="#ef4444" />
-              </Pressable>
+              {!isOwner ? (
+                <Pressable onPress={() => setIsReportModalOpen(true)}>
+                  <Flag size={20} color="#ef4444" />
+                </Pressable>
+              ) : null}
             </View>
             <Text className="text-sm text-slate-500">
               {data.primaryTagName ? `Kategori: ${data.primaryTagName}` : 'Kategori belirtilmedi'}
@@ -311,33 +347,50 @@ export function EventDetailScreen() {
             </View>
           ) : null}
 
-          <Button
-            label={isJoined ? 'Ayril' : 'Katil'}
-            isLoading={actionLoading}
-            disabled={joinButtonDisabled}
-            className={isJoined ? 'bg-rose-600' : 'bg-blue-600'}
-            onPress={() => {
-              if (isJoined) {
-                withdrawMutation.mutate();
-                return;
-              }
-              joinMutation.mutate();
-            }}
-          />
+          {!isOwner ? (
+            <Button
+              label={isJoined ? 'Ayril' : 'Katil'}
+              isLoading={actionLoading}
+              disabled={joinButtonDisabled}
+              className={isJoined ? 'bg-rose-600' : 'bg-blue-600'}
+              onPress={() => {
+                if (isJoined) {
+                  withdrawMutation.mutate();
+                  return;
+                }
+                joinMutation.mutate();
+              }}
+            />
+          ) : !isCancelledEvent ? (
+            <Button
+              label="Etkinligi Sil"
+              isLoading={cancelEventMutation.isPending}
+              className="bg-rose-700"
+              onPress={() => cancelEventMutation.mutate()}
+            />
+          ) : null}
 
-          {!canJoin && !isJoined ? (
+          {isOwner && isCancelledEvent ? (
+            <Text className="text-center text-xs text-slate-500">
+              Bu etkinlik zaten iptal edilmis.
+            </Text>
+          ) : null}
+
+          {!isOwner && !canJoin && !isJoined ? (
             <Text className="text-center text-xs text-rose-600">
               Bu etkinlige katilim su an mumkun degil (kontenjan dolu veya etkinlik gecmis).
             </Text>
           ) : null}
         </View>
       </ScrollView>
-      <ReportModal
-        visible={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        targetId={eventId}
-        targetType={1}
-      />
+      {!isOwner ? (
+        <ReportModal
+          visible={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          targetId={eventId}
+          targetType={1}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

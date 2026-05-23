@@ -168,6 +168,7 @@ export interface EventListItem {
 
 export interface EventDetail {
   id: string;
+  ownerId?: string;
   title: string;
   description: string;
   date: string;

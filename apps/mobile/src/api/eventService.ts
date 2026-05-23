@@ -77,7 +77,7 @@ function extractBannerImageUrl(description: string): string | undefined {
 }
 
 function normalizeParticipationStatus(value?: string | null): ParticipationStatus | null {
-  if (!value) {
+  if (!value || typeof value !== 'string') {
     return null;
   }
 
@@ -158,6 +158,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
 
   return {
     id: dto.id,
+    ownerId: dto.ownerId,
     title: dto.name,
     description: dto.description,
     date: dto.date,
@@ -375,6 +376,13 @@ export async function withdrawFromEvent(eventId: string): Promise<ParticipationS
   const response = await apiClient.post<ApiEnvelope<ParticipationStatusDto>>(`/api/events/${eventId}/withdraw`);
   const payload = unwrapEnvelope(response.data);
   return normalizeParticipationStatus(payload.status) ?? 'Withdrawn';
+}
+
+export async function cancelEvent(eventId: string): Promise<void> {
+  const response = await apiClient.delete<ApiEnvelope<EventSummaryDto>>(`/api/events/${eventId}`);
+  if (!response.data.isSuccess) {
+    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik silinemedi.');
+  }
 }
 
 export async function getMyEvents(pageNumber = 1, pageSize = 10): Promise<PagedResult<EventListItem>> {

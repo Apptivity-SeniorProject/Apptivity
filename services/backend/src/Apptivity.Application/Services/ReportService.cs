@@ -35,6 +35,11 @@ public sealed class ReportService : IReportService
 
         if (request.TargetType == ReportTargetType.Account)
         {
+            if (request.TargetId == userContext.AccountId)
+            {
+                return Result<ReportResponse>.Failure(ErrorCodes.ReportSelfTarget, "You cannot report your own account.");
+            }
+
             var targetAccount = await _userRepository.GetAccountByIdAsync(request.TargetId, cancellationToken);
             if (targetAccount is null)
             {
@@ -47,6 +52,11 @@ public sealed class ReportService : IReportService
             if (targetEvent is null)
             {
                 return Result<ReportResponse>.Failure(ErrorCodes.EventNotFound, "Report target event not found.");
+            }
+
+            if (targetEvent.OwnerId == userContext.AccountId)
+            {
+                return Result<ReportResponse>.Failure(ErrorCodes.ReportSelfTarget, "You cannot report your own event.");
             }
         }
 

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EventCard } from '@/src/components/events/event-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
+import { EventRowCard } from '@/src/components/events/event-row-card';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
@@ -192,7 +193,7 @@ export default function HomeScreen() {
           ListHeaderComponent={renderHeader}
           renderItem={({ item }) => (
             <View className="mb-4">
-              <EventCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+              <EventRowCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
             </View>
           )}
           ListEmptyComponent={
