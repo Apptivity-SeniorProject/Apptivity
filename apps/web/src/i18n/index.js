@@ -1,4 +1,4 @@
-﻿import i18n from 'i18next'
+import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const resources = {
@@ -108,6 +108,7 @@ const resources = {
                 menu: {
                     eventApproval: 'Etkinlik Onayı',
                     userApproval: 'Kullanıcı Onayı',
+                    tagManagement: 'Etiket Yönetimi',
                 },
                 events: {
                     filters: {
@@ -202,6 +203,42 @@ const resources = {
                         clubProfileName: 'Kulüp Adı',
                         clubProfileDescription: 'Kulüp Açıklaması',
                         clubProfileCity: 'Kulüp Şehri',
+                    },
+                },
+                tags: {
+                    title: 'Etiket Yönetimi',
+                    addTag: 'Yeni Etiket Ekle',
+                    editTag: 'Etiket Düzenle',
+                    columns: {
+                        name: 'Etiket Adı',
+                        iconName: 'İkon Adı',
+                        colorCode: 'Renk Kodu',
+                        isActive: 'Durum',
+                        actions: 'İşlemler',
+                    },
+                    form: {
+                        name: 'Etiket Adı',
+                        iconName: 'İkon Adı (lucide-react)',
+                        colorCode: 'Renk Kodu',
+                        isActive: 'Aktif',
+                    },
+                    validation: {
+                        nameRequired: 'Etiket adı zorunludur',
+                    },
+                    messages: {
+                        createSuccess: 'Etiket başarıyla oluşturuldu.',
+                        updateSuccess: 'Etiket başarıyla güncellendi.',
+                        deleteSuccess: 'Etiket başarıyla silindi.',
+                        deleteConfirm: 'Bu etiketi silmek istediğinizden emin misiniz?',
+                        actionError: 'İşlem tamamlanamadı.',
+                        loadError: 'Etiketler alınamadı. Lütfen tekrar deneyin.',
+                    },
+                    empty: 'Henüz etiket bulunmuyor.',
+                    actions: {
+                        edit: 'Düzenle',
+                        delete: 'Sil',
+                        cancel: 'İptal',
+                        save: 'Kaydet',
                     },
                 },
             },
@@ -430,6 +467,7 @@ const resources = {
                 menu: {
                     eventApproval: 'Event Approval',
                     userApproval: 'User Approval',
+                    tagManagement: 'Tag Management',
                 },
                 events: {
                     filters: {
@@ -524,6 +562,42 @@ const resources = {
                         clubProfileName: 'Club Name',
                         clubProfileDescription: 'Club Description',
                         clubProfileCity: 'Club City',
+                    },
+                },
+                tags: {
+                    title: 'Tag Management',
+                    addTag: 'Add New Tag',
+                    editTag: 'Edit Tag',
+                    columns: {
+                        name: 'Tag Name',
+                        iconName: 'Icon Name',
+                        colorCode: 'Color Code',
+                        isActive: 'Status',
+                        actions: 'Actions',
+                    },
+                    form: {
+                        name: 'Tag Name',
+                        iconName: 'Icon Name (lucide-react)',
+                        colorCode: 'Color Code',
+                        isActive: 'Active',
+                    },
+                    validation: {
+                        nameRequired: 'Tag name is required',
+                    },
+                    messages: {
+                        createSuccess: 'Tag created successfully.',
+                        updateSuccess: 'Tag updated successfully.',
+                        deleteSuccess: 'Tag deleted successfully.',
+                        deleteConfirm: 'Are you sure you want to delete this tag?',
+                        actionError: 'Action could not be completed.',
+                        loadError: 'Tags could not be fetched. Please try again.',
+                    },
+                    empty: 'No tags found yet.',
+                    actions: {
+                        edit: 'Edit',
+                        delete: 'Delete',
+                        cancel: 'Cancel',
+                        save: 'Save',
                     },
                 },
             },
