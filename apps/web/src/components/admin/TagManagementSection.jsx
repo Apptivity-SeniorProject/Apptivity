@@ -1,6 +1,6 @@
-import { Button, ColorPicker, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Typography, message } from 'antd'
+import { Button, ColorPicker, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createTag, deleteTag, getActiveTags, updateTag } from '../../services/tagService'
 
@@ -14,7 +14,7 @@ function TagManagementSection() {
     const [form] = Form.useForm()
     const [messageApi, contextHolder] = message.useMessage()
 
-    const loadTags = async () => {
+    const loadTags = useCallback(async () => {
         setIsLoading(true)
         const result = await getActiveTags()
 
@@ -25,11 +25,11 @@ function TagManagementSection() {
             setRows(result.data || [])
         }
         setIsLoading(false)
-    }
+    }, [messageApi, t])
 
     useEffect(() => {
         loadTags()
-    }, [t])
+    }, [loadTags])
 
     const handleAdd = () => {
         setEditingTag(null)
@@ -38,7 +38,7 @@ function TagManagementSection() {
         setIsModalVisible(true)
     }
 
-    const handleEdit = (record) => {
+    const handleEdit = useCallback((record) => {
         setEditingTag(record)
         form.setFieldsValue({
             name: record.name,
@@ -47,9 +47,9 @@ function TagManagementSection() {
             isActive: record.isActive,
         })
         setIsModalVisible(true)
-    }
+    }, [form])
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         setIsLoading(true)
         const result = await deleteTag(id)
         if (result.isSuccess) {
@@ -59,7 +59,7 @@ function TagManagementSection() {
             messageApi.error(result.errors?.[0]?.message || t('admin.tags.messages.actionError'))
             setIsLoading(false)
         }
-    }
+    }, [loadTags, messageApi, t])
 
     const handleModalOk = async () => {
         try {
@@ -162,7 +162,7 @@ function TagManagementSection() {
                 ),
             },
         ],
-        [t]
+        [handleDelete, handleEdit, t]
     )
 
     return (
