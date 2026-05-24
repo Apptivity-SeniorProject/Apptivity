@@ -329,7 +329,7 @@ public sealed class EventService : IEventService
             Price = request.Price,
             LocationData = request.LocationData?.Trim(),
             PrimaryTagId = resolvedPrimaryTagId == Guid.Empty ? null : resolvedPrimaryTagId,
-            Status = EventStatus.Published
+            Status = EventStatus.PendingApproval
         };
 
         foreach (var tag in tags)

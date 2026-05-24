@@ -162,7 +162,7 @@ function EventApprovalSection() {
                 title: t('admin.events.columns.eventName'),
                 dataIndex: 'eventName',
                 key: 'eventName',
-                render: (value, row) => <span style={{ fontWeight: 600 }}>{value || row.EventName || '-'}</span>,
+                render: (value, row) => <span style={{ fontWeight: 600 }}>{value || row.eventName || '-'}</span>,
             },
             {
                 title: t('admin.events.columns.status'),
@@ -223,7 +223,7 @@ function EventApprovalSection() {
             <DataGrid
                 columns={columns}
                 rows={rows}
-                rowKey={(row) => row.eventId || row.EventId}
+                rowKey="eventId"
                 loading={isLoading}
                 currentPage={pageNumber}
                 pageSize={pageSize}

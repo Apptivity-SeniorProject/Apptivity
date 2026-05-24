@@ -4,6 +4,7 @@ using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Admin;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Apptivity.Api.Controllers;
@@ -71,6 +72,7 @@ public sealed class AdminController : ApiControllerBase
     }
 
     [HttpGet("events")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetEvents(
         [FromQuery] EventStatus? status,
         [FromQuery] int pageNumber = 1,
