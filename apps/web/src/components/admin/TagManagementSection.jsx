@@ -11,25 +11,39 @@ function TagManagementSection() {
     const [isModalVisible, setIsModalVisible] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [editingTag, setEditingTag] = useState(null)
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
     const [form] = Form.useForm()
     const [messageApi, contextHolder] = message.useMessage()
 
-    const loadTags = useCallback(async () => {
-        setIsLoading(true)
-        const result = await getActiveTags()
-
-        if (!result.isSuccess) {
-            messageApi.error(result.errors?.[0]?.message || t('admin.tags.messages.loadError'))
-            setRows([])
-        } else {
-            setRows(result.data || [])
-        }
-        setIsLoading(false)
-    }, [messageApi, t])
-
     useEffect(() => {
-        loadTags()
-    }, [loadTags])
+        let isCancelled = false
+
+        async function loadTags() {
+            setIsLoading(true)
+            const result = await getActiveTags()
+
+            if (isCancelled) return
+
+            if (!result.isSuccess) {
+                messageApi.error(result.errors?.[0]?.message || t('admin.tags.messages.loadError'))
+                setRows([])
+            } else {
+                setRows(result.data || [])
+            }
+            setIsLoading(false)
+        }
+
+        loadTags().catch(() => {
+            if (isCancelled) return
+            messageApi.error(t('admin.tags.messages.loadError'))
+            setRows([])
+            setIsLoading(false)
+        })
+
+        return () => {
+            isCancelled = true
+        }
+    }, [refreshTrigger, messageApi, t])
 
     const handleAdd = () => {
         setEditingTag(null)
@@ -54,12 +68,12 @@ function TagManagementSection() {
         const result = await deleteTag(id)
         if (result.isSuccess) {
             messageApi.success(t('admin.tags.messages.deleteSuccess'))
-            await loadTags()
+            setRefreshTrigger((prev) => prev + 1)
         } else {
             messageApi.error(result.errors?.[0]?.message || t('admin.tags.messages.actionError'))
             setIsLoading(false)
         }
-    }, [loadTags, messageApi, t])
+    }, [messageApi, t])
 
     const handleModalOk = async () => {
         try {
@@ -91,7 +105,7 @@ function TagManagementSection() {
                         : t('admin.tags.messages.createSuccess')
                 )
                 setIsModalVisible(false)
-                await loadTags()
+                setRefreshTrigger((prev) => prev + 1)
             } else {
                 messageApi.error(result.errors?.[0]?.message || t('admin.tags.messages.actionError'))
             }
