@@ -1,3 +1,12 @@
+# =============================================
+# Apptivity Production Compose — GHCR Images
+# =============================================
+# Bu dosyayı sunucuya kopyalayıp .env.prod ile kullanın:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Önce GHCR'a login olun:
+#   echo $GITHUB_TOKEN | docker login ghcr.io -u <GITHUB_USER> --password-stdin
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -30,9 +39,7 @@ services:
       retries: 5
 
   api:
-    build:
-      context: ./services/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/apptivity-seniorproject/apptivity-monorepo/api:${IMAGE_TAG:-latest}
     container_name: apptivity-api
     restart: always
     environment:
@@ -64,9 +71,7 @@ services:
       start_period: 30s
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/apptivity-seniorproject/apptivity-monorepo/web:${IMAGE_TAG:-latest}
     container_name: apptivity-web
     restart: always
     networks:
@@ -76,9 +81,7 @@ services:
         condition: service_healthy
 
   nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+    image: ghcr.io/apptivity-seniorproject/apptivity-monorepo/nginx:${IMAGE_TAG:-latest}
     container_name: apptivity-nginx
     restart: always
     ports:
