@@ -19,6 +19,7 @@ import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
 import { CITY_OPTIONS } from '@/src/constants/events';
 import { useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
+import { useToast } from '@/src/hooks/useToast';
 import { useTags } from '@/src/hooks/useTags';
 import { cn } from '@/src/utils/cn';
 
@@ -35,6 +36,10 @@ export default function HomeScreen() {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [matchAllTags, setMatchAllTags] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isRecommendationModalOpen, setIsRecommendationModalOpen] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const toast = useToast();
 
   const { data: tags } = useTags();
 
@@ -96,6 +101,35 @@ export default function HomeScreen() {
   });
 
   const recommendedQuery = useRecommendedEvents(8);
+
+  const handleSuggestEventsPress = async () => {
+    if (isSuggesting) {
+      return;
+    }
+
+    setIsSuggesting(true);
+
+    try {
+      const result = await recommendedQuery.refetch();
+      if (result.error) {
+        throw result.error;
+      }
+
+      const recommendedItems = result.data?.items ?? [];
+
+      if (!recommendedItems.length) {
+        toast.info('Su an icin uygun bir etkinlik onerisi bulunamadi.');
+        return;
+      }
+
+      setIsRecommendationModalOpen(true);
+      toast.success(`${recommendedItems.length} etkinlik onerisi hazir.`);
+    } catch {
+      toast.error('Etkinlik onerileri alinamadi. Lutfen tekrar dene.');
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
 
   const toggleCategory = (category: CategoryOption) => {
     if (category.id === ALL_CATEGORY_ID) {
@@ -296,6 +330,58 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={isRecommendationModalOpen}
+        onRequestClose={() => setIsRecommendationModalOpen(false)}>
+        <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setIsRecommendationModalOpen(false)}>
+          <View className="max-h-[78%] rounded-t-3xl bg-white px-5 py-5">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-slate-900">Bana Ozel Oneriler</Text>
+              <View className="rounded-full bg-blue-50 px-3 py-1">
+                <Text className="text-xs font-semibold text-blue-700">
+                  {recommendedQuery.data?.items.length ?? 0} etkinlik
+                </Text>
+              </View>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="gap-3 pb-4">
+                {recommendedQuery.data?.items?.map((event) => (
+                  <EventRowCard
+                    key={`suggested-${event.id}`}
+                    event={event}
+                    onPress={(eventId) => {
+                      setIsRecommendationModalOpen(false);
+                      router.push(`/event/${eventId}`);
+                    }}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+
+            <Button label="Kapat" variant="secondary" onPress={() => setIsRecommendationModalOpen(false)} />
+          </View>
+        </Pressable>
+      </Modal>
+
+      <View className="pointer-events-box-none absolute bottom-24 left-4 right-4 z-40">
+        <View className="pointer-events-box-none flex-row justify-start">
+          <Pressable
+            className={cn(
+              'rounded-full bg-blue-600 px-5 py-3 shadow-sm',
+              isSuggesting && 'bg-blue-400'
+            )}
+            onPress={handleSuggestEventsPress}
+            disabled={isSuggesting}>
+            <Text className="text-sm font-semibold text-white">
+              {isSuggesting ? 'Oneriler hazirlaniyor...' : 'Bana Etkinlik Oner'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }

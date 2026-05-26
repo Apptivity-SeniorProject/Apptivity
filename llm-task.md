@@ -182,6 +182,10 @@
     - worker/subscription durdurulur
     - lokal konum gecmisi aninda silinir
     - sonraki recommendation cagrilari `ordered_hot_zones=null` ile gider.
+  - Ana sayfaya sol-alt "Bana Etkinlik Oner" yuzen aksiyon butonu eklendi:
+    - buton `POST /api/events/recommended` akisini manuel tetikler (`refetch`).
+    - sonuc varsa modalda oneriler listelenir, event detayina gecis yapilir.
+    - sonuc yok/hata durumlari toast ile bildirilir.
 
 ## LLM Entegrasyon Durumu
 - [x] Asama 1 (servis katmani) tamamlandi:
@@ -229,3 +233,4 @@
 - Platform kisitlari nedeniyle "app kapaliyken saatlik" takip best-effort olarak kabul edilir.
 - LLM'e konum verisi gonderilmez; yalnizca interests + approved history tagleri gonderilir.
 - Gelistirme sirasinda mimari/indeks/provider celiskisi cikarsa implementasyonda durulup karar sorulur.
+

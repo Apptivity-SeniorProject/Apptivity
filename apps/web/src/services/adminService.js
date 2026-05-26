@@ -51,11 +51,23 @@ export async function getEventDetails(eventId) {
 }
 
 export async function updateEventStatus(eventId, status) {
+    const statusToEnumValue = {
+        Draft: 1,
+        Published: 2,
+        Cancelled: 4,
+        PendingApproval: 6,
+        Rejected: 7,
+    }
+
+    const normalizedStatus = typeof status === 'string'
+        ? (statusToEnumValue[status] ?? status)
+        : status
+
     return apiRequest(`/events/${eventId}/status`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: normalizedStatus }),
     })
 }
