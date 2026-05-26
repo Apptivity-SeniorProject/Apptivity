@@ -50,6 +50,7 @@ export default function HomeScreen() {
     () => (accessToken ? parseAuthToken(accessToken) : null),
     [accessToken]
   );
+  const canLoadEvents = hasHydrated && Boolean(accessToken);
   const canLoadRecommended = hasHydrated && authToken?.role === 'Individual';
 
   const categories = useMemo<CategoryOption[]>(() => {
@@ -107,12 +108,19 @@ export default function HomeScreen() {
     isPaid,
     matchAllTags,
     pageSize: 10,
+  }, {
+    enabled: canLoadEvents,
   });
 
   const recommendedQuery = useRecommendedEvents(8, { enabled: canLoadRecommended });
 
   const handleSuggestEventsPress = async () => {
     if (isSuggesting) {
+      return;
+    }
+
+    if (!canLoadRecommended) {
+      toast.info('Etkinlik onerileri icin bireysel hesapla giris yapmalisin.');
       return;
     }
 
@@ -381,10 +389,10 @@ export default function HomeScreen() {
           <Pressable
             className={cn(
               'rounded-full bg-blue-600 px-5 py-3 shadow-sm',
-              isSuggesting && 'bg-blue-400'
+              (isSuggesting || !canLoadRecommended) && 'bg-blue-400'
             )}
             onPress={handleSuggestEventsPress}
-            disabled={isSuggesting}>
+            disabled={isSuggesting || !canLoadRecommended}>
             <Text className="text-sm font-semibold text-white">
               {isSuggesting ? 'Oneriler hazirlaniyor...' : 'Bana Etkinlik Oner'}
             </Text>

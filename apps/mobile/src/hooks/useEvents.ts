@@ -26,12 +26,14 @@ import type {
 
 interface UseEventsOptions {
   pageSize?: number;
+  enabled?: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
 
 export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
   const pageSize = options?.pageSize ?? filters.pageSize ?? DEFAULT_PAGE_SIZE;
+  const enabled = options?.enabled ?? true;
   const tagIdsKey = (filters.tagIds ?? []).slice().sort().join(',');
 
   const queryResult = useInfiniteQuery<
@@ -76,6 +78,7 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
     },
     staleTime: 120000,
     gcTime: 900000,
+    enabled,
   });
 
   const events = useMemo(() => {
@@ -106,6 +109,7 @@ export function useRecommendedEvents(pageSize = 10, options?: UseRecommendedEven
     },
     staleTime: 120000,
     gcTime: 900000,
+    enabled: options?.enabled ?? true,
   });
 }
 
