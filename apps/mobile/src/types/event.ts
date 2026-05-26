@@ -64,6 +64,8 @@ export interface EventSummaryDto {
   capacity: number;
   remainingParticipationCount: number;
   status: string;
+  rejectedViolationReason?: string | null;
+  rejectedAdditionalExplanation?: string | null;
   price: number;
   locationData?: string | null;
 }

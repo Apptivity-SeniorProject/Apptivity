@@ -49,6 +49,22 @@ function isCancelledStatus(status?: string | number | null): boolean {
   return false;
 }
 
+function isRejectedStatus(status?: string | number | null): boolean {
+  if (typeof status === 'string') {
+    return status.toLowerCase() === 'rejected';
+  }
+
+  if (typeof status === 'number') {
+    return status === 7;
+  }
+
+  return false;
+}
+
+function isHiddenFromActiveTabs(status?: string | number | null): boolean {
+  return isCancelledStatus(status) || isRejectedStatus(status);
+}
+
 function getDisplayName(username: string, name?: string, surname?: string): string {
   const fullName = [name, surname].filter(Boolean).join(' ').trim();
   return fullName || username;
@@ -104,15 +120,15 @@ export function ProfileScreen() {
 
   const activeItems = useMemo<EventListItem[]>(() => {
     if (activeTab === 'my-events') {
-      return (myEventsQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
+      return (myEventsQuery.data?.items ?? []).filter((item) => !isHiddenFromActiveTabs(item.status));
     }
     if (activeTab === 'my-participations') {
-      return (myParticipationsQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
+      return (myParticipationsQuery.data?.items ?? []).filter((item) => !isHiddenFromActiveTabs(item.status));
     }
     if (activeTab === 'my-cancelled') {
       return cancelledItems;
     }
-    return (myBookmarksQuery.data?.items ?? []).filter((item) => !isCancelledStatus(item.status));
+    return (myBookmarksQuery.data?.items ?? []).filter((item) => !isHiddenFromActiveTabs(item.status));
   }, [
     activeTab,
     cancelledItems,

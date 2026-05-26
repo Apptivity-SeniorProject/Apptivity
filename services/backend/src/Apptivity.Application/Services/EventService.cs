@@ -401,6 +401,8 @@ public sealed class EventService : IEventService
             eventEntity.Capacity,
             eventEntity.RemainingParticipationCount,
             eventEntity.Status,
+            eventEntity.RejectedViolationReason,
+            eventEntity.RejectedAdditionalExplanation,
             eventEntity.Price,
             eventEntity.LocationData,
             isBookmarked,
@@ -473,13 +475,81 @@ public sealed class EventService : IEventService
             return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
         }
 
+        var normalizedViolationReason = request.ViolationReason?.Trim();
+        var normalizedAdditionalExplanation = request.AdditionalExplanation?.Trim();
+
+        if (targetStatus == EventStatus.Rejected && string.IsNullOrWhiteSpace(normalizedViolationReason))
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, "Violation reason is required when rejecting an event.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedViolationReason) && normalizedViolationReason.Length > 100)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, "Violation reason cannot exceed 100 characters.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedAdditionalExplanation) && normalizedAdditionalExplanation.Length > 500)
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, "Additional explanation cannot exceed 500 characters.");
+        }
+
         if (!IsTransitionAllowed(eventEntity.Status, targetStatus, isAdmin))
         {
             return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, $"Status transition from {eventEntity.Status} to {targetStatus} is not allowed.");
         }
 
+        var previousStatus = eventEntity.Status;
         eventEntity.Status = targetStatus;
+        if (targetStatus == EventStatus.Rejected)
+        {
+            eventEntity.RejectedViolationReason = normalizedViolationReason;
+            eventEntity.RejectedAdditionalExplanation = normalizedAdditionalExplanation;
+        }
+        else
+        {
+            eventEntity.RejectedViolationReason = null;
+            eventEntity.RejectedAdditionalExplanation = null;
+        }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (previousStatus != targetStatus)
+        {
+            if (targetStatus == EventStatus.Rejected)
+            {
+                var rejectionMessage = BuildEventRejectionNotificationBody(
+                    eventEntity.Name,
+                    normalizedViolationReason ?? string.Empty,
+                    normalizedAdditionalExplanation);
+
+                await _notificationService.SendToAccountAsync(
+                    new PushNotificationRequest(
+                        eventEntity.OwnerId,
+                        "Etkinlik Reddedildi",
+                        rejectionMessage,
+                        new Dictionary<string, string>
+                        {
+                            ["eventId"] = eventEntity.Id.ToString(),
+                            ["status"] = targetStatus.ToString(),
+                            ["violationReason"] = normalizedViolationReason ?? string.Empty,
+                            ["additionalExplanation"] = normalizedAdditionalExplanation ?? string.Empty
+                        }),
+                    cancellationToken);
+            }
+            else if (targetStatus == EventStatus.Published && isAdmin)
+            {
+                await _notificationService.SendToAccountAsync(
+                    new PushNotificationRequest(
+                        eventEntity.OwnerId,
+                        "Etkinlik Onaylandı",
+                        $"'{eventEntity.Name}' etkinliği onaylandı ve yayına alındı.",
+                        new Dictionary<string, string>
+                        {
+                            ["eventId"] = eventEntity.Id.ToString(),
+                            ["status"] = targetStatus.ToString()
+                        }),
+                    cancellationToken);
+            }
+        }
 
         return Result<EventSummaryDto>.Success(MapEventSummary(eventEntity));
     }
@@ -1070,6 +1140,33 @@ public sealed class EventService : IEventService
         }
 
         return false;
+    }
+
+    private static string BuildEventRejectionNotificationBody(string eventName, string violationReason, string? additionalExplanation)
+    {
+        var reasonText = MapViolationReasonToDisplayText(violationReason);
+        var message = $"'{eventName}' etkinliği reddedildi. Sebep: {reasonText}.";
+
+        if (!string.IsNullOrWhiteSpace(additionalExplanation))
+        {
+            message += $" Ek açıklama: {additionalExplanation}.";
+        }
+
+        return message;
+    }
+
+    private static string MapViolationReasonToDisplayText(string violationReason)
+    {
+        return violationReason.Trim().ToLowerInvariant() switch
+        {
+            "policy_violation" => "Topluluk kuralları ihlali",
+            "inappropriate_content" => "Uygunsuz içerik",
+            "unsafe_activity" => "Güvenli olmayan aktivite",
+            "misleading_information" => "Yanıltıcı bilgi",
+            "missing_required_details" => "Eksik veya zorunlu bilgiler",
+            "other" => "Diğer",
+            _ => violationReason
+        };
     }
 
     private static IReadOnlyCollection<Guid> NormalizeTagIds(Guid? primaryTagId, IReadOnlyCollection<Guid>? tagIds)

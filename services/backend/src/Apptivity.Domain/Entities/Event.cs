@@ -19,6 +19,8 @@ public sealed class Event : BaseEntity
     public int Capacity { get; set; }
     public int RemainingParticipationCount { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
+    public string? RejectedViolationReason { get; set; }
+    public string? RejectedAdditionalExplanation { get; set; }
     public decimal Price { get; set; }
     public string? LocationData { get; set; }
     public decimal? LocationLat { get; set; }
