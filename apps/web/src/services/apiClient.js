@@ -11,6 +11,36 @@ function normalizeEnvelope(payload) {
         }
     }
 
+    // ASP.NET Core validation/problem-details fallback
+    if (!('isSuccess' in payload) && !('IsSuccess' in payload) && ('title' in payload || 'errors' in payload)) {
+        const validationErrors = []
+
+        if (payload?.errors && typeof payload.errors === 'object' && !Array.isArray(payload.errors)) {
+            Object.values(payload.errors).forEach((messages) => {
+                if (Array.isArray(messages)) {
+                    messages.forEach((message) => {
+                        if (typeof message === 'string' && message.trim()) {
+                            validationErrors.push({ code: 'API_VALIDATION', message })
+                        }
+                    })
+                }
+            })
+        }
+
+        const fallbackMessage =
+            typeof payload.detail === 'string' && payload.detail.trim()
+                ? payload.detail
+                : typeof payload.title === 'string' && payload.title.trim()
+                    ? payload.title
+                    : 'Request failed.'
+
+        return {
+            isSuccess: false,
+            data: null,
+            errors: validationErrors.length > 0 ? validationErrors : [{ code: 'API_UNKNOWN', message: fallbackMessage }],
+        }
+    }
+
     return {
         isSuccess: payload.isSuccess ?? payload.IsSuccess ?? false,
         data: payload.data ?? payload.Data ?? null,

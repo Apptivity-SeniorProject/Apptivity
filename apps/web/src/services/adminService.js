@@ -1,5 +1,27 @@
 import { apiRequest } from './apiClient'
 
+const EVENT_STATUS_VALUES = {
+    Draft: 1,
+    Published: 2,
+    Ongoing: 3,
+    Completed: 4,
+    Cancelled: 5,
+    PendingApproval: 6,
+    Rejected: 7,
+}
+
+function resolveEventStatusValue(status) {
+    if (typeof status === 'number' && Number.isFinite(status)) {
+        return status
+    }
+
+    if (typeof status === 'string' && Object.prototype.hasOwnProperty.call(EVENT_STATUS_VALUES, status)) {
+        return EVENT_STATUS_VALUES[status]
+    }
+
+    return status
+}
+
 export async function getAdminEvents({ status, pageNumber = 1, pageSize = 20 }) {
     const query = new URLSearchParams()
     query.set('pageNumber', String(pageNumber))
@@ -56,6 +78,6 @@ export async function updateEventStatus(eventId, status) {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: resolveEventStatusValue(status) }),
     })
 }
