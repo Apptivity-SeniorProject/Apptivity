@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Redirect, Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import 'react-native-reanimated';
@@ -21,6 +21,13 @@ export function RootNavigator() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
 
+  // Auth guard yönlendirmesini navigator mount olduktan sonra yap
+  useEffect(() => {
+    if (isReady && redirectTo) {
+      router.replace(redirectTo);
+    }
+  }, [isReady, redirectTo]);
+
   useEffect(() => {
     if (!hasHydrated) {
       return;
@@ -39,9 +46,8 @@ export function RootNavigator() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          {!isReady ? null : redirectTo ? (
-            <Redirect href={redirectTo} />
-          ) : (
+          {/* Stack her zaman render edilir — navigator mount olmadan router.replace() çağrılamaz */}
+          {!isReady ? null : (
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />

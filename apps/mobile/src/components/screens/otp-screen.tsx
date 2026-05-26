@@ -58,7 +58,7 @@ export function OtpScreen() {
     onSuccess: (response) => {
       setTokens(response.accessToken, response.refreshToken);
       setUser(buildAuthUser(response.accessToken, phoneNumber));
-      router.replace('/(tabs)');
+      // router.replace kaldırıldı — auth guard (useAuthGuard) yönlendirmeyi halleder
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, 'OTP kodu dogrulanamadi.'));
