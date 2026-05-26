@@ -53,7 +53,7 @@ export function LoginScreen() {
       if (response.accessToken && response.refreshToken) {
         setTokens(response.accessToken, response.refreshToken);
         setUser(buildAuthUser(response.accessToken, phoneNumber));
-        router.replace('/');
+        // router.replace kaldırıldı — auth guard (useAuthGuard) yönlendirmeyi halleder
         return;
       }
 
