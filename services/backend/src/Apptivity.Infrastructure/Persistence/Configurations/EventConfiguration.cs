@@ -18,6 +18,8 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(x => x.RemainingParticipationCount).IsRequired();
         builder.Property(x => x.Price).HasPrecision(18, 2);
         builder.Property(x => x.LocationData).HasMaxLength(2000);
+        builder.Property(x => x.LocationLat).HasPrecision(9, 6);
+        builder.Property(x => x.LocationLng).HasPrecision(9, 6);
         builder.Property(x => x.BannerImage).HasMaxLength(500);
         builder.Property(x => x.IsFeatured).HasDefaultValue(false);
 
@@ -52,5 +54,6 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
                 });
 
         builder.HasIndex(x => x.IsFeatured);
+        builder.HasIndex(x => new { x.LocationLat, x.LocationLng });
     }
 }

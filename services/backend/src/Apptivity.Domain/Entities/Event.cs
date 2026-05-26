@@ -21,6 +21,8 @@ public sealed class Event : BaseEntity
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public decimal Price { get; set; }
     public string? LocationData { get; set; }
+    public decimal? LocationLat { get; set; }
+    public decimal? LocationLng { get; set; }
     public string? BannerImage { get; set; }
     public bool IsFeatured { get; set; }
     public bool IsVotingClosed { get; set; } = false;

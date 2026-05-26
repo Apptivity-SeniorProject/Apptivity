@@ -15,6 +15,7 @@ import {
   getMyParticipations,
   getRecommendedEvents,
 } from '@/src/api/eventService';
+import { getOrderedHotZonesForRecommendations } from '@/src/services/recommendationHotZoneService';
 import type {
   EventDetail,
   EventFilters,
@@ -95,7 +96,10 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
 export function useRecommendedEvents(pageSize = 10) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['recommended-events', pageSize],
-    queryFn: () => getRecommendedEvents(1, pageSize),
+    queryFn: async () => {
+      const orderedHotZones = await getOrderedHotZonesForRecommendations();
+      return getRecommendedEvents(1, pageSize, orderedHotZones);
+    },
     staleTime: 120000,
     gcTime: 900000,
   });

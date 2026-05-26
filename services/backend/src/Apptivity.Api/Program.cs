@@ -2,8 +2,10 @@ using Apptivity.Api.Background;
 using Apptivity.Api.Health;
 using Apptivity.Api.Hubs;
 using Apptivity.Api.Middlewares;
+using Apptivity.Api.Options;
 using Apptivity.Api.Security;
 using Apptivity.Application;
+using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
 using Apptivity.Infrastructure;
 using Apptivity.Infrastructure.Persistence;
@@ -12,9 +14,11 @@ using Apptivity.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using System.Text;
 using System.Text.Json;
 
@@ -31,9 +35,72 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<EventLifecycleWorker>();
+builder.Services.Configure<RecommendationOptions>(builder.Configuration.GetSection(RecommendationOptions.SectionName));
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy())
     .AddCheck<DatabaseHealthCheck>("database");
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var payload = Apptivity.Api.Common.ApiEnvelope<object?>.Failure(new[]
+        {
+            new ErrorDetail("RATE_429", "Too many requests.")
+        }, context.HttpContext.TraceIdentifier);
+
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(payload, cancellationToken);
+    };
+
+    var userLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        if (!ShouldRateLimit(httpContext))
+        {
+            return RateLimitPartition.GetNoLimiter("user:no-limit");
+        }
+
+        var userKey = GetUserPartitionKey(httpContext);
+        var (tokensPerMinute, tokenLimit) = GetUserLimit(httpContext);
+
+        return RateLimitPartition.GetTokenBucketLimiter(
+            partitionKey: userKey,
+            factory: _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = tokenLimit,
+                TokensPerPeriod = tokensPerMinute,
+                ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+    });
+
+    var ipLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        if (!ShouldRateLimit(httpContext))
+        {
+            return RateLimitPartition.GetNoLimiter("ip:no-limit");
+        }
+
+        var ipKey = GetIpPartitionKey(httpContext);
+        var (tokensPerMinute, tokenLimit) = GetIpLimit(httpContext);
+
+        return RateLimitPartition.GetTokenBucketLimiter(
+            partitionKey: ipKey,
+            factory: _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = tokenLimit,
+                TokensPerPeriod = tokensPerMinute,
+                ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+    });
+
+    options.GlobalLimiter = PartitionedRateLimiter.CreateChained(userLimiter, ipLimiter);
+});
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -135,6 +202,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("StrictOrigins");
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -185,6 +253,72 @@ static void ValidateProductionConfiguration(IConfiguration configuration)
     GetRequired(configuration, "Cloudinary:CloudName");
     GetRequired(configuration, "Cloudinary:ApiKey");
     GetRequired(configuration, "Cloudinary:ApiSecret");
+
+    var recommendedV6Enabled = configuration.GetValue<bool>("Recommendations:RecommendedV6Enabled", true);
+    var killSwitchEnabled = configuration.GetValue<bool>("Recommendations:KillSwitchEnabled", false);
+
+    if (recommendedV6Enabled && !killSwitchEnabled)
+    {
+        GetRequired(configuration, "Groq:ApiKey");
+    }
+}
+
+static string GetUserPartitionKey(HttpContext context)
+{
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+    return $"user:{userId}";
+}
+
+static string GetIpPartitionKey(HttpContext context)
+{
+    var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    return $"ip:{ip}";
+}
+
+static bool HasNearbyQuery(HttpContext context)
+{
+    return context.Request.Query.TryGetValue("userLat", out var userLat)
+        && context.Request.Query.TryGetValue("userLng", out var userLng)
+        && !string.IsNullOrWhiteSpace(userLat.ToString())
+        && !string.IsNullOrWhiteSpace(userLng.ToString());
+}
+
+static bool ShouldRateLimit(HttpContext context)
+{
+    return IsRecommendedPost(context) || IsNearbyEventsGet(context);
+}
+
+static bool IsRecommendedPost(HttpContext context)
+{
+    return HttpMethods.IsPost(context.Request.Method)
+        && context.Request.Path.Equals("/api/events/recommended", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool IsNearbyEventsGet(HttpContext context)
+{
+    return HttpMethods.IsGet(context.Request.Method)
+        && context.Request.Path.Equals("/api/events", StringComparison.OrdinalIgnoreCase)
+        && HasNearbyQuery(context);
+}
+
+static (int TokensPerMinute, int TokenLimit) GetUserLimit(HttpContext context)
+{
+    if (IsRecommendedPost(context))
+    {
+        return (30, 45);
+    }
+
+    return (60, 90);
+}
+
+static (int TokensPerMinute, int TokenLimit) GetIpLimit(HttpContext context)
+{
+    if (IsRecommendedPost(context))
+    {
+        return (120, 180);
+    }
+
+    return (240, 360);
 }
 
 public partial class Program;

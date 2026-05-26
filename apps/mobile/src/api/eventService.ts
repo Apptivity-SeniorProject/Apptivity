@@ -10,6 +10,8 @@ import type {
   EventLocation,
   EventParticipantProfileDto,
   EventParticipantsResponseDto,
+  OrderedHotZone,
+  RecommendedEventSummaryDto,
   EventSummaryDto,
   MyParticipationDto,
   PagedResult,
@@ -264,13 +266,16 @@ export async function getEvents(request: EventListRequest): Promise<PagedResult<
 
 export async function getRecommendedEvents(
   pageNumber = 1,
-  pageSize = 10
+  pageSize = 10,
+  orderedHotZones: OrderedHotZone[] | null = null
 ): Promise<PagedResult<EventListItem>> {
-  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>(
+  const response = await apiClient.post<ApiEnvelope<PagedResult<RecommendedEventSummaryDto>>>(
     '/api/events/recommended',
     {
-      params: { pageNumber, pageSize },
-    }
+      ordered_hot_zones: orderedHotZones,
+      pageNumber,
+      pageSize,
+    },
   );
 
   const payload = unwrapEnvelope(response.data);
