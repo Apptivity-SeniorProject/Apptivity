@@ -1,16 +1,16 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { loginWithPhoneNumber } from '@/src/api/authService';
+import { useToast } from '@/src/hooks/useToast';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
 import { getApiErrorMessage } from '@/src/utils/error';
-import { useToast } from '@/src/hooks/useToast';
 
 interface CountryCodeOption {
   label: string;
@@ -39,11 +39,19 @@ export function LoginScreen() {
   const toast = useToast();
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const phoneNumber = useMemo(
     () => normalizePhoneNumber(countryCode, phoneInput),
     [countryCode, phoneInput]
   );
+
+  useEffect(() => {
+    if (hasHydrated && accessToken) {
+      router.replace('/(tabs)');
+    }
+  }, [accessToken, hasHydrated]);
 
   const loginMutation = useMutation({
     mutationFn: async ({ identifier, pass }: { identifier: string; pass: string }) => {
@@ -53,7 +61,7 @@ export function LoginScreen() {
       if (response.accessToken && response.refreshToken) {
         setTokens(response.accessToken, response.refreshToken);
         setUser(buildAuthUser(response.accessToken, phoneNumber));
-        // router.replace kaldırıldı — auth guard (useAuthGuard) yönlendirmeyi halleder
+        router.replace('/(tabs)');
         return;
       }
 

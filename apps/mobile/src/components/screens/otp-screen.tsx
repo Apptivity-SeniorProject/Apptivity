@@ -5,12 +5,12 @@ import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { sendOtp, verifyOtpCode } from '@/src/api/authService';
+import { useToast } from '@/src/hooks/useToast';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
 import { getApiErrorMessage } from '@/src/utils/error';
-import { useToast } from '@/src/hooks/useToast';
 
 const DEFAULT_RESEND_SECONDS = 60;
 
@@ -22,12 +22,20 @@ export function OtpScreen() {
   const toast = useToast();
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const phoneNumber = useMemo(() => params.phoneNumber?.trim() ?? '', [params.phoneNumber]);
 
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(DEFAULT_RESEND_SECONDS);
+
+  useEffect(() => {
+    if (hasHydrated && accessToken) {
+      router.replace('/(tabs)');
+    }
+  }, [accessToken, hasHydrated]);
 
   useEffect(() => {
     if (!phoneNumber) {
@@ -58,7 +66,7 @@ export function OtpScreen() {
     onSuccess: (response) => {
       setTokens(response.accessToken, response.refreshToken);
       setUser(buildAuthUser(response.accessToken, phoneNumber));
-      // router.replace kaldırıldı — auth guard (useAuthGuard) yönlendirmeyi halleder
+      router.replace('/(tabs)');
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, 'OTP kodu dogrulanamadi.'));

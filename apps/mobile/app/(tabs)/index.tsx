@@ -20,6 +20,8 @@ import { Button } from '@/src/components/ui/button';
 import { CITY_OPTIONS } from '@/src/constants/events';
 import { useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
 import { useTags } from '@/src/hooks/useTags';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { parseAuthToken } from '@/src/utils/auth';
 import { cn } from '@/src/utils/cn';
 
 type PriceFilter = 'all' | 'free' | 'paid';
@@ -35,8 +37,15 @@ export default function HomeScreen() {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [matchAllTags, setMatchAllTags] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const { data: tags } = useTags();
+  const authToken = useMemo(
+    () => (accessToken ? parseAuthToken(accessToken) : null),
+    [accessToken]
+  );
+  const canLoadRecommended = hasHydrated && authToken?.role === 'Individual';
 
   const categories = useMemo<CategoryOption[]>(() => {
     const dynamicCategories = (tags ?? []).map((tag) => ({
@@ -95,7 +104,7 @@ export default function HomeScreen() {
     pageSize: 10,
   });
 
-  const recommendedQuery = useRecommendedEvents(8);
+  const recommendedQuery = useRecommendedEvents(8, { enabled: canLoadRecommended });
 
   const toggleCategory = (category: CategoryOption) => {
     if (category.id === ALL_CATEGORY_ID) {
@@ -141,7 +150,7 @@ export default function HomeScreen() {
             <Text className="text-lg font-semibold text-slate-900">Senin Icin</Text>
           </View>
 
-          {recommendedQuery.isPending ? (
+          {canLoadRecommended && recommendedQuery.isPending ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
               {Array.from({ length: 2 }).map((_, index) => (
                 <View key={`recommended-skeleton-${index}`} className="w-72">

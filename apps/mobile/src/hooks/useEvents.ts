@@ -92,10 +92,15 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
   };
 }
 
-export function useRecommendedEvents(pageSize = 10) {
+interface UseRecommendedEventsOptions {
+  enabled?: boolean;
+}
+
+export function useRecommendedEvents(pageSize = 10, options?: UseRecommendedEventsOptions) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['recommended-events', pageSize],
     queryFn: () => getRecommendedEvents(1, pageSize),
+    enabled: options?.enabled ?? true,
     staleTime: 120000,
     gcTime: 900000,
   });

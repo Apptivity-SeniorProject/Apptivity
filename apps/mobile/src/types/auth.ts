@@ -1,8 +1,11 @@
+export type AccountRole = 'Individual' | 'Organization' | 'Admin';
+
 export interface AuthUser {
   id: string;
   phoneNumber: string;
   email?: string;
   fullName?: string;
+  role?: AccountRole;
 }
 
 export interface AuthTokens {

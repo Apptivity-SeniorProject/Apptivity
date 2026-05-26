@@ -46,17 +46,13 @@ async function tryGetTagsFromEndpoint(url: string): Promise<TagDto[]> {
 }
 
 export async function getTags(): Promise<TagDto[]> {
-  const endpoints = ['/api/tags', '/api/lookups/tags'];
-
-  for (const endpoint of endpoints) {
-    try {
-      const tags = await tryGetTagsFromEndpoint(endpoint);
-      if (tags.length > 0) {
-        return tags;
-      }
-    } catch {
-      // endpoint mevcut degilse bir sonrakini dene
+  try {
+    const tags = await tryGetTagsFromEndpoint('/api/tags');
+    if (tags.length > 0) {
+      return tags;
     }
+  } catch {
+    // API gecici olarak ulasilamazsa mock listeyle devam et.
   }
 
   return MOCK_TAGS;
