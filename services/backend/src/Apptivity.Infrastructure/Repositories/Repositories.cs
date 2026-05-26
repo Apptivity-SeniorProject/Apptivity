@@ -256,7 +256,13 @@ public sealed class EventRepository : IEventRepository
     public async Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)
     {
         return await _db.Events
-            .Where(x => x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing)
+            .AsNoTracking()
+            .Include(x => x.Owner)
+            .Include(x => x.Tags)
+            .Where(x =>
+                (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing) &&
+                x.Owner.Status == AccountStatus.Active &&
+                x.Owner.IsActive)
             .ToListAsync(cancellationToken);
     }
 
@@ -372,6 +378,28 @@ public sealed class EventRepository : IEventRepository
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
+    }
+
+    public async Task<IReadOnlyCollection<string>> GetApprovedHistoryTagNamesAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        var tagsFromEventTags = _db.Participations
+            .AsNoTracking()
+            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved)
+            .SelectMany(x => x.Event.Tags.Select(tag => tag.Name));
+
+        var tagsFromPrimaryTags = _db.Participations
+            .AsNoTracking()
+            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved && x.Event.PrimaryTag != null)
+            .Select(x => x.Event.PrimaryTag!.Name);
+
+        var combined = await tagsFromEventTags
+            .Concat(tagsFromPrimaryTags)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        return combined;
     }
 
 

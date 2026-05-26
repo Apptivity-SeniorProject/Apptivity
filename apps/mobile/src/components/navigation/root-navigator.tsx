@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient } from '@/src/api/queryClient';
 import { ToastHost } from '@/src/components/ui/toast-host';
+import { syncRecommendationLocationTracking } from '@/src/services/locationTrackingService';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -31,6 +32,14 @@ export function RootNavigator() {
     }
 
     previousAccessTokenRef.current = accessToken;
+  }, [accessToken, hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    void syncRecommendationLocationTracking(Boolean(accessToken));
   }, [accessToken, hasHydrated]);
 
   return (

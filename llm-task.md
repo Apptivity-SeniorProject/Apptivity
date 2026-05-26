@@ -5,6 +5,8 @@
 - `GET /api/events` genel feed/discovery endpointi olarak kalacak; yeni feed endpoint acilmayacak.
 - Feed icin konuma duyarlilik, mevcut `GET /api/events` icine opsiyonel lat/lng tabanli siralama/boost olarak eklenecek.
 - Server-side kullanici konum gecmisi tutulmayacak (KVKK uyumlu); konum gecmisi yalnizca cihazda saklanacak ve ozet olarak istek aninda gonderilecek.
+- Stage'ler arasi tekillestirme zorunlu olacak (`eventId`); event ilk bulundugu stage'e atanacak (1 > 2 > 3 > 4).
+- Deterministik sonuc sirasi: `stage asc -> recommendationScore desc -> distance asc -> eventDate asc -> eventId asc`.
 
 ## Uygulama Degisiklikleri
 - Backend veri modeli:
@@ -18,13 +20,24 @@
   - Cache: kullanici bazli 24 saat (Redis oncelikli, memory fallback).
 - Recommended v6 pipeline (`POST /api/events/recommended`):
   - Girdi: `ordered_hot_zones: [{priority, lat, lng}] | null`.
+  - `ordered_hot_zones` validasyonu:
+    - `null` veya `1..3` eleman.
+    - `priority` yalnizca `1|2|3`, tekrar edemez.
+    - `lat`: `-90 <= lat <= 90`.
+    - `lng`: `-180 <= lng <= 180`.
+    - Koordinat precision: en fazla 4 ondalik (fazlasi `400`).
   - Stage 1: `primary_tag` + `priority 1/2` noktalarina `<=20km`.
   - Stage 2: Stage1 bossa `fallback_tag` + `priority 1/2` + `<=20km`.
   - Stage 3: Stage2 bossa tagsiz + `priority 1/2/3` herhangi birine `<=25km`.
   - Stage 4: Stage3 bossa tag/mesafe filtresiz populer/en yeni aktif etkinlikler.
   - Her stage icin sabit `recommendationReason`; item bazinda opsiyonel `recommendationScore`.
+  - Cold-start: `interests` ve `approved history` ikisi de bossa LLM atlanir, dogrudan Stage 3 -> Stage 4 calisir.
+  - Sinyallerden yalnizca biri varsa LLM'e sadece mevcut sinyal gonderilir.
+  - Mesafe hesabi: `location_lat/lng` uzerinde DB-side Haversine expression; filtreleme ham metre/km degeriyle, yuvarlama sadece UI'da.
 - Genel feed (`GET /api/events`) iyilestirmesi:
   - Yeni opsiyonel query: `userLat`, `userLng`, `nearbyRadiusKm`, `sort=nearby|recent`.
+  - `userLat` ve `userLng` birlikte gelmek zorunda; biri eksikse `400`.
+  - `nearbyRadiusKm`: default `30`, min `1`, max `50`.
   - Konum verilirse yakinlik boost/siralama uygulanir.
   - Konum yoksa mevcut davranis korunur (regresyonsuz fallback).
 - Mobil taraf:
@@ -39,30 +52,185 @@
 - `POST /api/events/recommended`:
   - Body: `ordered_hot_zones` (opsiyonel/null), paging alanlari.
   - Yanit itemina ek alanlar: `recommendationScore?`, `recommendationReason?`.
+  - `recommendationScore`: `0-100` araliginda float (2 decimal), opsiyonel/null; global kalite degil, bu istek icindeki goreli relevance.
+  - Invalid input response formati:
+    - `isSuccess=false`, `data=null`, `errors=[{ code, message }]`, `timestamp` (UTC ISO-8601).
+    - Ornek kod: `VAL_001`.
 - Gecis:
   - Eski `GET /api/events/recommended` 1-2 surum gecis suresince korunur, sonra kaldirilir.
   - Bu sirada GET cagrilari zonesuz fallback davranisa duser.
+  - Deprecation header baslangici: `3 Haziran 2026`.
+  - Headerlar:
+    - `Deprecation: true`
+    - `Sunset: Fri, 31 Jul 2026 23:59:59 GMT`
+  - Kapatma tarihi: `1 Agustos 2026`.
+  - Erken kapatma sarti: POST payi `>=95%` ve `7` gun ardisik stabil.
+  - Rollback (GET gecici geri acma) kosullari:
+    - POST `5xx > %2` (`15 dk`).
+    - POST `p95 > 300ms` (`30 dk`).
+    - Bos sonuc orani anomali esigini asarsa.
 - `GET /api/events`:
   - Yeni opsiyonel konum query parametreleri desteklenir; mevcut filtre kontrati kirilmaz.
+  - Konumlu feed cagrisi `sort=nearby|recent` ile desteklenir, konumsuz cagrida mevcut varsayilan davranis korunur.
+
+## Operasyon Kurallari
+- Rate-limit:
+  - `POST /api/events/recommended`: kullanici `30/dk`, IP `120/dk`.
+  - Konumlu `GET /api/events`: kullanici `60/dk`, IP `240/dk`.
+  - Politika: token-bucket + kisa burst toleransi + `429`.
+- LLM cagri politikasi:
+  - Endpoint hard deadline: `300ms`.
+  - Request path'te LLM tek deneme: max `120ms`.
+  - Timeout/parse fail/quota/provider fail durumunda retry yok; cache/stage fallback calisir.
+  - Gerekirse retry yalnizca async background refresh'te yapilir.
+- Rollout:
+  - Feature flag: `recommended_v6_enabled` + kill switch.
+  - Cohort rollout: `%5 -> %25 -> %50 -> %100` (`userId` hash sticky).
+- Mobil izin kapanma politikasi:
+  - Worker hemen durur.
+  - Yeni ornekleme kesilir.
+  - Lokal konum gecmisi aninda silinir.
+  - Sonraki istekler `ordered_hot_zones=null` ile gonderilir.
+
+## Aktif Etkinlik Kurali
+- Aktif kabul:
+  - `Status == Published` veya `Status == Ongoing`.
+- Haric tut:
+  - `Draft`, `Rejected`, `Cancelled`, `Completed`.
+- Zaman hesabi:
+  - UTC bazli.
+  - `startUtc = event.Date + event.Time` (UTC kabul).
+  - `endUtc = startUtc + DurationMinutes`.
+  - `Published` icin: `startUtc >= nowUtc`.
+  - `Ongoing` icin: `startUtc <= nowUtc < endUtc`.
+- Stage 4 de ayni aktiflik filtresine tabidir.
 
 ## Test Plani
 - Backend unit:
   - LLM parse/validasyon, cache hit-miss/TTL.
   - 4-stage gecis mantigi ve reason dogrulamasi.
+  - Stage'ler arasi `eventId` dedup ve "ilk stage kazanir" kurali.
+  - Deterministik siralama: `stage/score/distance/date/eventId` tie-break dogrulamasi.
   - Feed ranking (nearby vs recent) senaryolari.
 - Backend integration:
   - `POST /recommended` zone dolu/bos/null akislar.
+  - Cold-start (interests+history bos) -> Stage3/4 akisi.
+  - Rate-limit esik ve `429` davranisi.
   - `GET /events` konumlu/konumsuz query karsilastirmasi.
   - Migration/backfill ve indeks dogrulamasi.
 - Mobil:
   - SQLite insert/prune/cluster/inverse priority.
   - Background best-effort worker calismasi.
   - Permission denied ve API hata silent degradation.
+  - Izin kapatma sonrasi aninda purge + worker stop dogrulamasi.
 - Performans:
   - `POST /recommended` p95 <300ms hedefi (cache sicak senaryo).
   - `GET /events` nearby siralamada sorgu maliyeti olcumu.
+
+## Implementasyon Durumu
+- [x] Adim 1 (Backend veri modeli) tamamlandi:
+  - `events` tablosu icin `LocationLat` ve `LocationLng` alanlari eklendi (`numeric(9,6)`, nullable).
+  - Lokasyon alanlari icin birlesik indeks eklendi.
+  - Migration/backfill eklendi: `LocationData` icindeki `lat/lng` regex ile parse edilip yeni kolonlara dolduruluyor (aralik kontrolu ile).
+  - Migration dosyasi: `20260525230843_AddEventLocationCoordinates`.
+- [x] Adim 2 (API kontrat + validasyon) tamamlandi:
+  - Yeni endpoint eklendi: `POST /api/events/recommended` (body: `ordered_hot_zones`, paging).
+  - `ordered_hot_zones` validasyonlari eklendi: adet (`1..3|null`), `priority` (`1|2|3` ve unique), lat/lng aralik, max `4` ondalik.
+  - Legacy `GET /api/events/recommended` endpointine deprecation headerlari eklendi (`Deprecation`, `Sunset`).
+  - `GET /api/events` icin query validasyonlari eklendi:
+    - `userLat`+`userLng` birlikte zorunlu,
+    - lat/lng aralik kontrolu,
+    - `nearbyRadiusKm` min/max (`1..50`),
+    - `sort` yalnizca `nearby|recent`.
+  - Recommended v6 kontrat DTO'lari eklendi (`RecommendedEventsRequest`, `OrderedHotZoneRequest`, `RecommendedEventSummaryDto`).
+- [x] Adim 3 (Recommended v6 pipeline + deterministic sira) tamamlandi:
+  - `POST /api/events/recommended` servis akisi stage bazli fail-safe ile calisiyor (`Stage1 -> Stage2 -> Stage3 -> Stage4`).
+  - Stage secimi: bir stage sonuc verirse sonraki stage'lere gecilmiyor (fallback mantigi).
+  - `eventId` bazli dedup + deterministik sira uygulandi:
+    - `stage asc -> recommendationScore desc -> distance asc -> eventDate asc -> eventId asc`.
+  - Aktif etkinlik kurali uygulandi (UTC):
+    - `Published`: `startUtc >= nowUtc`
+    - `Ongoing`: `startUtc <= nowUtc < endUtc`
+  - Stage reason/score alanlari response item'larina eklendi (`recommendationReason`, `recommendationScore`).
+  - Not: Bu adimda `primary/fallback` sinyali kullanici `interest` taglerinden turetiliyor; provider-agnostic LLM profiler entegrasyonu Adim 4 kapsaminda tamamlanacak.
+- [x] Adim 4 (Operasyon: rate-limit/flag/telemetry) tamamlandi:
+  - Global chained token-bucket rate limiter eklendi (user + IP):
+    - `POST /api/events/recommended`: user `30/dk` (burst `45`), IP `120/dk` (burst `180`)
+    - Konumlu `GET /api/events` (`userLat+userLng`): user `60/dk` (burst `90`), IP `240/dk` (burst `360`)
+    - Asimda `429` + standart envelope (`RATE_429`) doner.
+  - Feature flag + kill switch + rollout eklendi (`Recommendations`):
+    - `RecommendedV6Enabled`
+    - `KillSwitchEnabled`
+    - `RolloutPercentage` (userId hash sticky cohort)
+  - Rollout disinda kalan veya kill switch aktif kullanicilar icin `POST /recommended` legacy akisa fallback eder (v6 response shape korunur).
+  - Telemetry metrikleri eklendi:
+    - `recommended_requests_total`
+    - `recommended_stage_hits_total` (stage tag ile)
+    - `recommended_empty_results_total`
+    - `recommended_latency_ms` (histogram)
+- [x] Adim 5 (Mobil entegrasyon) tamamlandi:
+  - Mobil istemci `POST /api/events/recommended` kontratina gecirildi (`ordered_hot_zones` + paging body).
+  - Lokal konum gunlugu eklendi (SQLite):
+    - tablo olusturma + indeksler
+    - her insert sonrasi 30 gunden eski kayitlar prune
+  - 2 ondalik grid cluster + top3 yogun nokta + inverse priority (`3->2->1`) hesaplama eklendi.
+  - "Senin Icin" isteginden once `ordered_hot_zones` uretilip API'ye gonderiliyor; veri yoksa/izin yoksa `null` fallback.
+  - Best-effort saatlik konum ornekleme eklendi:
+    - app acikken foreground watcher
+    - app kapaliyken background location task (`TaskManager` + `Location.startLocationUpdatesAsync`)
+  - Izin kapaninca:
+    - worker/subscription durdurulur
+    - lokal konum gecmisi aninda silinir
+    - sonraki recommendation cagrilari `ordered_hot_zones=null` ile gider.
+  - Ana sayfaya sol-alt "Bana Etkinlik Oner" yuzen aksiyon butonu eklendi:
+    - buton `POST /api/events/recommended` akisini manuel tetikler (`refetch`).
+    - sonuc varsa modalda oneriler listelenir, event detayina gecis yapilir.
+    - sonuc yok/hata durumlari toast ile bildirilir.
+
+## LLM Entegrasyon Durumu
+- [x] Asama 1 (servis katmani) tamamlandi:
+  - `ITagPredictorService` arayuzu eklendi.
+  - `GroqLlama3Predictor` provider implementasyonu eklendi (`openai/gpt-oss-20b`, strict JSON parse: `primary_tag` + `fallback_tag`).
+  - DI kaydi eklendi (`AddHttpClient<ITagPredictorService, GroqLlama3Predictor>`).
+  - `GroqOptions` tanimlandi (`ApiKey`, `BaseUrl`, `Model`, `TimeoutMs`).
+- [x] Asama 2 (config/env baglama) tamamlandi:
+  - `Groq` section tum appsettings dosyalarina eklendi (`appsettings.json`, `Development`, `Staging`, `Production`).
+  - `.env.example` icine `Groq__ApiKey`, `Groq__BaseUrl`, `Groq__Model`, `Groq__TimeoutMs` eklendi.
+  - Production fail-fast kontrolu eklendi:
+    - `Recommendations:RecommendedV6Enabled=true` ve `KillSwitchEnabled=false` ise `Groq:ApiKey` zorunlu.
+- [x] Asama 3 (24s cache) tamamlandi:
+  - `ITagPredictionCacheService` eklendi.
+  - `TagPredictionCacheService` implementasyonu eklendi:
+    - Redis oncelikli read/write
+    - Redis hata durumunda memory fallback
+  - TTL: `24 saat`
+  - Cache key: `recommended:tag-prediction:{userId}`
+  - DI kaydi eklendi.
+- [x] Asama 4 (EventService request path entegrasyonu + testler) tamamlandi:
+  - `EventService.GetRecommendedV6Async` icine LLM akisi baglandi:
+    - sinyal var ise once cache okunur
+    - cache miss ise `ITagPredictorService` cagrilir
+    - gecerli sonuc cache'e yazilir
+    - sonuclar active tag havuzuna map edilerek Stage1/2'de kullanilir
+  - `approved history tag` sinyali icin repository sorgusu eklendi (`GetApprovedHistoryTagNamesAsync`).
+  - Basarili testler:
+    - `GroqTagPredictorTests` (gecerli JSON sonuc + gecersiz tag sonucu)
+    - `GroqTagPredictorTests` timeout senaryosu (`TaskCanceledException`) -> `null` fallback (request patlamaz)
+    - `RecommendedEndpointsContractTests` (`POST /recommended` validation envelope + legacy `GET /recommended` deprecation header)
+    - mevcut `HealthEndpointTests`
+    - `dotnet test` toplam: `5/5` basarili.
+
+## Deploy Oncesi Kalan Operasyonel Adim
+- [x] Docker/PostgreSQL calisirken migration'in hedef ortama uygulanmasi (`AddEventLocationCoordinates`).
+- [x] Terminal smoke-test tamamlandi:
+  - `docker compose up -d --build api` ile guncel API image'i ayaga kaldirildi.
+  - `POST /api/events/recommended` login token ile canli cagrildi (zones dolu + `ordered_hot_zones=null`).
+  - Invalid precision (`>4` ondalik) icin `400` + `VAL_001` dogrulandi.
+  - Legacy `GET /api/events/recommended` icin `Deprecation` ve `Sunset` header'lari dogrulandi.
+  - LLM timeout davranisi canli dogrulandi: `120ms` butcede timeout olunca request `500` yerine fallback ile `200` donuyor.
 
 ## Varsayimlar
 - Platform kisitlari nedeniyle "app kapaliyken saatlik" takip best-effort olarak kabul edilir.
 - LLM'e konum verisi gonderilmez; yalnizca interests + approved history tagleri gonderilir.
 - Gelistirme sirasinda mimari/indeks/provider celiskisi cikarsa implementasyonda durulup karar sorulur.
+

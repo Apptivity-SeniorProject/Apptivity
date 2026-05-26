@@ -2,6 +2,7 @@ using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
 using Apptivity.Application.Contracts.Tags;
 using Apptivity.Domain.Enums;
+using System.Text.Json.Serialization;
 
 namespace Apptivity.Application.Contracts.Events;
 
@@ -14,6 +15,10 @@ public sealed record EventSearchRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     bool? IsPaid,
+    decimal? UserLat,
+    decimal? UserLng,
+    int? NearbyRadiusKm,
+    string? Sort,
     int PageNumber = 1,
     int PageSize = 20);
 
@@ -33,6 +38,35 @@ public sealed record EventSummaryDto(
     EventStatus Status,
     decimal Price,
     string? LocationData);
+
+public sealed record RecommendedEventSummaryDto(
+    Guid Id,
+    Guid OwnerId,
+    Guid? PrimaryTagId,
+    IReadOnlyCollection<TagDto> Tags,
+    string Name,
+    string Description,
+    string? BannerImage,
+    DateOnly Date,
+    TimeOnly Time,
+    int DurationMinutes,
+    int Capacity,
+    int RemainingParticipationCount,
+    EventStatus Status,
+    decimal Price,
+    string? LocationData,
+    decimal? RecommendationScore,
+    string? RecommendationReason);
+
+public sealed record OrderedHotZoneRequest(
+    int Priority,
+    decimal Lat,
+    decimal Lng);
+
+public sealed record RecommendedEventsRequest(
+    [property: JsonPropertyName("ordered_hot_zones")] IReadOnlyCollection<OrderedHotZoneRequest>? OrderedHotZones,
+    int PageNumber = 1,
+    int PageSize = 20);
 
 public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status, EventStatus EventStatus);
 
@@ -133,6 +167,7 @@ public interface IEventService
     Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(UserContext userContext, RecommendedEventsRequest request, CancellationToken cancellationToken);
 }
 
 public interface IEventLifecycleService

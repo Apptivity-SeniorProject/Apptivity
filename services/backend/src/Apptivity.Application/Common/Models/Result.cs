@@ -47,4 +47,13 @@ public sealed class Result<T> : Result
             Errors = new List<ErrorDetail> { new(code, message) }
         };
     }
+
+    public static new Result<T> Failure(IEnumerable<ErrorDetail> errors)
+    {
+        return new Result<T>
+        {
+            IsSuccess = false,
+            Errors = errors.ToList()
+        };
+    }
 }

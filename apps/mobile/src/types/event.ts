@@ -68,6 +68,17 @@ export interface EventSummaryDto {
   locationData?: string | null;
 }
 
+export interface RecommendedEventSummaryDto extends EventSummaryDto {
+  recommendationScore?: number | null;
+  recommendationReason?: string | null;
+}
+
+export interface OrderedHotZone {
+  priority: 1 | 2 | 3;
+  lat: number;
+  lng: number;
+}
+
 export interface ApplyToEventResponseDto {
   eventId: string;
   userId: string;

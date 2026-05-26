@@ -1,10 +1,12 @@
 using Apptivity.Application.Common.Constants;
 using Apptivity.Application.Common.Models;
+using Apptivity.Application.Common.Observability;
 using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Contracts.Tags;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Apptivity.Application.Services;
@@ -16,6 +18,8 @@ public sealed class EventService : IEventService
     private readonly IParticipationRepository _participationRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITagRepository _tagRepository;
+    private readonly ITagPredictorService _tagPredictorService;
+    private readonly ITagPredictionCacheService _tagPredictionCacheService;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
@@ -26,6 +30,8 @@ public sealed class EventService : IEventService
         IParticipationRepository participationRepository,
         IUserRepository userRepository,
         ITagRepository tagRepository,
+        ITagPredictorService tagPredictorService,
+        ITagPredictionCacheService tagPredictionCacheService,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
@@ -35,6 +41,8 @@ public sealed class EventService : IEventService
         _participationRepository = participationRepository;
         _userRepository = userRepository;
         _tagRepository = tagRepository;
+        _tagPredictorService = tagPredictorService;
+        _tagPredictionCacheService = tagPredictionCacheService;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
@@ -59,7 +67,11 @@ public sealed class EventService : IEventService
             request.MatchAllTags,
             request.StartDate,
             request.EndDate,
-            request.IsPaid);
+            request.IsPaid,
+            request.UserLat,
+            request.UserLng,
+            request.NearbyRadiusKm,
+            request.Sort);
 
         var (items, totalCount) = await _eventRepository.SearchAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
         var mapped = items
@@ -599,6 +611,196 @@ public sealed class EventService : IEventService
         return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
+    public async Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(
+        UserContext userContext,
+        RecommendedEventsRequest request,
+        CancellationToken cancellationToken)
+    {
+        RecommendationMetrics.RecordRequest();
+        var stopwatch = Stopwatch.StartNew();
+
+        if (userContext.AccountType != AccountType.Individual)
+        {
+            return Result<PagedResult<RecommendedEventSummaryDto>>.Failure(ErrorCodes.EventUnauthorized, "Recommendations are available for individual accounts.");
+        }
+
+        var account = await _userRepository.GetAccountByIdWithInterestsAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<PagedResult<RecommendedEventSummaryDto>>.Failure(ErrorCodes.AccountNotFound, "Account not found.");
+        }
+
+        var paging = new PagedRequest
+        {
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize
+        };
+        paging.Normalize();
+
+        var activeTags = await _tagRepository.GetActiveAsync(cancellationToken);
+        var activeTagNameToId = activeTags
+            .Where(x => !x.IsDeleted && x.IsActive && !string.IsNullOrWhiteSpace(x.Name))
+            .GroupBy(x => x.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+
+        var allowedTagNames = activeTagNameToId.Keys.ToArray();
+
+        var interestTagNames = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Name))
+            .Select(x => x.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var approvedHistoryTagNames = (await _eventRepository.GetApprovedHistoryTagNamesAsync(userContext.AccountId, cancellationToken))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var interestTagIds = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToArray();
+
+        var primaryTagId = Guid.Empty;
+        var fallbackTagId = Guid.Empty;
+        var hasSignals = interestTagNames.Length > 0 || approvedHistoryTagNames.Length > 0;
+
+        if (hasSignals && allowedTagNames.Length >= 2)
+        {
+            var predictedTags = await _tagPredictionCacheService.GetAsync(userContext.AccountId, cancellationToken);
+
+            if (predictedTags is null)
+            {
+                predictedTags = await _tagPredictorService.PredictAsync(
+                    new TagPredictionInput(allowedTagNames, interestTagNames, approvedHistoryTagNames),
+                    cancellationToken);
+
+                if (predictedTags is not null)
+                {
+                    await _tagPredictionCacheService.SetAsync(userContext.AccountId, predictedTags, cancellationToken);
+                }
+            }
+
+            if (predictedTags is not null)
+            {
+                if (activeTagNameToId.TryGetValue(predictedTags.PrimaryTag, out var predictedPrimaryTagId))
+                {
+                    primaryTagId = predictedPrimaryTagId;
+                }
+
+                if (activeTagNameToId.TryGetValue(predictedTags.FallbackTag, out var predictedFallbackTagId) &&
+                    predictedFallbackTagId != primaryTagId)
+                {
+                    fallbackTagId = predictedFallbackTagId;
+                }
+            }
+        }
+
+        if (primaryTagId == Guid.Empty)
+        {
+            primaryTagId = interestTagIds.ElementAtOrDefault(0);
+        }
+
+        if (fallbackTagId == Guid.Empty)
+        {
+            fallbackTagId = interestTagIds
+                .FirstOrDefault(x => x != Guid.Empty && x != primaryTagId);
+        }
+
+        var nowUtc = DateTime.UtcNow;
+
+        var zones = request.OrderedHotZones?
+            .OrderBy(x => x.Priority)
+            .ToArray();
+
+        var stage12Zones = zones?
+            .Where(x => x.Priority == 1 || x.Priority == 2)
+            .ToArray() ?? Array.Empty<OrderedHotZoneRequest>();
+
+        var stage123Zones = zones?
+            .Where(x => x.Priority is >= 1 and <= 3)
+            .ToArray() ?? Array.Empty<OrderedHotZoneRequest>();
+
+        var activeEvents = await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken);
+
+        var stage1 = !hasSignals || primaryTagId == Guid.Empty || stage12Zones.Length == 0
+            ? Array.Empty<RecommendationCandidate>()
+            : BuildCandidates(
+                activeEvents,
+                nowUtc,
+                stage: 1,
+                reason: "Primary interest and top locations match",
+                requiredTagId: primaryTagId,
+                zones: stage12Zones,
+                maxDistanceKm: 20d);
+
+        var stage2 = stage1.Length > 0 || !hasSignals || fallbackTagId == Guid.Empty || stage12Zones.Length == 0
+            ? Array.Empty<RecommendationCandidate>()
+            : BuildCandidates(
+                activeEvents,
+                nowUtc,
+                stage: 2,
+                reason: "Fallback interest and top locations match",
+                requiredTagId: fallbackTagId,
+                zones: stage12Zones,
+                maxDistanceKm: 20d);
+
+        var stage3 = (stage1.Length > 0 || stage2.Length > 0 || stage123Zones.Length == 0)
+            ? Array.Empty<RecommendationCandidate>()
+            : BuildCandidates(
+                activeEvents,
+                nowUtc,
+                stage: 3,
+                reason: "Nearby events around your frequent zones",
+                requiredTagId: null,
+                zones: stage123Zones,
+                maxDistanceKm: 25d);
+
+        var stage4 = stage1.Length > 0 || stage2.Length > 0 || stage3.Length > 0
+            ? Array.Empty<RecommendationCandidate>()
+            : BuildStage4Candidates(activeEvents, nowUtc);
+
+        var selectedStage = stage1.Length > 0
+            ? stage1
+            : stage2.Length > 0
+                ? stage2
+                : stage3.Length > 0
+                    ? stage3
+                    : stage4;
+
+        var selectedStageNumber = selectedStage.FirstOrDefault()?.Stage ?? 4;
+        RecommendationMetrics.RecordStageHit(selectedStageNumber);
+
+        var deduped = selectedStage
+            .GroupBy(x => x.Event.Id)
+            .Select(x => x.OrderBy(y => y.Stage).First())
+            .OrderBy(x => x.Stage)
+            .ThenByDescending(x => x.RecommendationScore ?? -1m)
+            .ThenBy(x => x.DistanceKm ?? decimal.MaxValue)
+            .ThenBy(x => x.StartUtc)
+            .ThenBy(x => x.Event.Id)
+            .ToArray();
+
+        if (deduped.Length == 0)
+        {
+            RecommendationMetrics.RecordEmptyResult();
+        }
+
+        var pagedItems = deduped
+            .Skip((paging.PageNumber - 1) * paging.PageSize)
+            .Take(paging.PageSize)
+            .Select(MapRecommendedEventSummary)
+            .ToArray();
+
+        stopwatch.Stop();
+        RecommendationMetrics.RecordLatency(stopwatch.Elapsed.TotalMilliseconds);
+
+        return Result<PagedResult<RecommendedEventSummaryDto>>.Success(
+            new PagedResult<RecommendedEventSummaryDto>(pagedItems, deduped.Length, paging.PageNumber, paging.PageSize));
+    }
+
     private async Task EnsureRemainingCountIsInitializedAsync(Event eventEntity, CancellationToken cancellationToken)
     {
         if (eventEntity.RemainingParticipationCount > 0)
@@ -630,6 +832,210 @@ public sealed class EventService : IEventService
             eventEntity.Price,
             eventEntity.LocationData);
     }
+
+    private static RecommendedEventSummaryDto MapRecommendedEventSummary(RecommendationCandidate candidate)
+    {
+        var eventSummary = candidate.Event;
+
+        return new RecommendedEventSummaryDto(
+            eventSummary.Id,
+            eventSummary.OwnerId,
+            eventSummary.PrimaryTagId,
+            eventSummary.Tags,
+            eventSummary.Name,
+            eventSummary.Description,
+            eventSummary.BannerImage,
+            eventSummary.Date,
+            eventSummary.Time,
+            eventSummary.DurationMinutes,
+            eventSummary.Capacity,
+            eventSummary.RemainingParticipationCount,
+            eventSummary.Status,
+            eventSummary.Price,
+            eventSummary.LocationData,
+            candidate.RecommendationScore,
+            candidate.RecommendationReason);
+    }
+
+    private static RecommendationCandidate[] BuildCandidates(
+        IReadOnlyCollection<Event> activeEvents,
+        DateTime nowUtc,
+        int stage,
+        string reason,
+        Guid? requiredTagId,
+        IReadOnlyCollection<OrderedHotZoneRequest> zones,
+        double maxDistanceKm)
+    {
+        if (zones.Count == 0)
+        {
+            return Array.Empty<RecommendationCandidate>();
+        }
+
+        var list = new List<RecommendationCandidate>();
+
+        foreach (var eventEntity in activeEvents)
+        {
+            if (!IsActiveEvent(eventEntity, nowUtc))
+            {
+                continue;
+            }
+
+            if (requiredTagId.HasValue && !HasTag(eventEntity, requiredTagId.Value))
+            {
+                continue;
+            }
+
+            if (!TryGetMinimumDistanceKm(eventEntity, zones, out var minDistanceKm))
+            {
+                continue;
+            }
+
+            if (minDistanceKm > (decimal)maxDistanceKm)
+            {
+                continue;
+            }
+
+            var score = ComputeScore(minDistanceKm, maxDistanceKm, stage);
+            var mapped = MapEventSummary(eventEntity);
+            var startUtc = eventEntity.Date.ToDateTime(eventEntity.Time, DateTimeKind.Utc);
+            list.Add(new RecommendationCandidate(mapped, stage, DecimalRound(minDistanceKm), score, reason, startUtc));
+        }
+
+        return list.ToArray();
+    }
+
+    private static RecommendationCandidate[] BuildStage4Candidates(
+        IReadOnlyCollection<Event> activeEvents,
+        DateTime nowUtc)
+    {
+        return activeEvents
+            .Where(x => IsActiveEvent(x, nowUtc))
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenBy(x => x.Date)
+            .ThenBy(x => x.Time)
+            .Select(x => new RecommendationCandidate(
+                MapEventSummary(x),
+                4,
+                null,
+                null,
+                "Popular and upcoming active events",
+                x.Date.ToDateTime(x.Time, DateTimeKind.Utc)))
+            .ToArray();
+    }
+
+    private static bool HasTag(Event eventEntity, Guid tagId)
+    {
+        if (eventEntity.PrimaryTagId == tagId)
+        {
+            return true;
+        }
+
+        return eventEntity.Tags.Any(x => x.Id == tagId);
+    }
+
+    private static bool IsActiveEvent(Event eventEntity, DateTime nowUtc)
+    {
+        var startUtc = eventEntity.Date.ToDateTime(eventEntity.Time, DateTimeKind.Utc);
+        var endUtc = startUtc.AddMinutes(eventEntity.DurationMinutes);
+
+        return eventEntity.Status switch
+        {
+            EventStatus.Published => startUtc >= nowUtc,
+            EventStatus.Ongoing => startUtc <= nowUtc && nowUtc < endUtc,
+            _ => false
+        };
+    }
+
+    private static bool TryGetMinimumDistanceKm(
+        Event eventEntity,
+        IReadOnlyCollection<OrderedHotZoneRequest> zones,
+        out decimal minDistanceKm)
+    {
+        minDistanceKm = decimal.MaxValue;
+
+        if (!eventEntity.LocationLat.HasValue || !eventEntity.LocationLng.HasValue)
+        {
+            return false;
+        }
+
+        foreach (var zone in zones)
+        {
+            var distance = CalculateDistanceKm(
+                (double)eventEntity.LocationLat.Value,
+                (double)eventEntity.LocationLng.Value,
+                (double)zone.Lat,
+                (double)zone.Lng);
+
+            if (distance < (double)minDistanceKm)
+            {
+                minDistanceKm = (decimal)distance;
+            }
+        }
+
+        return minDistanceKm != decimal.MaxValue;
+    }
+
+    private static decimal ComputeScore(decimal distanceKm, double maxDistanceKm, int stage)
+    {
+        var normalized = maxDistanceKm <= 0 ? 0m : distanceKm / (decimal)maxDistanceKm;
+        var distanceScore = 100m - (normalized * 60m);
+        var stageBonus = stage switch
+        {
+            1 => 20m,
+            2 => 12m,
+            3 => 5m,
+            _ => 0m
+        };
+
+        var score = distanceScore + stageBonus;
+        if (score < 0m)
+        {
+            score = 0m;
+        }
+
+        if (score > 100m)
+        {
+            score = 100m;
+        }
+
+        return DecimalRound(score);
+    }
+
+    private static decimal DecimalRound(decimal value)
+    {
+        return Math.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusKm = 6371d;
+
+        var lat1Rad = DegreesToRadians(lat1);
+        var lat2Rad = DegreesToRadians(lat2);
+        var deltaLat = DegreesToRadians(lat2 - lat1);
+        var deltaLon = DegreesToRadians(lon2 - lon1);
+
+        var a =
+            Math.Sin(deltaLat / 2d) * Math.Sin(deltaLat / 2d) +
+            Math.Cos(lat1Rad) * Math.Cos(lat2Rad) *
+            Math.Sin(deltaLon / 2d) * Math.Sin(deltaLon / 2d);
+
+        var c = 2d * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1d - a));
+        return earthRadiusKm * c;
+    }
+
+    private static double DegreesToRadians(double degree)
+    {
+        return degree * Math.PI / 180d;
+    }
+
+    private sealed record RecommendationCandidate(
+        EventSummaryDto Event,
+        int Stage,
+        decimal? DistanceKm,
+        decimal? RecommendationScore,
+        string RecommendationReason,
+        DateTime StartUtc);
 
     private static bool IsTransitionAllowed(EventStatus current, EventStatus target, bool isAdmin)
     {

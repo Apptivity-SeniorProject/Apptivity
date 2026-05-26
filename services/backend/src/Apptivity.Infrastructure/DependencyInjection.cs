@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
         services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
         services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
+        services.Configure<GroqOptions>(configuration.GetSection(GroqOptions.SectionName));
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -58,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
         services.AddScoped<INotificationService, FirebaseNotificationService>();
         services.AddScoped<IImageService, CloudinaryImageService>();
+        services.AddScoped<ITagPredictionCacheService, TagPredictionCacheService>();
+        services.AddHttpClient<ITagPredictorService, GroqTagPredictor>();
 
         services.AddHttpClient(nameof(FirebaseNotificationService));
 
