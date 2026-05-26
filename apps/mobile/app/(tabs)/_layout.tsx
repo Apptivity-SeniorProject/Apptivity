@@ -19,7 +19,7 @@ export default function TabLayout() {
   }
 
   if (!accessToken) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/(auth)/landing" />;
   }
 
   return (

@@ -3,6 +3,8 @@ import type { ApiEnvelope } from '@/src/types/api';
 import type {
   LoginRequestDto,
   LoginResponseDto,
+  RegisterIndividualRequestDto,
+  RegisterResponseDto,
   SendOtpRequestDto,
   VerifyOtpRequestDto,
   VerifyOtpResponseDto,
@@ -14,8 +16,10 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
     return responseData.data;
   }
 
-  throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
+  throw new Error(responseData.errors?.[0]?.message ?? 'İstek başarısız.');
 }
+
+// ─── Login ───────────────────────────────────────────────────────────────────
 
 export async function login(payload: LoginRequestDto): Promise<LoginResponseDto> {
   const response = await apiClient.post<ApiEnvelope<LoginResponseDto>>('/api/auth/login', payload, {
@@ -35,6 +39,26 @@ export async function loginWithPhoneNumber(phoneNumber: string, password: string
   });
 }
 
+// ─── Register ────────────────────────────────────────────────────────────────
+
+export async function registerIndividual(
+  payload: Omit<RegisterIndividualRequestDto, 'deviceId'>
+): Promise<RegisterResponseDto> {
+  const deviceId = await getOrCreateDeviceId();
+  const response = await apiClient.post<ApiEnvelope<RegisterResponseDto>>(
+    '/api/auth/register-individual',
+    { ...payload, deviceId },
+    {
+      headers: {
+        'x-skip-auth-refresh': 'true',
+      },
+    }
+  );
+  return unwrapEnvelope(response.data);
+}
+
+// ─── OTP ─────────────────────────────────────────────────────────────────────
+
 export async function sendOtp(payload: SendOtpRequestDto): Promise<void> {
   const response = await apiClient.post<ApiEnvelope<null>>('/api/auth/send-otp', payload, {
     headers: {
@@ -43,7 +67,7 @@ export async function sendOtp(payload: SendOtpRequestDto): Promise<void> {
   });
 
   if (!response.data.isSuccess) {
-    throw new Error(response.data.errors?.[0]?.message ?? 'OTP gonderimi basarisiz.');
+    throw new Error(response.data.errors?.[0]?.message ?? 'OTP gönderimi başarısız.');
   }
 }
 

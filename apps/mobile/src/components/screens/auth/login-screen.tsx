@@ -1,0 +1,188 @@
+import { useMutation } from '@tanstack/react-query';
+import { Redirect, router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { FlatList, Keyboard, Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { loginWithPhoneNumber } from '@/src/api/authService';
+import { Button } from '@/src/components/ui/button';
+import { Input } from '@/src/components/ui/input';
+import { useToast } from '@/src/hooks/useToast';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { buildAuthUser } from '@/src/utils/auth';
+import { getApiErrorMessage } from '@/src/utils/error';
+import { hitSlop } from '@/src/constants/theme';
+
+// ─── Country Code ────────────────────────────────────────────────────────────
+
+interface CountryCodeOption {
+  label: string;
+  value: string;
+}
+
+const COUNTRY_CODES: CountryCodeOption[] = [
+  { label: '🇹🇷  Türkiye (+90)', value: '+90' },
+  { label: '🇺🇸  ABD (+1)', value: '+1' },
+  { label: '🇩🇪  Almanya (+49)', value: '+49' },
+  { label: '🇬🇧  İngiltere (+44)', value: '+44' },
+];
+
+function normalizePhone(countryCode: string, input: string): string {
+  return `${countryCode}${input.replace(/\D/g, '')}`;
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
+export function LoginScreen() {
+  const [countryCode, setCountryCode] = useState('+90');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [password, setPassword] = useState('');
+  const [inputError, setInputError] = useState('');
+  const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
+
+  const toast = useToast();
+  const setTokens = useAuthStore((s) => s.setTokens);
+  const setUser = useAuthStore((s) => s.setUser);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+
+  const phoneNumber = useMemo(
+    () => normalizePhone(countryCode, phoneInput),
+    [countryCode, phoneInput]
+  );
+
+  // Oturum açıksa ana sayfaya yönlendir
+  if (hasHydrated && accessToken) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  const loginMutation = useMutation({
+    mutationFn: ({ identifier, pass }: { identifier: string; pass: string }) =>
+      loginWithPhoneNumber(identifier, pass),
+    onSuccess: (response) => {
+      if (response.accessToken && response.refreshToken) {
+        setTokens(response.accessToken, response.refreshToken);
+        setUser(buildAuthUser(response.accessToken, phoneNumber));
+        router.replace('/(tabs)');
+        return;
+      }
+
+      toast.info('Doğrulama adımına yönlendiriliyorsun.');
+      router.push({
+        pathname: '/(auth)/otp',
+        params: { phoneNumber },
+      });
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, 'Giriş başarısız.'));
+    },
+  });
+
+  const handleLogin = () => {
+    Keyboard.dismiss();
+    const digits = phoneInput.replace(/\D/g, '');
+
+    if (digits.length < 7 || digits.length > 15) {
+      setInputError('Geçerli bir telefon numarası girin.');
+      return;
+    }
+    if (!password.trim()) {
+      setInputError('Şifre giriniz.');
+      return;
+    }
+
+    setInputError('');
+    loginMutation.mutate({ identifier: phoneNumber, pass: password });
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 px-6 pt-16">
+        {/* ── Header ── */}
+        <Text className="font-sans-bold text-3xl text-gray-900">Giriş Yap</Text>
+        <Text className="mt-2 font-sans text-base text-gray-500">
+          Telefon numaran ve şifrenle giriş yap.
+        </Text>
+
+        {/* ── Phone Input ── */}
+        <View className="mt-10 flex-row gap-3">
+          <Pressable
+            className="h-12 items-center justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
+            hitSlop={hitSlop.sm}
+            onPress={() => setIsCountryModalOpen(true)}>
+            <Text className="font-sans-semibold text-base text-gray-900">{countryCode}</Text>
+          </Pressable>
+
+          <Input
+            keyboardType="phone-pad"
+            placeholder="5XX XXX XX XX"
+            value={phoneInput}
+            onChangeText={setPhoneInput}
+            containerClassName="flex-1"
+          />
+        </View>
+
+        {/* ── Password Input ── */}
+        <Input
+          label="Şifre"
+          placeholder="Şifrenizi girin"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          containerClassName="mt-4"
+          error={inputError}
+        />
+
+        {/* ── Forgot Password ── */}
+        <Pressable
+          className="mt-3 self-end"
+          hitSlop={hitSlop.sm}
+          onPress={() => router.push('/(auth)/password-reset')}>
+          <Text className="font-sans-medium text-sm text-primary-600">Şifremi Unuttum</Text>
+        </Pressable>
+
+        {/* ── Login Button ── */}
+        <Button
+          className="mt-8"
+          label="Giriş Yap"
+          size="lg"
+          isLoading={loginMutation.isPending}
+          onPress={handleLogin}
+        />
+
+        {/* ── Register Link ── */}
+        <View className="mt-6 flex-row items-center justify-center gap-1">
+          <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
+          <Pressable hitSlop={hitSlop.sm} onPress={() => router.push('/(auth)/register')}>
+            <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* ── Country Code Modal ── */}
+      <Modal animationType="slide" transparent visible={isCountryModalOpen}>
+        <Pressable
+          className="flex-1 justify-end bg-black/40"
+          onPress={() => setIsCountryModalOpen(false)}>
+          <View className="max-h-72 rounded-t-sheet bg-white px-5 py-4">
+            <Text className="mb-4 font-sans-semibold text-lg text-gray-900">Ülke Kodu Seç</Text>
+            <FlatList
+              data={COUNTRY_CODES}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <Pressable
+                  className="rounded-card px-3 py-3"
+                  onPress={() => {
+                    setCountryCode(item.value);
+                    setIsCountryModalOpen(false);
+                  }}>
+                  <Text className="font-sans text-base text-gray-800">{item.label}</Text>
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
+  );
+}

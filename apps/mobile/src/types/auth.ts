@@ -13,6 +13,8 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+// ─── Login ───────────────────────────────────────────────────────────────────
+
 export interface LoginRequestDto {
   identifier: string;
   password: string;
@@ -23,6 +25,8 @@ export interface LoginResponseDto {
   accessToken?: string;
   refreshToken?: string;
 }
+
+// ─── OTP ─────────────────────────────────────────────────────────────────────
 
 export interface SendOtpRequestDto {
   phoneNumber: string;
@@ -37,6 +41,28 @@ export interface VerifyOtpResponseDto {
   accessToken: string;
   refreshToken: string;
 }
+
+// ─── Register ────────────────────────────────────────────────────────────────
+
+export interface RegisterIndividualRequestDto {
+  username: string;
+  phone: string;
+  email?: string;
+  password: string;
+  name: string;
+  surname: string;
+  birthdate?: string;
+  gender?: string;
+  bio?: string;
+  deviceId: string;
+}
+
+export interface RegisterResponseDto {
+  accessToken: string;
+  refreshToken: string;
+}
+
+// ─── Refresh ─────────────────────────────────────────────────────────────────
 
 export interface RefreshTokenRequestDto {
   refreshToken: string;
