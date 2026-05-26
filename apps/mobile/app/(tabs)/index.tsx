@@ -17,6 +17,7 @@ import { EventRowCard } from '@/src/components/events/event-row-card';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { CITY_OPTIONS } from '@/src/constants/events';
 import { useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
@@ -173,7 +174,14 @@ export default function HomeScreen() {
   const renderHeader = () => {
     return (
       <View className="gap-4 pb-5">
-        <Text className="text-3xl font-bold text-slate-900">Etkinlikleri Kesfet</Text>
+        <View className="flex-row items-start justify-between">
+          <Text className="text-3xl font-bold text-slate-900">Etkinlikleri Kesfet</Text>
+          <Pressable
+            className="rounded-full border border-slate-200 bg-white p-2"
+            onPress={() => router.push('/notifications')}>
+            <IconSymbol size={22} name="bell.fill" color="#0f172a" />
+          </Pressable>
+        </View>
 
         <SearchBar
           value={searchInput}

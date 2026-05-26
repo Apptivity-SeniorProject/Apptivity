@@ -20,6 +20,7 @@ const MAPPING = {
   'plus.circle.fill': 'add-circle',
   calendar: 'calendar-month',
   'person.fill': 'person',
+  'bell.fill': 'notifications',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

@@ -123,7 +123,10 @@ public sealed record UpdateEventRequest(
     int Capacity,
     string? LocationData);
 
-public sealed record UpdateEventStatusRequest(EventStatus Status);
+public sealed record UpdateEventStatusRequest(
+    EventStatus Status,
+    string? ViolationReason = null,
+    string? AdditionalExplanation = null);
 
 public sealed record EventDetailsDto(
     Guid Id,
@@ -143,6 +146,8 @@ public sealed record EventDetailsDto(
     int Capacity,
     int RemainingParticipationCount,
     EventStatus Status,
+    string? RejectedViolationReason,
+    string? RejectedAdditionalExplanation,
     decimal Price,
     string? LocationData,
     bool IsBookmarkedByCurrentUser,

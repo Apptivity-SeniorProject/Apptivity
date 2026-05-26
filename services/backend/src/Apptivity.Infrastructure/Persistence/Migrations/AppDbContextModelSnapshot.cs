@@ -526,6 +526,14 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PrimaryTagId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RejectedAdditionalExplanation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RejectedViolationReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("RemainingParticipationCount")
                         .HasColumnType("integer");
 

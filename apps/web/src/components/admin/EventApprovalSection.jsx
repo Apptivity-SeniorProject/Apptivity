@@ -1,4 +1,4 @@
-import { Button, Descriptions, Drawer, Grid, Segmented, Space, Spin, Tag, Typography, message } from 'antd'
+import { Button, Descriptions, Drawer, Form, Grid, Input, Modal, Segmented, Select, Space, Spin, Tag, Typography, message } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataGrid from '../common/DataGrid'
@@ -16,6 +16,28 @@ function normalizeEventStatus(value) {
     if (numeric === 2) return 'Published'
     if (numeric === 7) return 'Rejected'
     return String(value || '')
+}
+
+const REJECTION_REASON_OPTIONS = [
+    'policy_violation',
+    'inappropriate_content',
+    'unsafe_activity',
+    'misleading_information',
+    'missing_required_details',
+    'other',
+]
+
+function formatViolationReason(value, t) {
+    if (!value) {
+        return '-'
+    }
+
+    const normalized = String(value).trim().toLowerCase()
+    if (REJECTION_REASON_OPTIONS.includes(normalized)) {
+        return t(`admin.events.rejectModal.violationReasons.${normalized}`)
+    }
+
+    return String(value)
 }
 
 function EventApprovalSection() {
@@ -36,6 +58,8 @@ function EventApprovalSection() {
     const [selectedEvent, setSelectedEvent] = useState(null)
     const [isStatusSubmitting, setIsStatusSubmitting] = useState(false)
     const [activeEventId, setActiveEventId] = useState('')
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+    const [rejectForm] = Form.useForm()
 
     useEffect(() => {
         let isCancelled = false
@@ -134,27 +158,53 @@ function EventApprovalSection() {
         setIsDetailLoading(false)
     }, [t])
 
-    const onChangeEventStatus = async (targetStatus) => {
+    const onChangeEventStatus = async (targetStatus, payload = {}) => {
         if (!activeEventId) {
-            return
+            return false
         }
 
         setIsStatusSubmitting(true)
-        const result = await updateEventStatus(activeEventId, targetStatus)
+        const result = await updateEventStatus(activeEventId, {
+            status: targetStatus,
+            violationReason: payload.violationReason,
+            additionalExplanation: payload.additionalExplanation,
+        })
         if (!result.isSuccess) {
             messageApi.error(result.errors?.[0]?.message || t('admin.events.actionError'))
             setIsStatusSubmitting(false)
-            return
+            return false
         }
 
         messageApi.success(targetStatus === 'Published' ? t('admin.events.approveSuccess') : t('admin.events.rejectSuccess'))
         setIsStatusSubmitting(false)
         setIsDetailOpen(false)
+        setIsRejectModalOpen(false)
+        rejectForm.resetFields()
         await loadEvents()
+        return true
+    }
+
+    const openRejectModal = () => {
+        rejectForm.resetFields()
+        setIsRejectModalOpen(true)
+    }
+
+    const submitRejectModal = async () => {
+        try {
+            const values = await rejectForm.validateFields()
+            await onChangeEventStatus('Rejected', {
+                violationReason: values.violationReason,
+                additionalExplanation: values.additionalExplanation?.trim() || null,
+            })
+        } catch {
+            // Form validation errors are handled by antd Form.Item
+        }
     }
 
     const selectedEventStatus = normalizeEventStatus(selectedEvent?.status ?? selectedEvent?.Status)
     const canModerateSelectedEvent = selectedEventStatus === 'PendingApproval'
+    const selectedEventViolationReason = selectedEvent?.rejectedViolationReason ?? selectedEvent?.RejectedViolationReason
+    const selectedEventAdditionalExplanation = selectedEvent?.rejectedAdditionalExplanation ?? selectedEvent?.RejectedAdditionalExplanation
 
     const columns = useMemo(
         () => [
@@ -241,7 +291,10 @@ function EventApprovalSection() {
             <Drawer
                 title={t('admin.events.detailsTitle')}
                 open={isDetailOpen}
-                onClose={() => setIsDetailOpen(false)}
+                onClose={() => {
+                    setIsDetailOpen(false)
+                    setIsRejectModalOpen(false)
+                }}
                 width={isMobile ? '100%' : 720}
                 extra={
                     <Space>
@@ -260,7 +313,7 @@ function EventApprovalSection() {
                             danger
                             loading={isStatusSubmitting}
                             disabled={!canModerateSelectedEvent}
-                            onClick={() => onChangeEventStatus('Rejected')}
+                            onClick={openRejectModal}
                         >
                             {t('admin.events.reject')}
                         </Button>
@@ -289,6 +342,12 @@ function EventApprovalSection() {
                         <Descriptions.Item label={t('admin.events.attributes.capacity')}>{String(selectedEvent.capacity || selectedEvent.Capacity || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.remainingParticipationCount')}>{String(selectedEvent.remainingParticipationCount || selectedEvent.RemainingParticipationCount || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.status')}>{String(selectedEvent.status || selectedEvent.Status || '-')}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.events.rejectModal.violationReasonLabel')}>
+                            {formatViolationReason(selectedEventViolationReason, t)}
+                        </Descriptions.Item>
+                        <Descriptions.Item label={t('admin.events.rejectModal.additionalExplanationLabel')}>
+                            {String(selectedEventAdditionalExplanation || '-')}
+                        </Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.price')}>{String(selectedEvent.price || selectedEvent.Price || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.locationData')}>{String(selectedEvent.locationData || selectedEvent.LocationData || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.isBookmarkedByCurrentUser')}>{String(selectedEvent.isBookmarkedByCurrentUser ?? selectedEvent.IsBookmarkedByCurrentUser ?? false)}</Descriptions.Item>
@@ -296,6 +355,48 @@ function EventApprovalSection() {
                     </Descriptions>
                 ) : null}
             </Drawer>
+
+            <Modal
+                title={t('admin.events.rejectModal.title')}
+                open={isRejectModalOpen}
+                onCancel={() => setIsRejectModalOpen(false)}
+                onOk={submitRejectModal}
+                confirmLoading={isStatusSubmitting}
+                okText={t('admin.events.rejectModal.confirm')}
+                cancelText={t('admin.events.rejectModal.cancel')}
+                destroyOnClose
+            >
+                <Form
+                    form={rejectForm}
+                    layout="vertical"
+                >
+                    <Form.Item
+                        name="violationReason"
+                        label={t('admin.events.rejectModal.violationReasonLabel')}
+                        rules={[{ required: true, message: t('admin.events.rejectModal.violationReasonRequired') }]}
+                    >
+                        <Select
+                            placeholder={t('admin.events.rejectModal.violationReasonPlaceholder')}
+                            options={REJECTION_REASON_OPTIONS.map((value) => ({
+                                value,
+                                label: t(`admin.events.rejectModal.violationReasons.${value}`),
+                            }))}
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="additionalExplanation"
+                        label={t('admin.events.rejectModal.additionalExplanationLabel')}
+                    >
+                        <Input.TextArea
+                            rows={4}
+                            maxLength={500}
+                            placeholder={t('admin.events.rejectModal.additionalExplanationPlaceholder')}
+                            showCount
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </Space>
     )
 }
