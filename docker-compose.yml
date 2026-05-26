@@ -49,6 +49,10 @@ services:
       Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
       Fcm__Enabled: ${FCM_ENABLED:-false}
       Fcm__ServerKey: ${FCM_SERVER_KEY:-}
+      Groq__ApiKey: ${Groq__ApiKey:-}
+      Groq__BaseUrl: ${Groq__BaseUrl:-https://api.groq.com/openai/v1}
+      Groq__Model: ${Groq__Model:-openai/gpt-oss-20b}
+      Groq__TimeoutMs: ${Groq__TimeoutMs:-120}
     depends_on:
       postgres:
         condition: service_healthy

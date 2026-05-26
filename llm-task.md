@@ -211,8 +211,19 @@
   - `approved history tag` sinyali icin repository sorgusu eklendi (`GetApprovedHistoryTagNamesAsync`).
   - Basarili testler:
     - `GroqTagPredictorTests` (gecerli JSON sonuc + gecersiz tag sonucu)
+    - `GroqTagPredictorTests` timeout senaryosu (`TaskCanceledException`) -> `null` fallback (request patlamaz)
+    - `RecommendedEndpointsContractTests` (`POST /recommended` validation envelope + legacy `GET /recommended` deprecation header)
     - mevcut `HealthEndpointTests`
-    - `dotnet test` toplam: `3/3` basarili.
+    - `dotnet test` toplam: `5/5` basarili.
+
+## Deploy Oncesi Kalan Operasyonel Adim
+- [x] Docker/PostgreSQL calisirken migration'in hedef ortama uygulanmasi (`AddEventLocationCoordinates`).
+- [x] Terminal smoke-test tamamlandi:
+  - `docker compose up -d --build api` ile guncel API image'i ayaga kaldirildi.
+  - `POST /api/events/recommended` login token ile canli cagrildi (zones dolu + `ordered_hot_zones=null`).
+  - Invalid precision (`>4` ondalik) icin `400` + `VAL_001` dogrulandi.
+  - Legacy `GET /api/events/recommended` icin `Deprecation` ve `Sunset` header'lari dogrulandi.
+  - LLM timeout davranisi canli dogrulandi: `120ms` butcede timeout olunca request `500` yerine fallback ile `200` donuyor.
 
 ## Varsayimlar
 - Platform kisitlari nedeniyle "app kapaliyken saatlik" takip best-effort olarak kabul edilir.

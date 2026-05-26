@@ -84,9 +84,42 @@ public sealed class GroqTagPredictorTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task PredictAsync_ReturnsNull_WhenRequestTimesOut()
+    {
+        var httpClient = CreateHttpClient(async (_, cancellationToken) =>
+        {
+            await Task.Delay(500, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"choices\":[]}", Encoding.UTF8, "application/json")
+            };
+        });
+
+        var predictor = new GroqTagPredictor(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(new GroqOptions
+            {
+                ApiKey = "dummy-key",
+                BaseUrl = "https://api.groq.com/openai/v1",
+                Model = "openai/gpt-oss-20b",
+                TimeoutMs = 5
+            }),
+            NullLogger<GroqTagPredictor>.Instance);
+
+        var result = await predictor.PredictAsync(
+            new TagPredictionInput(
+                AllowedTags: new[] { "Technology", "Music", "Sports" },
+                InterestTags: new[] { "Technology" },
+                ApprovedHistoryTags: new[] { "Music" }),
+            CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
     private static HttpClient CreateHttpClient(HttpStatusCode statusCode, string body)
     {
-        var handler = new FakeHttpMessageHandler(_ =>
+        var handler = new FakeHttpMessageHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(statusCode)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json")
@@ -95,18 +128,23 @@ public sealed class GroqTagPredictorTests
         return new HttpClient(handler);
     }
 
+    private static HttpClient CreateHttpClient(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
+    {
+        return new HttpClient(new FakeHttpMessageHandler(handler));
+    }
+
     private sealed class FakeHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> _handler;
+        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
 
-        public FakeHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
+        public FakeHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
         {
             _handler = handler;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            return _handler(request);
+            return _handler(request, cancellationToken);
         }
     }
 }

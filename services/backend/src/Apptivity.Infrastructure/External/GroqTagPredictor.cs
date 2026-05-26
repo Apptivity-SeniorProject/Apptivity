@@ -30,46 +30,64 @@ public sealed class GroqTagPredictor : ITagPredictorService
             return null;
         }
 
-        using var request = BuildRequest(input);
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(GetTimeoutMs()));
-
-        using var response = await _httpClient.SendAsync(request, timeoutCts.Token);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning("Groq tag prediction failed with status {StatusCode}. Body: {Body}", response.StatusCode, errorBody);
+            using var request = BuildRequest(input);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(GetTimeoutMs()));
+
+            using var response = await _httpClient.SendAsync(request, timeoutCts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Groq tag prediction failed with status {StatusCode}. Body: {Body}", response.StatusCode, errorBody);
+                return null;
+            }
+
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var parsed = ParseResponseContent(responseBody);
+            if (parsed is null)
+            {
+                return null;
+            }
+
+            var allowedMap = input.AllowedTags
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x, x => x, StringComparer.OrdinalIgnoreCase);
+
+            if (!allowedMap.TryGetValue(parsed.PrimaryTag, out var normalizedPrimary))
+            {
+                return null;
+            }
+
+            if (!allowedMap.TryGetValue(parsed.FallbackTag, out var normalizedFallback))
+            {
+                return null;
+            }
+
+            if (string.Equals(normalizedPrimary, normalizedFallback, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return new TagPredictionResult(normalizedPrimary, normalizedFallback);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Groq tag prediction timed out after {TimeoutMs}ms. Falling back.", GetTimeoutMs());
             return null;
         }
-
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        var parsed = ParseResponseContent(responseBody);
-        if (parsed is null)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Groq tag prediction request failed. Falling back.");
             return null;
         }
-
-        var allowedMap = input.AllowedTags
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x, x => x, StringComparer.OrdinalIgnoreCase);
-
-        if (!allowedMap.TryGetValue(parsed.PrimaryTag, out var normalizedPrimary))
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Groq tag prediction failed unexpectedly. Falling back.");
             return null;
         }
-
-        if (!allowedMap.TryGetValue(parsed.FallbackTag, out var normalizedFallback))
-        {
-            return null;
-        }
-
-        if (string.Equals(normalizedPrimary, normalizedFallback, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return new TagPredictionResult(normalizedPrimary, normalizedFallback);
     }
 
     private HttpRequestMessage BuildRequest(TagPredictionInput input)
