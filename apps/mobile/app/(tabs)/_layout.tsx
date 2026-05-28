@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { TopBar } from '@/src/components/ui/top-bar';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -26,7 +27,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        headerShown: true,
+        header: () => <TopBar />,
         tabBarButton: HapticTab,
         tabBarStyle: {
           height: 56 + insets.bottom,
@@ -51,9 +53,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="create"
         options={{
-          title: 'Olustur',
+          title: 'Oluştur',
           tabBarIcon: ({ focused }) => (
-            <IconSymbol size={34} name="plus.circle.fill" color={focused ? '#2563eb' : '#64748b'} />
+            <IconSymbol size={34} name="plus.circle.fill" color={focused ? '#5bcc2a' : '#9CA3AF'} />
           ),
         }}
       />
@@ -80,3 +82,4 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
