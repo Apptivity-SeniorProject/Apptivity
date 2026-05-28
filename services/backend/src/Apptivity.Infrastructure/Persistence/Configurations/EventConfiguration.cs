@@ -24,6 +24,7 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(x => x.LocationLng).HasPrecision(9, 6);
         builder.Property(x => x.BannerImage).HasMaxLength(500);
         builder.Property(x => x.IsFeatured).HasDefaultValue(false);
+        builder.Property(x => x.VotingClosesAt).HasColumnType("timestamp with time zone");
 
         builder.HasOne(x => x.Owner)
             .WithMany(x => x.OwnedEvents)

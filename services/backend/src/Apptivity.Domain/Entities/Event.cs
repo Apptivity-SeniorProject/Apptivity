@@ -29,6 +29,13 @@ public sealed class Event : BaseEntity
     public bool IsFeatured { get; set; }
     public bool IsVotingClosed { get; set; } = false;
 
+    /// <summary>
+    /// UTC timestamp after which voting is automatically closed by the background job.
+    /// Set to <c>event end time + 24 hours</c> when the event transitions to Completed.
+    /// Null for events that completed before this feature was introduced.
+    /// </summary>
+    public DateTime? VotingClosesAt { get; set; }
+
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
     public ICollection<Participation> Participations { get; set; } = new List<Participation>();
     public ICollection<Chat> Chats { get; set; } = new List<Chat>();

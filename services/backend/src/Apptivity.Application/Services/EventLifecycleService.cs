@@ -9,24 +9,31 @@ public sealed class EventLifecycleService : IEventLifecycleService
     private readonly IEventRepository _eventRepository;
     private readonly IParticipationRepository _participationRepository;
     private readonly INotificationService _notificationService;
+    private readonly IEventReputationService _reputationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public EventLifecycleService(
         IEventRepository eventRepository,
         IParticipationRepository participationRepository,
         INotificationService notificationService,
+        IEventReputationService reputationService,
         IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
         _participationRepository = participationRepository;
         _notificationService = notificationService;
+        _reputationService = reputationService;
         _unitOfWork = unitOfWork;
     }
 
     public async Task ProcessTransitionsAndNotifyAsync(CancellationToken cancellationToken)
     {
         var nowUtc = DateTime.UtcNow;
+
+        // NOTE: AsNoTracking is intentionally NOT used here.
+        // EF change tracking is required so that status mutations are picked up by SaveChangesAsync.
         var candidates = await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken);
+
         var changedToOngoing = new List<(Guid EventId, string Name)>();
         var hasChanges = false;
 
@@ -44,6 +51,8 @@ public sealed class EventLifecycleService : IEventLifecycleService
             else if (eventEntity.Status == EventStatus.Ongoing && endUtc <= nowUtc)
             {
                 eventEntity.Status = EventStatus.Completed;
+                // Set the automatic voting-close deadline: 24 hours after the event ended.
+                eventEntity.VotingClosesAt = endUtc.AddHours(24);
                 hasChanges = true;
             }
         }
@@ -76,6 +85,25 @@ public sealed class EventLifecycleService : IEventLifecycleService
                 .ToArray();
 
             await _notificationService.SendToAccountsAsync(notifications, cancellationToken);
+        }
+    }
+
+    public async Task CloseExpiredVotingsAsync(CancellationToken cancellationToken)
+    {
+        var events = await _eventRepository.GetCompletedWithExpiredVotingAsync(cancellationToken);
+        if (events.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var @event in events)
+        {
+            // Calculate reputation deltas for all reviews submitted for this event.
+            await _reputationService.CalculateEventReputationsAsync(@event.Id, cancellationToken);
+
+            // Mark voting as closed and persist everything in a single transaction.
+            @event.IsVotingClosed = true;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 

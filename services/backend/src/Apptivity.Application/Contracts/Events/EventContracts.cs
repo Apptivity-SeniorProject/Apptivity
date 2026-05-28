@@ -178,4 +178,11 @@ public interface IEventService
 public interface IEventLifecycleService
 {
     Task ProcessTransitionsAndNotifyAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Finds all Completed events whose <c>VotingClosesAt</c> has passed and
+    /// <c>IsVotingClosed</c> is still false, then calculates reputation deltas
+    /// and marks voting as closed — all in a single transaction per event.
+    /// </summary>
+    Task CloseExpiredVotingsAsync(CancellationToken cancellationToken);
 }

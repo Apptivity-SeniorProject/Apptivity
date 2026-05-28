@@ -83,11 +83,15 @@ public sealed class ProfileService : IProfileService
 
         var totalReviews = await _reviewRepository.CountByReviewedAccountIdAsync(accountId, cancellationToken);
 
+        var reputation = account.UserProfile?.Reputation;
+        var reputationLevel = reputation?.Level.ToString();
+
         var stats = new ProfileStatsDto(
             account.Id,
             totalEvents,
             totalReviews,
-            account.UserProfile?.Reputation?.ReputationPoint,
+            reputation?.ReputationPoint,
+            reputationLevel,
             account.ClubProfile?.ClubRating?.Rating);
 
         return Result<ProfileStatsDto>.Success(stats);

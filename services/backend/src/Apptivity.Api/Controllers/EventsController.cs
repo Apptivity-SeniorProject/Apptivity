@@ -362,68 +362,6 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
-    /// <summary>
-    /// Closes voting for the event and processes all submitted reviews 
-    /// to update users' reputation points and clubs' star ratings.
-    /// Only the event owner (or Admin) can do this.
-    /// </summary>
-    [HttpPost("{id:guid}/close-voting")]
-    public async Task<IActionResult> CloseVoting(
-        [FromRoute] Guid id,
-        [FromServices] IEventReputationService reputationService,
-        [FromServices] IEventRepository eventRepository,
-        [FromServices] IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken)
-    {
-        var context = _userContextAccessor.GetCurrentUser();
-        if (context is null)
-        {
-            return Unauthorized(ApiEnvelope<object?>.Failure(new[] { new ErrorDetail("AUTH_401", "Unauthorized.") }));
-        }
-
-        var @event = await eventRepository.GetByIdAsync(id, cancellationToken);
-        if (@event is null)
-        {
-            return NotFound(ApiEnvelope<object?>.Failure(new[] { new ErrorDetail("EVENT_404", "Event not found.") }));
-        }
-
-        // Must be owner or Admin
-        if (@event.OwnerId != context.AccountId && context.AccountType != AccountType.Admin)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, ApiEnvelope<object?>.Failure(new[]
-            {
-                new ErrorDetail("EVENT_403", "Only the event owner or admin can close voting.")
-            }));
-        }
-
-        if (@event.Status != EventStatus.Completed)
-        {
-            return BadRequest(ApiEnvelope<object?>.Failure(new[]
-            {
-                new ErrorDetail("EVENT_400", "Event must be completed to close voting.")
-            }));
-        }
-
-        if (@event.IsVotingClosed)
-        {
-            return BadRequest(ApiEnvelope<object?>.Failure(new[]
-            {
-                new ErrorDetail("EVENT_400_CLOSED", "Voting is already closed for this event.")
-            }));
-        }
-
-        await reputationService.CalculateEventReputationsAsync(id, cancellationToken);
-        
-        @event.IsVotingClosed = true;
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Ok(ApiEnvelope<object>.Success(new
-        {
-            message = "Voting closed and reputations updated.",
-            eventId = id,
-            status = @event.Status
-        }));
-    }
 
     [HttpGet("{id:guid}/participants")]
     public async Task<IActionResult> GetParticipants(Guid id, CancellationToken cancellationToken)

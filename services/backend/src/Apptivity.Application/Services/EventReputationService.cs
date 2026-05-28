@@ -10,24 +10,30 @@ public sealed class EventReputationService : IEventReputationService
     private readonly IReputationRepository _reputationRepository;
     private readonly IUserRepository _userRepository;
     private readonly ReputationCalculator _calculator;
-    private readonly IUnitOfWork _unitOfWork;
 
     public EventReputationService(
         IEventRepository eventRepository,
         IReviewRepository reviewRepository,
         IReputationRepository reputationRepository,
         IUserRepository userRepository,
-        ReputationCalculator calculator,
-        IUnitOfWork unitOfWork)
+        ReputationCalculator calculator)
     {
         _eventRepository = eventRepository;
         _reviewRepository = reviewRepository;
         _reputationRepository = reputationRepository;
         _userRepository = userRepository;
         _calculator = calculator;
-        _unitOfWork = unitOfWork;
     }
 
+    /// <summary>
+    /// Calculates reputation/rating deltas for all reviewed accounts in the given event
+    /// and applies them to the tracked EF entities.
+    ///
+    /// <para><b>Important:</b> This method does NOT call <c>SaveChangesAsync</c>.
+    /// The caller (e.g. <see cref="EventLifecycleService"/>) is responsible for
+    /// committing the transaction, which allows bundling the reputation update
+    /// with <c>IsVotingClosed = true</c> in a single atomic write.</para>
+    /// </summary>
     public async Task CalculateEventReputationsAsync(Guid eventId, CancellationToken cancellationToken)
     {
         var @event = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
@@ -42,7 +48,11 @@ public sealed class EventReputationService : IEventReputationService
             return;
         }
 
-        // Group reviews by the account being reviewed
+        // ── Batch-fetch all reviewer reputations in a single query (N+1 fix) ────────
+        var reviewerIds = reviews.Select(r => r.ReviewerId).Distinct().ToList();
+        var reviewerReputationMap = await _reputationRepository.GetByAccountIdsAsync(reviewerIds, cancellationToken);
+
+        // ── Group reviews by the account being reviewed ──────────────────────────────
         var reviewsByTarget = reviews.GroupBy(r => r.ReviewedId);
 
         foreach (var group in reviewsByTarget)
@@ -62,19 +72,18 @@ public sealed class EventReputationService : IEventReputationService
                     await _reputationRepository.AddReputationAsync(targetReputation, cancellationToken);
                 }
 
-                // Prepare votes data
-                var votesData = new List<(int RawVote, double ReviewerVotePoint)>();
+                // Build votes list using the pre-fetched reviewer reputation map
+                var votesData = group
+                    .Select(review =>
+                    {
+                        // Default vote_point for a brand-new user (0 reputation) is 0.5
+                        var votePoint = reviewerReputationMap.TryGetValue(review.ReviewerId, out var rep)
+                            ? rep.VotePoint
+                            : 0.5;
+                        return (review.Rating, votePoint);
+                    })
+                    .ToList();
 
-                foreach (var review in group)
-                {
-                    var reviewerRep = await _reputationRepository.GetByAccountIdAsync(review.ReviewerId, cancellationToken);
-                    
-                    // If reviewer has no reputation, default vote point logic applies (0.5 weight for 0 point)
-                    double votePoint = reviewerRep?.VotePoint ?? 0.5;
-                    votesData.Add((review.Rating, votePoint));
-                }
-
-                // Batch calculate and apply
                 _calculator.ApplyBatchUserReputationDelta(targetReputation, votesData);
             }
             else // Organization / Club
@@ -94,6 +103,8 @@ public sealed class EventReputationService : IEventReputationService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // NOTE: SaveChangesAsync is intentionally NOT called here.
+        // The caller is responsible for the commit so that reputation updates
+        // and IsVotingClosed = true are written in a single atomic transaction.
     }
 }

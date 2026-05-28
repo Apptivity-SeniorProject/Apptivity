@@ -27,6 +27,7 @@ public sealed record ProfileStatsDto(
     int TotalEvents,
     int TotalReviews,
     double? ReputationScore,
+    string? ReputationLevel,
     double? Rating);
 
 public sealed record UpdateProfileRequest(

@@ -31,4 +31,10 @@ public interface IEventRepository
     Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken);
     IQueryable<Event> Query();
     Task AddAsync(Event entity, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns Completed events where <c>VotingClosesAt &lt;= utcNow</c>
+    /// and <c>IsVotingClosed == false</c>. Used by the voting-close background job.
+    /// </summary>
+    Task<IReadOnlyCollection<Event>> GetCompletedWithExpiredVotingAsync(CancellationToken cancellationToken);
 }

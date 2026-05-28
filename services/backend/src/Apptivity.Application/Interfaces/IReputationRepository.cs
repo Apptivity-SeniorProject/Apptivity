@@ -11,6 +11,12 @@ public interface IReputationRepository
     Task<Reputation?> GetByAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
     Task<ClubRating?> GetClubRatingByAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Batch-fetches <see cref="Reputation"/> rows for multiple accounts in a single query.
+    /// Returns a dictionary keyed by AccountId for O(1) lookups.
+    /// </summary>
+    Task<Dictionary<Guid, Reputation>> GetByAccountIdsAsync(IReadOnlyCollection<Guid> accountIds, CancellationToken cancellationToken);
+
     Task AddReputationAsync(Reputation reputation, CancellationToken cancellationToken);
     Task AddClubRatingAsync(ClubRating clubRating, CancellationToken cancellationToken);
 }

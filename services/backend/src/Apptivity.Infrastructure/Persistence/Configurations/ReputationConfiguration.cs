@@ -22,8 +22,9 @@ public sealed class ReputationConfiguration : IEntityTypeConfiguration<Reputatio
             .HasForeignKey<Reputation>(x => x.Id)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // vote_point is a computed/derived value — not stored separately.
+        // vote_point and level are computed/derived values — not stored separately.
         builder.Ignore(x => x.VotePoint);
+        builder.Ignore(x => x.Level);
         builder.HasData(ManualTestSeed.Reputations);
     }
 }

@@ -255,14 +255,28 @@ public sealed class EventRepository : IEventRepository
 
     public async Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)
     {
+        // NOTE: AsNoTracking is intentionally NOT used here.
+        // EventLifecycleService mutates Status on these entities and relies on
+        // EF change tracking to persist the updates via SaveChangesAsync.
         return await _db.Events
-            .AsNoTracking()
             .Include(x => x.Owner)
             .Include(x => x.Tags)
             .Where(x =>
                 (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing) &&
                 x.Owner.Status == AccountStatus.Active &&
                 x.Owner.IsActive)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Event>> GetCompletedWithExpiredVotingAsync(CancellationToken cancellationToken)
+    {
+        var nowUtc = DateTime.UtcNow;
+        return await _db.Events
+            .Where(x =>
+                x.Status == EventStatus.Completed &&
+                !x.IsVotingClosed &&
+                x.VotingClosesAt.HasValue &&
+                x.VotingClosesAt.Value <= nowUtc)
             .ToListAsync(cancellationToken);
     }
 
@@ -728,6 +742,20 @@ public sealed class ReputationRepository : IReputationRepository
     public Task<ClubRating?> GetClubRatingByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
     {
         return _db.ClubRatings.FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, Reputation>> GetByAccountIdsAsync(
+        IReadOnlyCollection<Guid> accountIds,
+        CancellationToken cancellationToken)
+    {
+        if (accountIds.Count == 0)
+        {
+            return new Dictionary<Guid, Reputation>();
+        }
+
+        return await _db.Reputations
+            .Where(x => accountIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
     }
 
     public async Task AddReputationAsync(Reputation reputation, CancellationToken cancellationToken)
