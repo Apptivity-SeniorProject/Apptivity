@@ -40,6 +40,17 @@ function formatViolationReason(value, t) {
     return String(value)
 }
 
+function readFirstTextField(source, keys) {
+    for (const key of keys) {
+        const rawValue = source?.[key]
+        if (typeof rawValue === 'string' && rawValue.trim()) {
+            return rawValue.trim()
+        }
+    }
+
+    return ''
+}
+
 function EventApprovalSection() {
     const { t } = useTranslation()
     const screens = Grid.useBreakpoint()
@@ -203,8 +214,23 @@ function EventApprovalSection() {
 
     const selectedEventStatus = normalizeEventStatus(selectedEvent?.status ?? selectedEvent?.Status)
     const canModerateSelectedEvent = selectedEventStatus === 'PendingApproval'
-    const selectedEventViolationReason = selectedEvent?.rejectedViolationReason ?? selectedEvent?.RejectedViolationReason
-    const selectedEventAdditionalExplanation = selectedEvent?.rejectedAdditionalExplanation ?? selectedEvent?.RejectedAdditionalExplanation
+    const selectedEventViolationReason = readFirstTextField(selectedEvent, [
+        'rejectedViolationReason',
+        'RejectedViolationReason',
+        'violationReason',
+        'ViolationReason',
+        'rejectionReason',
+        'RejectionReason',
+        'rejectedReason',
+        'RejectedReason',
+    ])
+
+    const selectedEventAdditionalExplanation = readFirstTextField(selectedEvent, [
+        'rejectedAdditionalExplanation',
+        'RejectedAdditionalExplanation',
+        'additionalExplanation',
+        'AdditionalExplanation',
+    ])
 
     const columns = useMemo(
         () => [
@@ -343,10 +369,14 @@ function EventApprovalSection() {
                         <Descriptions.Item label={t('admin.events.attributes.remainingParticipationCount')}>{String(selectedEvent.remainingParticipationCount || selectedEvent.RemainingParticipationCount || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.status')}>{String(selectedEvent.status || selectedEvent.Status || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.rejectModal.violationReasonLabel')}>
-                            {formatViolationReason(selectedEventViolationReason, t)}
+                            {selectedEventStatus === 'Rejected'
+                                ? formatViolationReason(selectedEventViolationReason, t)
+                                : '-'}
                         </Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.rejectModal.additionalExplanationLabel')}>
-                            {String(selectedEventAdditionalExplanation || '-')}
+                            {selectedEventStatus === 'Rejected'
+                                ? String(selectedEventAdditionalExplanation || '-')
+                                : '-'}
                         </Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.price')}>{String(selectedEvent.price || selectedEvent.Price || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.events.attributes.locationData')}>{String(selectedEvent.locationData || selectedEvent.LocationData || '-')}</Descriptions.Item>

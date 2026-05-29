@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import OrganizationApplicationsSection from '../components/organization/OrganizationApplicationsSection'
+import OrganizationCreateEventSection from '../components/organization/OrganizationCreateEventSection'
 import OrganizationMyEventsSection from '../components/organization/OrganizationMyEventsSection'
 import OrganizationProfileSection from '../components/organization/OrganizationProfileSection'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
@@ -31,6 +32,11 @@ function OrganizationHomePage() {
             key: 'my-events',
             icon: <CalendarOutlined />,
             label: t('organization.menu.myEvents'),
+        },
+        {
+            key: 'create-event',
+            icon: <CalendarOutlined />,
+            label: t('organization.menu.createEvent'),
         },
         {
             key: 'applications',
@@ -172,6 +178,8 @@ function OrganizationHomePage() {
                             <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
                                 {selectedKey === 'applications'
                                     ? t('organization.menu.applications')
+                                    : selectedKey === 'create-event'
+                                        ? t('organization.menu.createEvent')
                                     : selectedKey === 'my-events'
                                         ? t('organization.menu.myEvents')
                                         : t('organization.menu.profile')}
@@ -180,6 +188,8 @@ function OrganizationHomePage() {
                                 <OrganizationProfileSection />
                             ) : selectedKey === 'my-events' ? (
                                 <OrganizationMyEventsSection />
+                            ) : selectedKey === 'create-event' ? (
+                                <OrganizationCreateEventSection />
                             ) : selectedKey === 'applications' ? (
                                 <OrganizationApplicationsSection />
                             ) : (
