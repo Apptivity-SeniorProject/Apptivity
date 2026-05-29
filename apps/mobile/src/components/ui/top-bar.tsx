@@ -1,16 +1,20 @@
-import { Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, layout } from '@/src/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { hitSlop } from '@/src/constants/theme';
 
 interface TopBarProps {
   /** Sol taraftaki özel bileşen (geri butonu, ikon vb.) */
   leftContent?: React.ReactNode;
-  /** Sağ taraftaki özel bileşen (bildirim, ayarlar vb.) */
+  /** Sağ taraftaki özel bileşen — varsayılan: bildirim + Apptivity */
   rightContent?: React.ReactNode;
+  /** Bildirim ikonunu gizle */
+  hideNotification?: boolean;
 }
 
-export function TopBar({ leftContent, rightContent }: TopBarProps) {
+export function TopBar({ leftContent, rightContent, hideNotification }: TopBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -19,18 +23,28 @@ export function TopBar({ leftContent, rightContent }: TopBarProps) {
       style={{ paddingTop: insets.top }}>
       <View
         className="flex-row items-center justify-between px-4"
-        style={{ height: layout.headerHeight }}>
-        {/* ── Sol ── */}
-        <View className="min-w-[40px] items-start">
-          {leftContent ?? null}
-        </View>
-
-        {/* ── Sağ — Apptivity Branding ── */}
-        <View className="flex-row items-center gap-2">
-          {rightContent ?? (
+        style={{ height: 44 }}>
+        {/* ── Sol — Apptivity ── */}
+        <View className="items-start">
+          {leftContent ?? (
             <Text className="font-sans-bold text-lg text-primary-600">
               Apptivity
             </Text>
+          )}
+        </View>
+
+        {/* ── Sağ — Bildirim ── */}
+        <View className="flex-row items-center gap-4">
+          {rightContent ?? (
+            <>
+              {!hideNotification && (
+                <Pressable
+                  hitSlop={hitSlop.md}
+                  onPress={() => router.push('/(tabs)/notifications')}>
+                  <IconSymbol size={22} name="bell.fill" color="#6B7280" />
+                </Pressable>
+              )}
+            </>
           )}
         </View>
       </View>

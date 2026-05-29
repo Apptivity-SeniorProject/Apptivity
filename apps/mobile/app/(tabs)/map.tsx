@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { Callout, Marker, type Region } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 import { EventRowCard } from '@/src/components/events/event-row-card';
 import { useEvents } from '@/src/hooks/useEvents';
@@ -209,7 +209,7 @@ export default function MapScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50">
       <ScrollView className="flex-1" contentContainerClassName="pb-6">
         <View className="px-4 pb-3 pt-5">
           <Text className="text-2xl font-bold text-slate-900">Kesfet</Text>
@@ -315,6 +315,6 @@ export default function MapScreen() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

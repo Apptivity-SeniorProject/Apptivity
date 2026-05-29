@@ -34,6 +34,7 @@ export interface ProfileStatsDto {
   totalEvents: number;
   totalReviews: number;
   reputationScore?: number | null;
+  reputationLevel?: string | null;
   rating?: number | null;
 }
 

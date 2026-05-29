@@ -51,11 +51,6 @@ export function LoginScreen() {
     [countryCode, phoneInput]
   );
 
-  // Oturum açıksa ana sayfaya yönlendir
-  if (hasHydrated && accessToken) {
-    return <Redirect href="/(tabs)" />;
-  }
-
   const loginMutation = useMutation({
     mutationFn: ({ identifier, pass }: { identifier: string; pass: string }) =>
       loginWithPhoneNumber(identifier, pass),
@@ -77,6 +72,11 @@ export function LoginScreen() {
       toast.error(getApiErrorMessage(error, 'Giriş başarısız.'));
     },
   });
+
+  // ── Early returns AFTER all hooks ──
+  if (hasHydrated && accessToken) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   const handleLogin = () => {
     Keyboard.dismiss();

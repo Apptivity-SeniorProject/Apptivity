@@ -1,4 +1,4 @@
-﻿import DateTimePicker, {
+import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';

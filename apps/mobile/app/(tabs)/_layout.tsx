@@ -8,6 +8,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { TopBar } from '@/src/components/ui/top-bar';
+import { TabBar } from '@/src/components/ui/tab-bar';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -25,6 +26,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: true,
@@ -54,8 +56,8 @@ export default function TabLayout() {
         name="create"
         options={{
           title: 'Oluştur',
-          tabBarIcon: ({ focused }) => (
-            <IconSymbol size={34} name="plus.circle.fill" color={focused ? '#5bcc2a' : '#9CA3AF'} />
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="plus.circle.fill" color={color} />
           ),
         }}
       />

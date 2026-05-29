@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
-import { CalendarDays, MapPin, Users } from 'lucide-react-native';
+import { CalendarDays, MapPin } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import type { EventListItem } from '@/src/types/event';
-import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
+import { formatEventDate } from '@/src/utils/event-format';
 
 interface EventCardProps {
   event: EventListItem;
@@ -14,81 +14,50 @@ interface EventCardProps {
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80';
 
-export function EventCard({ event, onPress, compact = false }: EventCardProps) {
+export function EventCard({ event, onPress }: EventCardProps) {
   const locationText =
     event.location.locationLabel ?? event.location.city ?? event.location.fullAddress ?? 'Lokasyon belirtilmedi';
-  const primaryTag = event.tags[0]?.name ?? 'Etkinlik';
-  const organizerLabel = event.organizerName?.trim() || 'Organizator';
-  const organizerInitial = organizerLabel.charAt(0).toUpperCase();
-
-  const participationStatusLabel =
-    event.currentUserParticipationStatus === 'Pending'
-      ? 'Onay bekliyor'
-      : event.currentUserParticipationStatus === 'Approved'
-        ? 'Katilim onayli'
-        : event.currentUserParticipationStatus === 'Rejected'
-          ? 'Katilim reddedildi'
-          : undefined;
+  const primaryTag = event.tags[0]?.name ?? 'ETKİNLİK';
 
   return (
     <Pressable
-      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+      className="overflow-hidden rounded-[14px] border border-gray-200 bg-white"
       onPress={() => onPress(event.id)}>
-      <Image
-        source={{ uri: event.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
-        style={{ width: '100%', height: compact ? 140 : 180 }}
-        contentFit="cover"
-        transition={150}
-      />
-
-      <View className="gap-3 p-4">
-        <View className="self-start rounded-full bg-orange-100 px-3 py-1">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-orange-700">{primaryTag}</Text>
-        </View>
-
-        <Text className="text-lg font-semibold text-slate-900">{event.title}</Text>
-
-        <View className="flex-row items-center gap-2">
-          <CalendarDays size={16} color="#64748B" />
-          <Text className="text-sm text-slate-600">{formatEventDate(event.date)}</Text>
-          <Text className="text-sm text-slate-400">•</Text>
-          <Text className="text-sm text-slate-600">{event.time.slice(0, 5)}</Text>
-        </View>
-
-        <View className="flex-row items-center gap-2">
-          <MapPin size={16} color="#64748B" />
-          <Text className="flex-1 text-sm text-slate-600" numberOfLines={1}>
-            {locationText}
+      
+      <View className="relative h-[130px] bg-[#0f1b2d] items-center justify-center">
+        <Image
+          source={{ uri: event.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+          contentFit="cover"
+          transition={150}
+        />
+        
+        <View className="absolute top-2.5 left-2.5 bg-black/30 px-2 py-[3px] rounded-md">
+          <Text className="text-[10px] font-bold text-white tracking-wide uppercase">
+            {primaryTag}
           </Text>
         </View>
+      </View>
 
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-blue-700">{formatEventPrice(event.price, event.isPaid)}</Text>
-          {event.capacity > 0 || event.participantCount > 0 ? (
-            <View className="flex-row items-center gap-1">
-              <Users size={15} color="#64748B" />
-              <Text className="text-xs text-slate-600">{event.participantCount} katilimci</Text>
-            </View>
-          ) : null}
+      <View className="px-3.5 py-3">
+        <Text className="text-[15px] font-semibold text-gray-900 mb-1.5" numberOfLines={1}>
+          {event.title}
+        </Text>
+
+        <View className="flex-row items-center gap-3">
+          <View className="flex-row items-center gap-1">
+            <CalendarDays size={13} color="#6B7280" />
+            <Text className="text-xs text-gray-500">
+              {formatEventDate(event.date)}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1 flex-1">
+            <MapPin size={13} color="#6B7280" />
+            <Text className="text-xs text-gray-500" numberOfLines={1}>
+              {locationText}
+            </Text>
+          </View>
         </View>
-
-        <View className="flex-row items-center gap-2">
-          {event.organizerProfilePhoto ? (
-            <Image
-              source={{ uri: event.organizerProfilePhoto }}
-              style={{ width: 28, height: 28, borderRadius: 999 }}
-            />
-          ) : (
-            <View className="h-7 w-7 items-center justify-center rounded-full bg-slate-200">
-              <Text className="text-xs font-semibold text-slate-700">{organizerInitial}</Text>
-            </View>
-          )}
-          <Text className="text-xs text-slate-500">Duzenleyen: {organizerLabel}</Text>
-        </View>
-
-        {participationStatusLabel ? (
-          <Text className="text-xs font-semibold text-amber-700">{participationStatusLabel}</Text>
-        ) : null}
       </View>
     </Pressable>
   );

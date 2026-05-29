@@ -29,15 +29,6 @@ export function OtpScreen() {
   const [otpError, setOtpError] = useState('');
   const [countdown, setCountdown] = useState(RESEND_COUNTDOWN);
 
-  // Oturum açıksa veya telefon numarası yoksa Redirect ile yönlendir
-  if (hasHydrated && accessToken) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  if (hasHydrated && !phoneNumber) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
   // Geri sayım
   useEffect(() => {
     if (countdown <= 0) return;
@@ -77,6 +68,15 @@ export function OtpScreen() {
       toast.error(getApiErrorMessage(error));
     },
   });
+
+  // ── Early returns AFTER all hooks ──
+  if (hasHydrated && accessToken) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  if (hasHydrated && !phoneNumber) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   const handleVerify = () => {
     Keyboard.dismiss();

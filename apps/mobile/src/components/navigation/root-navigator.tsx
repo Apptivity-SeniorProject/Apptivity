@@ -54,7 +54,7 @@ export function RootNavigator() {
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <ToastHost />
-          <StatusBar style="auto" />
+          <StatusBar style="dark" />
         </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>

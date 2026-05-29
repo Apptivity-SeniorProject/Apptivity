@@ -15,7 +15,7 @@ import {
 import { tr } from 'date-fns/locale';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 import { EventCard } from '@/src/components/events/event-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
@@ -62,7 +62,7 @@ export default function CalendarScreen() {
   const selectedDayCount = selectedDayEvents.length;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50">
       <FlatList
         data={selectedDayEvents}
         keyExtractor={(item) => item.id}
@@ -167,6 +167,6 @@ export default function CalendarScreen() {
           )
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
