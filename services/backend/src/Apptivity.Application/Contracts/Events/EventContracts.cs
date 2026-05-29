@@ -68,6 +68,18 @@ public sealed record RecommendedEventsRequest(
     int PageNumber = 1,
     int PageSize = 20);
 
+public sealed record DailyRecommendedNextRequest(
+    decimal? Latitude,
+    decimal? Longitude,
+    [property: JsonPropertyName("ordered_hot_zones")] IReadOnlyCollection<string>? OrderedHotZones);
+
+public sealed record DailyRecommendedNextResponse(
+    EventSummaryDto? Event,
+    string Status,
+    int? CurrentTagOrder,
+    int RemainingTagCount,
+    string? Message);
+
 public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status, EventStatus EventStatus);
 
 public sealed record ManageParticipationStatusRequest(ParticipationStatus Status, string? RejectionReason);
@@ -173,6 +185,7 @@ public interface IEventService
     Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(UserContext userContext, RecommendedEventsRequest request, CancellationToken cancellationToken);
+    Task<Result<DailyRecommendedNextResponse>> GetDailyRecommendedNextAsync(UserContext userContext, DailyRecommendedNextRequest request, CancellationToken cancellationToken);
 }
 
 public interface IEventLifecycleService

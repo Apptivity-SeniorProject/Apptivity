@@ -434,6 +434,68 @@ public sealed class EventRepository : IEventRepository
     }
 }
 
+public sealed class DailyRecommendationRepository : IDailyRecommendationRepository
+{
+    private readonly AppDbContext _db;
+
+    public DailyRecommendationRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<DailyRecommendationPlan?> GetPlanForDayAsync(Guid userId, string dayKey, CancellationToken cancellationToken)
+    {
+        return _db.DailyRecommendationPlans
+            .Include(x => x.Tags)
+            .Include(x => x.Cursor)
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.DayKey == dayKey, cancellationToken);
+    }
+
+    public async Task AcquireUserRecommendationLockAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM accounts WHERE \"Id\" = {userId} FOR UPDATE",
+            cancellationToken);
+    }
+
+    public Task<DailyRecommendationCursor?> GetCursorForUpdateAsync(Guid planId, CancellationToken cancellationToken)
+    {
+        return _db.DailyRecommendationCursors
+            .FromSqlInterpolated($"SELECT * FROM user_daily_recommendation_cursor WHERE plan_id = {planId} FOR UPDATE")
+            .AsTracking()
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<DailyRecommendationServedEvent>> GetRecentServedEventsAsync(
+        Guid userId,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken)
+    {
+        return await _db.DailyRecommendationServedEvents
+            .AsNoTracking()
+            .Where(x => x.Plan.UserId == userId && x.ServedAtUtc >= sinceUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<string?> GetMostFrequentServedClubCityAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await _db.DailyRecommendationServedEvents
+            .AsNoTracking()
+            .Where(x => x.Plan.UserId == userId
+                && x.Event.Owner.ClubProfile != null
+                && !string.IsNullOrWhiteSpace(x.Event.Owner.ClubProfile.LocationCity))
+            .GroupBy(x => x.Event.Owner.ClubProfile!.LocationCity)
+            .OrderByDescending(x => x.Count())
+            .Select(x => x.Key)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task AddPlanAsync(DailyRecommendationPlan plan, CancellationToken cancellationToken)
+    {
+        await _db.DailyRecommendationPlans.AddAsync(plan, cancellationToken);
+    }
+}
+
 public sealed class TagRepository : ITagRepository
 {
     private readonly AppDbContext _db;
@@ -983,6 +1045,31 @@ public sealed class UnitOfWork : IUnitOfWork
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         return _db.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public sealed class RecommendationTransactionManager : IRecommendationTransactionManager
+{
+    private readonly AppDbContext _db;
+
+    public RecommendationTransactionManager(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<T> ExecuteInTransactionAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            var result = await action(cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        });
     }
 }
 

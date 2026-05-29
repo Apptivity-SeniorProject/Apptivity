@@ -75,6 +75,26 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
         Assert.Contains("Fri, 31 Jul 2026 23:59:59 GMT", sunsetValues);
     }
 
+    [Fact]
+    public async Task PostDailyNext_ReturnsSuccessEnvelope()
+    {
+        using var client = CreateTestClient();
+
+        using var response = await client.PostAsync(
+            "/api/events/recommended/daily/next",
+            new StringContent("{}", Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+
+        Assert.True(root.GetProperty("isSuccess").GetBoolean());
+        var data = root.GetProperty("data");
+        Assert.Equal("depleted", data.GetProperty("status").GetString());
+    }
+
     private HttpClient CreateTestClient()
     {
         var client = _factory.WithWebHostBuilder(builder =>
@@ -167,6 +187,13 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
         public Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(UserContext userContext, RecommendedEventsRequest request, CancellationToken cancellationToken)
             => Task.FromResult(Result<PagedResult<RecommendedEventSummaryDto>>.Success(
                 new PagedResult<RecommendedEventSummaryDto>(Array.Empty<RecommendedEventSummaryDto>(), 0, request.PageNumber, request.PageSize)));
+
+        public Task<Result<DailyRecommendedNextResponse>> GetDailyRecommendedNextAsync(
+            UserContext userContext,
+            DailyRecommendedNextRequest request,
+            CancellationToken cancellationToken)
+            => Task.FromResult(Result<DailyRecommendedNextResponse>.Success(
+                new DailyRecommendedNextResponse(null, "depleted", null, 0, "No data")));
 
         public Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken)
             => Task.FromResult(Result<IEnumerable<EventSummaryDto>>.Failure("TEST_001", "Not implemented."));

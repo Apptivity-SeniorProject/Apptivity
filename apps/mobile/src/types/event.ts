@@ -81,6 +81,22 @@ export interface OrderedHotZone {
   lng: number;
 }
 
+export type DailyRecommendationStatus = 'served' | 'depleted' | 'unavailable';
+
+export interface DailyRecommendedNextRequest {
+  latitude?: number;
+  longitude?: number;
+  ordered_hot_zones?: string[] | null;
+}
+
+export interface DailyRecommendedNextResponseDto {
+  event: EventSummaryDto | null;
+  status: DailyRecommendationStatus;
+  currentTagOrder: number | null;
+  remainingTagCount: number;
+  message?: string | null;
+}
+
 export interface ApplyToEventResponseDto {
   eventId: string;
   userId: string;

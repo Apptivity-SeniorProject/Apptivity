@@ -25,7 +25,7 @@ public sealed class GroqTagPredictor : ITagPredictorService
 
     public async Task<TagPredictionResult?> PredictAsync(TagPredictionInput input, CancellationToken cancellationToken)
     {
-        if (input.AllowedTags.Count < 2 || string.IsNullOrWhiteSpace(_options.ApiKey))
+        if (input.AllowedTags.Count < 1 || string.IsNullOrWhiteSpace(_options.ApiKey))
         {
             return null;
         }
@@ -51,31 +51,32 @@ public sealed class GroqTagPredictor : ITagPredictorService
                 return null;
             }
 
-            var allowedMap = input.AllowedTags
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(x => x, x => x, StringComparer.OrdinalIgnoreCase);
+            var allowedIds = input.AllowedTags
+                .Select(x => x.Id)
+                .Distinct()
+                .ToHashSet();
 
-            if (!allowedMap.TryGetValue(parsed.PrimaryTag, out var normalizedPrimary))
+            var normalizedTagIds = parsed.TagIds
+                .Where(allowedIds.Contains)
+                .Distinct()
+                .Take(5)
+                .ToArray();
+
+            if (normalizedTagIds.Length == 0)
             {
                 return null;
             }
 
-            if (!allowedMap.TryGetValue(parsed.FallbackTag, out var normalizedFallback))
-            {
-                return null;
-            }
-
-            if (string.Equals(normalizedPrimary, normalizedFallback, StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            return new TagPredictionResult(normalizedPrimary, normalizedFallback);
+            return new TagPredictionResult(normalizedTagIds);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning("Groq tag prediction timed out after {TimeoutMs}ms. Falling back.", GetTimeoutMs());
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Groq tag prediction was cancelled by upstream caller.");
             return null;
         }
         catch (HttpRequestException ex)
@@ -103,7 +104,7 @@ public sealed class GroqTagPredictor : ITagPredictorService
                 new
                 {
                     role = "system",
-                    content = "You are a strict classifier. Return only valid JSON with keys primary_tag and fallback_tag."
+                    content = "You are a strict recommender. Return only valid JSON with key tag_ids as an array of up to 5 distinct UUIDs from allowed_tags."
                 },
                 new
                 {
@@ -121,7 +122,26 @@ public sealed class GroqTagPredictor : ITagPredictorService
 
     private int GetTimeoutMs()
     {
-        return _options.TimeoutMs <= 0 ? 120 : _options.TimeoutMs;
+        const int defaultTimeoutMs = 5000;
+        const int minTimeoutMs = 1000;
+        const int maxTimeoutMs = 30000;
+
+        if (_options.TimeoutMs <= 0)
+        {
+            return defaultTimeoutMs;
+        }
+
+        if (_options.TimeoutMs < minTimeoutMs)
+        {
+            return minTimeoutMs;
+        }
+
+        if (_options.TimeoutMs > maxTimeoutMs)
+        {
+            return maxTimeoutMs;
+        }
+
+        return _options.TimeoutMs;
     }
 
     private static string BuildUserPrompt(TagPredictionInput input)
@@ -137,9 +157,10 @@ public sealed class GroqTagPredictor : ITagPredictorService
             rules = new
             {
                 must_be_from_allowed_tags = true,
-                must_be_distinct = true
+                must_be_distinct = true,
+                max_count = 5
             },
-            output = "Return only JSON: {\"primary_tag\":\"...\",\"fallback_tag\":\"...\"}"
+            output = "Return only JSON: {\"tag_ids\":[\"uuid-1\",\"uuid-2\",\"uuid-3\",\"uuid-4\",\"uuid-5\"]}"
         };
 
         return JsonSerializer.Serialize(promptPayload, JsonOptions);
@@ -168,20 +189,29 @@ public sealed class GroqTagPredictor : ITagPredictorService
 
             using var contentDoc = JsonDocument.Parse(content);
             var root = contentDoc.RootElement;
-            if (!root.TryGetProperty("primary_tag", out var primaryTagElement) ||
-                !root.TryGetProperty("fallback_tag", out var fallbackTagElement))
+            if (!root.TryGetProperty("tag_ids", out var tagIdsElement) || tagIdsElement.ValueKind != JsonValueKind.Array)
             {
                 return null;
             }
 
-            var primaryTag = primaryTagElement.GetString()?.Trim();
-            var fallbackTag = fallbackTagElement.GetString()?.Trim();
-            if (string.IsNullOrWhiteSpace(primaryTag) || string.IsNullOrWhiteSpace(fallbackTag))
+            var parsedTagIds = new List<Guid>();
+            foreach (var element in tagIdsElement.EnumerateArray())
+            {
+                var value = element.GetString()?.Trim();
+                if (!Guid.TryParse(value, out var tagId))
+                {
+                    continue;
+                }
+
+                parsedTagIds.Add(tagId);
+            }
+
+            if (parsedTagIds.Count == 0)
             {
                 return null;
             }
 
-            return new TagPredictionResult(primaryTag, fallbackTag);
+            return new TagPredictionResult(parsedTagIds);
         }
         catch (Exception ex)
         {

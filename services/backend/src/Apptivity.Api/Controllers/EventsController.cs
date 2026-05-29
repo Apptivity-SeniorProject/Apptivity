@@ -287,6 +287,25 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpPost("recommended/daily/next")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> GetDailyRecommendedNext(
+        [FromBody] DailyRecommendedNextRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _eventService.GetDailyRecommendedNextAsync(context, request, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpPost("{id:guid}/apply")]
     [Authorize(Roles = "Individual")]
     public async Task<IActionResult> Apply(Guid id, CancellationToken cancellationToken)

@@ -10,6 +10,7 @@ import type {
   EventLocation,
   EventParticipantProfileDto,
   EventParticipantsResponseDto,
+  DailyRecommendedNextResponseDto,
   OrderedHotZone,
   RecommendedEventSummaryDto,
   EventSummaryDto,
@@ -282,6 +283,36 @@ export async function getRecommendedEvents(
   return {
     ...payload,
     items: payload.items.map(mapEventSummary),
+  };
+}
+
+export async function getDailyRecommendedNext(request: {
+  latitude?: number;
+  longitude?: number;
+  orderedHotZones?: string[] | null;
+}): Promise<{
+  event: EventListItem | null;
+  status: 'served' | 'depleted' | 'unavailable';
+  currentTagOrder: number | null;
+  remainingTagCount: number;
+  message?: string | null;
+}> {
+  const response = await apiClient.post<ApiEnvelope<DailyRecommendedNextResponseDto>>(
+    '/api/events/recommended/daily/next',
+    {
+      latitude: request.latitude,
+      longitude: request.longitude,
+      ordered_hot_zones: request.orderedHotZones ?? null,
+    },
+  );
+
+  const payload = unwrapEnvelope(response.data);
+  return {
+    event: payload.event ? mapEventSummary(payload.event) : null,
+    status: payload.status,
+    currentTagOrder: payload.currentTagOrder,
+    remainingTagCount: payload.remainingTagCount,
+    message: payload.message ?? null,
   };
 }
 

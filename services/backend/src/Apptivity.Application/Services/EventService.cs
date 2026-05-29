@@ -7,12 +7,16 @@ using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Entities;
 using Apptivity.Domain.Enums;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Apptivity.Application.Services;
 
 public sealed class EventService : IEventService
 {
+    private const string DailyRecommendationDepletedMessage =
+        "Bugunluk buralardaki tum paslari tukettin kral. Yeni etkinlikler eklendiginde ilk senin haberin olacak!";
+
     private readonly IEventRepository _eventRepository;
     private readonly IEventBookmarkRepository _eventBookmarkRepository;
     private readonly IParticipationRepository _participationRepository;
@@ -20,6 +24,8 @@ public sealed class EventService : IEventService
     private readonly ITagRepository _tagRepository;
     private readonly ITagPredictorService _tagPredictorService;
     private readonly ITagPredictionCacheService _tagPredictionCacheService;
+    private readonly IDailyRecommendationRepository _dailyRecommendationRepository;
+    private readonly IRecommendationTransactionManager _recommendationTransactionManager;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
@@ -32,6 +38,8 @@ public sealed class EventService : IEventService
         ITagRepository tagRepository,
         ITagPredictorService tagPredictorService,
         ITagPredictionCacheService tagPredictionCacheService,
+        IDailyRecommendationRepository dailyRecommendationRepository,
+        IRecommendationTransactionManager recommendationTransactionManager,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
@@ -43,6 +51,8 @@ public sealed class EventService : IEventService
         _tagRepository = tagRepository;
         _tagPredictorService = tagPredictorService;
         _tagPredictionCacheService = tagPredictionCacheService;
+        _dailyRecommendationRepository = dailyRecommendationRepository;
+        _recommendationTransactionManager = recommendationTransactionManager;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
@@ -327,6 +337,10 @@ public sealed class EventService : IEventService
 
         var resolvedPrimaryTagId = request.PrimaryTagId ?? normalizedTagIds.FirstOrDefault();
 
+        var locationData = request.LocationData?.Trim();
+        var ownerAccount = await _userRepository.GetAccountByIdWithProfilesAsync(userContext.AccountId, cancellationToken);
+        var (locationLat, locationLng) = ResolveEventCoordinates(locationData, ownerAccount?.ClubProfile?.Latitude, ownerAccount?.ClubProfile?.Longitude);
+
         var eventEntity = new Event
         {
             Id = Guid.NewGuid(),
@@ -339,7 +353,9 @@ public sealed class EventService : IEventService
             Capacity = request.Capacity,
             RemainingParticipationCount = request.Capacity,
             Price = request.Price,
-            LocationData = request.LocationData?.Trim(),
+            LocationData = locationData,
+            LocationLat = locationLat,
+            LocationLng = locationLng,
             PrimaryTagId = resolvedPrimaryTagId == Guid.Empty ? null : resolvedPrimaryTagId,
             Status = EventStatus.PendingApproval
         };
@@ -438,6 +454,14 @@ public sealed class EventService : IEventService
         eventEntity.Time = request.Time;
         eventEntity.DurationMinutes = request.DurationMinutes;
         eventEntity.LocationData = request.LocationData;
+
+        var ownerAccount = await _userRepository.GetAccountByIdWithProfilesAsync(userContext.AccountId, cancellationToken);
+        var (locationLat, locationLng) = ResolveEventCoordinates(
+            request.LocationData,
+            ownerAccount?.ClubProfile?.Latitude,
+            ownerAccount?.ClubProfile?.Longitude);
+        eventEntity.LocationLat = locationLat;
+        eventEntity.LocationLng = locationLng;
 
         if (request.Capacity < eventEntity.Capacity - eventEntity.RemainingParticipationCount)
         {
@@ -708,12 +732,15 @@ public sealed class EventService : IEventService
         paging.Normalize();
 
         var activeTags = await _tagRepository.GetActiveAsync(cancellationToken);
-        var activeTagNameToId = activeTags
+        var activeTagById = activeTags
             .Where(x => !x.IsDeleted && x.IsActive && !string.IsNullOrWhiteSpace(x.Name))
-            .GroupBy(x => x.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(x => x.Id)
+            .Select(x => x.First())
+            .ToDictionary(x => x.Id, x => x);
 
-        var allowedTagNames = activeTagNameToId.Keys.ToArray();
+        var allowedTags = activeTagById.Values
+            .Select(x => new TagPredictionAllowedTag(x.Id, x.Name.Trim()))
+            .ToArray();
 
         var interestTagNames = account.InterestTags
             .Where(x => x.IsActive && !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Name))
@@ -737,33 +764,27 @@ public sealed class EventService : IEventService
         var fallbackTagId = Guid.Empty;
         var hasSignals = interestTagNames.Length > 0 || approvedHistoryTagNames.Length > 0;
 
-        if (hasSignals && allowedTagNames.Length >= 2)
+        if (hasSignals && allowedTags.Length >= 2)
         {
-            var predictedTags = await _tagPredictionCacheService.GetAsync(userContext.AccountId, cancellationToken);
-
-            if (predictedTags is null)
-            {
-                predictedTags = await _tagPredictorService.PredictAsync(
-                    new TagPredictionInput(allowedTagNames, interestTagNames, approvedHistoryTagNames),
-                    cancellationToken);
-
-                if (predictedTags is not null)
-                {
-                    await _tagPredictionCacheService.SetAsync(userContext.AccountId, predictedTags, cancellationToken);
-                }
-            }
+            var predictedTags = await _tagPredictorService.PredictAsync(
+                new TagPredictionInput(allowedTags, interestTagNames, approvedHistoryTagNames),
+                cancellationToken);
 
             if (predictedTags is not null)
             {
-                if (activeTagNameToId.TryGetValue(predictedTags.PrimaryTag, out var predictedPrimaryTagId))
+                var tagIds = predictedTags.TagIds
+                    .Where(activeTagById.ContainsKey)
+                    .Distinct()
+                    .ToArray();
+
+                if (tagIds.Length > 0)
                 {
-                    primaryTagId = predictedPrimaryTagId;
+                    primaryTagId = tagIds[0];
                 }
 
-                if (activeTagNameToId.TryGetValue(predictedTags.FallbackTag, out var predictedFallbackTagId) &&
-                    predictedFallbackTagId != primaryTagId)
+                if (tagIds.Length > 1 && tagIds[1] != primaryTagId)
                 {
-                    fallbackTagId = predictedFallbackTagId;
+                    fallbackTagId = tagIds[1];
                 }
             }
         }
@@ -869,6 +890,399 @@ public sealed class EventService : IEventService
 
         return Result<PagedResult<RecommendedEventSummaryDto>>.Success(
             new PagedResult<RecommendedEventSummaryDto>(pagedItems, deduped.Length, paging.PageNumber, paging.PageSize));
+    }
+
+    public async Task<Result<DailyRecommendedNextResponse>> GetDailyRecommendedNextAsync(
+        UserContext userContext,
+        DailyRecommendedNextRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (userContext.AccountType != AccountType.Individual)
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.EventUnauthorized, "Recommendations are available for individual accounts.");
+        }
+
+        if ((request.Latitude.HasValue && !request.Longitude.HasValue) || (!request.Latitude.HasValue && request.Longitude.HasValue))
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.Validation, "latitude and longitude must be provided together.");
+        }
+
+        if (request.Latitude is < -90 or > 90)
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.Validation, "latitude must be between -90 and 90.");
+        }
+
+        if (request.Longitude is < -180 or > 180)
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.Validation, "longitude must be between -180 and 180.");
+        }
+
+        var account = await _userRepository.GetAccountByIdWithInterestsAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.AccountNotFound, "Account not found.");
+        }
+
+        async Task<DailyRecommendedNextResponse> ExecuteFlowAsync(CancellationToken txCancellationToken) =>
+            await _recommendationTransactionManager.ExecuteInTransactionAsync(async txToken =>
+        {
+            var nowUtc = DateTime.UtcNow;
+            var dayKey = GetIstanbulDayKey(nowUtc);
+
+            await _dailyRecommendationRepository.AcquireUserRecommendationLockAsync(userContext.AccountId, txToken);
+
+            var plan = await _dailyRecommendationRepository.GetPlanForDayAsync(userContext.AccountId, dayKey, txToken);
+            if (plan is null)
+            {
+                var activeTags = await _tagRepository.GetActiveAsync(txToken);
+                var planBuild = await BuildDailyPlanAsync(account, activeTags, dayKey, nowUtc, txToken);
+                if (planBuild.Plan is null)
+                {
+                    return new DailyRecommendedNextResponse(
+                        null,
+                        "unavailable",
+                        null,
+                        0,
+                        "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+                }
+
+                plan = planBuild.Plan;
+                await _dailyRecommendationRepository.AddPlanAsync(plan, txToken);
+            }
+
+            var cursor = await _dailyRecommendationRepository.GetCursorForUpdateAsync(plan.Id, txToken) ?? plan.Cursor;
+            if (cursor is null)
+            {
+                cursor = new DailyRecommendationCursor
+                {
+                    PlanId = plan.Id,
+                    CurrentTagOrder = 1,
+                    IsDepleted = false
+                };
+                plan.Cursor = cursor;
+            }
+
+            if (cursor.IsDepleted)
+            {
+                return new DailyRecommendedNextResponse(
+                    null,
+                    "depleted",
+                    null,
+                    0,
+                    DailyRecommendationDepletedMessage);
+            }
+
+            var totalTagCount = plan.Tags.Count;
+            if (totalTagCount == 0)
+            {
+                cursor.IsDepleted = true;
+                return new DailyRecommendedNextResponse(
+                    null,
+                    "unavailable",
+                    null,
+                    0,
+                    "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+            }
+
+            var fatigueSinceUtc = nowUtc.AddHours(-72);
+            var recentServed = await _dailyRecommendationRepository.GetRecentServedEventsAsync(userContext.AccountId, fatigueSinceUtc, txToken);
+            var excludedEventIds = recentServed
+                .Select(x => x.EventId)
+                .ToHashSet();
+
+            var activeEvents = await _eventRepository.GetPublishedAndOngoingAsync(txToken);
+            var hasLiveLocation = request.Latitude.HasValue && request.Longitude.HasValue;
+            var fallbackCity = hasLiveLocation
+                ? null
+                : await _dailyRecommendationRepository.GetMostFrequentServedClubCityAsync(userContext.AccountId, txToken);
+
+            var startOrder = Math.Clamp(cursor.CurrentTagOrder, 1, totalTagCount);
+            for (var tagOrder = startOrder; tagOrder <= totalTagCount; tagOrder++)
+            {
+                cursor.CurrentTagOrder = tagOrder;
+
+                var planTag = plan.Tags.FirstOrDefault(x => x.TagOrder == tagOrder);
+                if (planTag is null)
+                {
+                    continue;
+                }
+
+                var selectedEvent = SelectNextDailyCandidate(
+                    activeEvents,
+                    planTag.TagId,
+                    excludedEventIds,
+                    nowUtc,
+                    request.Latitude,
+                    request.Longitude,
+                    fallbackCity);
+
+                if (selectedEvent is null)
+                {
+                    continue;
+                }
+
+                plan.ServedEvents.Add(new DailyRecommendationServedEvent
+                {
+                    PlanId = plan.Id,
+                    EventId = selectedEvent.Id,
+                    TagOrder = tagOrder,
+                    ServedAtUtc = nowUtc
+                });
+
+                cursor.IsDepleted = false;
+
+                var remainingTagCount = Math.Max(0, totalTagCount - tagOrder + 1);
+                return new DailyRecommendedNextResponse(
+                    MapEventSummary(selectedEvent),
+                    "served",
+                    tagOrder,
+                    remainingTagCount,
+                    null);
+            }
+
+            cursor.IsDepleted = true;
+            cursor.CurrentTagOrder = totalTagCount;
+
+            return new DailyRecommendedNextResponse(
+                null,
+                "depleted",
+                null,
+                0,
+                DailyRecommendationDepletedMessage);
+        }, txCancellationToken);
+
+        DailyRecommendedNextResponse response;
+        try
+        {
+            response = await ExecuteFlowAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex.Message.Contains("IX_user_daily_recommendation_plan_user_id_day_key", StringComparison.OrdinalIgnoreCase))
+        {
+            response = await ExecuteFlowAsync(cancellationToken);
+        }
+
+        return Result<DailyRecommendedNextResponse>.Success(response);
+    }
+
+    private async Task<DailyPlanBuildResult> BuildDailyPlanAsync(
+        Account account,
+        IReadOnlyCollection<Tag> activeTags,
+        string dayKey,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var activeTagById = activeTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .GroupBy(x => x.Id)
+            .Select(x => x.First())
+            .ToDictionary(x => x.Id, x => x);
+
+        var interestTagIds = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToArray();
+
+        var interestTagNames = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Name))
+            .Select(x => x.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var approvedHistoryTagNames = (await _eventRepository.GetApprovedHistoryTagNamesAsync(account.Id, cancellationToken))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var hasSignals = interestTagNames.Length > 0 || approvedHistoryTagNames.Length > 0;
+        var allowedTags = activeTagById.Values
+            .Select(x => new TagPredictionAllowedTag(x.Id, x.Name.Trim()))
+            .ToArray();
+
+        var selected = new List<SelectedTag>();
+
+        if (hasSignals && allowedTags.Length > 0)
+        {
+            try
+            {
+                var predicted = await _tagPredictorService.PredictAsync(
+                    new TagPredictionInput(allowedTags, interestTagNames, approvedHistoryTagNames),
+                    cancellationToken);
+
+                if (predicted is not null)
+                {
+                    foreach (var tagId in predicted.TagIds.Where(activeTagById.ContainsKey).Distinct())
+                    {
+                        if (selected.Any(x => x.TagId == tagId))
+                        {
+                            continue;
+                        }
+
+                        selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Llm));
+                        if (selected.Count == 5)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // LLM failure is intentionally swallowed; profile/deterministic fallback continues.
+            }
+        }
+
+        foreach (var tagId in interestTagIds.Where(activeTagById.ContainsKey))
+        {
+            if (selected.Any(x => x.TagId == tagId))
+            {
+                continue;
+            }
+
+            selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Profile));
+            if (selected.Count == 5)
+            {
+                break;
+            }
+        }
+
+        if (selected.Count < 5)
+        {
+            foreach (var tagId in activeTagById.Keys.OrderBy(x => x))
+            {
+                if (selected.Any(x => x.TagId == tagId))
+                {
+                    continue;
+                }
+
+                selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Deterministic));
+                if (selected.Count == 5)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (selected.Count == 0)
+        {
+            return new DailyPlanBuildResult(null);
+        }
+
+        var plan = new DailyRecommendationPlan
+        {
+            Id = Guid.NewGuid(),
+            UserId = account.Id,
+            DayKey = dayKey,
+            GeneratedAtUtc = nowUtc,
+            LlmGenerated = selected.Any(x => x.Source == DailyRecommendationTagSource.Llm),
+            Cursor = new DailyRecommendationCursor
+            {
+                CurrentTagOrder = 1,
+                IsDepleted = false
+            }
+        };
+
+        plan.Cursor.PlanId = plan.Id;
+
+        var order = 1;
+        foreach (var tag in selected)
+        {
+            plan.Tags.Add(new DailyRecommendationPlanTag
+            {
+                PlanId = plan.Id,
+                TagOrder = order,
+                TagId = tag.TagId,
+                Source = tag.Source
+            });
+            order++;
+        }
+
+        return new DailyPlanBuildResult(plan);
+    }
+
+    private static Event? SelectNextDailyCandidate(
+        IReadOnlyCollection<Event> activeEvents,
+        Guid tagId,
+        IReadOnlySet<Guid> excludedEventIds,
+        DateTime nowUtc,
+        decimal? userLat,
+        decimal? userLng,
+        string? fallbackCity)
+    {
+        var candidates = activeEvents
+            .Where(x => IsActiveEvent(x, nowUtc))
+            .Where(x => HasTag(x, tagId))
+            .Where(x => !excludedEventIds.Contains(x.Id));
+
+        if (!userLat.HasValue || !userLng.HasValue)
+        {
+            if (!string.IsNullOrWhiteSpace(fallbackCity))
+            {
+                var city = fallbackCity.Trim();
+                candidates = candidates.Where(x =>
+                    x.LocationData != null &&
+                    x.LocationData.Contains(city, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return candidates
+                .OrderByDescending(x => x.IsFeatured)
+                .ThenBy(x => x.Date)
+                .ThenBy(x => x.Time)
+                .ThenBy(x => x.Id)
+                .FirstOrDefault();
+        }
+
+        return candidates
+            .Select(x => new
+            {
+                Event = x,
+                Distance = TryCalculateDistanceKm(x, userLat.Value, userLng.Value, out var distanceKm)
+                    ? distanceKm
+                    : double.MaxValue
+            })
+            .OrderBy(x => x.Distance)
+            .ThenByDescending(x => x.Event.IsFeatured)
+            .ThenBy(x => x.Event.Date)
+            .ThenBy(x => x.Event.Time)
+            .ThenBy(x => x.Event.Id)
+            .Select(x => x.Event)
+            .FirstOrDefault();
+    }
+
+    private static bool TryCalculateDistanceKm(Event eventEntity, decimal userLat, decimal userLng, out double distanceKm)
+    {
+        distanceKm = double.MaxValue;
+        if (!eventEntity.LocationLat.HasValue || !eventEntity.LocationLng.HasValue)
+        {
+            return false;
+        }
+
+        distanceKm = CalculateDistanceKm(
+            (double)eventEntity.LocationLat.Value,
+            (double)eventEntity.LocationLng.Value,
+            (double)userLat,
+            (double)userLng);
+        return true;
+    }
+
+    private static string GetIstanbulDayKey(DateTime nowUtc)
+    {
+        var timezone = ResolveIstanbulTimeZone();
+        var localTime = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, timezone);
+        return localTime.ToString("yyyy-MM-dd");
+    }
+
+    private static TimeZoneInfo ResolveIstanbulTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+        }
     }
 
     private async Task EnsureRemainingCountIsInitializedAsync(Event eventEntity, CancellationToken cancellationToken)
@@ -1107,6 +1521,10 @@ public sealed class EventService : IEventService
         string RecommendationReason,
         DateTime StartUtc);
 
+    private sealed record SelectedTag(Guid TagId, DailyRecommendationTagSource Source);
+
+    private sealed record DailyPlanBuildResult(DailyRecommendationPlan? Plan);
+
     private static bool IsTransitionAllowed(EventStatus current, EventStatus target, bool isAdmin)
     {
         if (target == EventStatus.Ongoing || target == EventStatus.Completed)
@@ -1167,6 +1585,68 @@ public sealed class EventService : IEventService
             "other" => "Diğer",
             _ => violationReason
         };
+    }
+
+    private static (decimal? Lat, decimal? Lng) ResolveEventCoordinates(
+        string? locationData,
+        decimal? fallbackLat,
+        decimal? fallbackLng)
+    {
+        if (!string.IsNullOrWhiteSpace(locationData))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(locationData);
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object
+                    && TryGetCoordinate(root, "lat", -90m, 90m, out var parsedLat)
+                    && TryGetCoordinate(root, "lng", -180m, 180m, out var parsedLng))
+                {
+                    return (Math.Round(parsedLat, 6, MidpointRounding.AwayFromZero), Math.Round(parsedLng, 6, MidpointRounding.AwayFromZero));
+                }
+            }
+            catch (JsonException)
+            {
+                // ignored; fallback coordinates are used.
+            }
+        }
+
+        if (fallbackLat is >= -90m and <= 90m && fallbackLng is >= -180m and <= 180m)
+        {
+            return (Math.Round(fallbackLat.Value, 6, MidpointRounding.AwayFromZero), Math.Round(fallbackLng.Value, 6, MidpointRounding.AwayFromZero));
+        }
+
+        return (null, null);
+    }
+
+    private static bool TryGetCoordinate(JsonElement root, string propertyName, decimal min, decimal max, out decimal value)
+    {
+        value = default;
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        switch (property.ValueKind)
+        {
+            case JsonValueKind.Number:
+                if (!property.TryGetDecimal(out value))
+                {
+                    return false;
+                }
+                break;
+            case JsonValueKind.String:
+                var text = property.GetString();
+                if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+                {
+                    return false;
+                }
+                break;
+            default:
+                return false;
+        }
+
+        return value >= min && value <= max;
     }
 
     private static IReadOnlyCollection<Guid> NormalizeTagIds(Guid? primaryTagId, IReadOnlyCollection<Guid>? tagIds)

@@ -2,6 +2,7 @@ import {
   type InfiniteData,
   type QueryKey,
   useInfiniteQuery,
+  useMutation,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -14,8 +15,13 @@ import {
   getMyEvents,
   getMyParticipations,
   getRecommendedEvents,
+  getDailyRecommendedNext,
 } from '@/src/api/eventService';
-import { getOrderedHotZonesForRecommendations } from '@/src/services/recommendationHotZoneService';
+import {
+  getCurrentRecommendationCoordinates,
+  getOrderedHotZoneKeysForRecommendations,
+  getOrderedHotZonesForRecommendations,
+} from '@/src/services/recommendationHotZoneService';
 import type {
   EventDetail,
   EventFilters,
@@ -110,6 +116,23 @@ export function useRecommendedEvents(pageSize = 10, options?: UseRecommendedEven
     staleTime: 120000,
     gcTime: 900000,
     enabled: options?.enabled ?? true,
+  });
+}
+
+export function useDailyRecommendedNext() {
+  return useMutation({
+    mutationFn: async () => {
+      const [coordinates, orderedHotZoneKeys] = await Promise.all([
+        getCurrentRecommendationCoordinates(),
+        getOrderedHotZoneKeysForRecommendations(),
+      ]);
+
+      return getDailyRecommendedNext({
+        latitude: coordinates?.latitude,
+        longitude: coordinates?.longitude,
+        orderedHotZones: orderedHotZoneKeys,
+      });
+    },
   });
 }
 

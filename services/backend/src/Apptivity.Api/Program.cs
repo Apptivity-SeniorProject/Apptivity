@@ -294,8 +294,13 @@ static bool ShouldRateLimit(HttpContext context)
 
 static bool IsRecommendedPost(HttpContext context)
 {
-    return HttpMethods.IsPost(context.Request.Method)
-        && context.Request.Path.Equals("/api/events/recommended", StringComparison.OrdinalIgnoreCase);
+    if (!HttpMethods.IsPost(context.Request.Method))
+    {
+        return false;
+    }
+
+    return context.Request.Path.Equals("/api/events/recommended", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.Equals("/api/events/recommended/daily/next", StringComparison.OrdinalIgnoreCase);
 }
 
 static bool IsNearbyEventsGet(HttpContext context)

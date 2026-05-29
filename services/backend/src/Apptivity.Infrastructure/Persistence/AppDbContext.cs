@@ -30,6 +30,10 @@ public sealed class AppDbContext : DbContext
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<DailyRecommendationPlan> DailyRecommendationPlans => Set<DailyRecommendationPlan>();
+    public DbSet<DailyRecommendationPlanTag> DailyRecommendationPlanTags => Set<DailyRecommendationPlanTag>();
+    public DbSet<DailyRecommendationServedEvent> DailyRecommendationServedEvents => Set<DailyRecommendationServedEvent>();
+    public DbSet<DailyRecommendationCursor> DailyRecommendationCursors => Set<DailyRecommendationCursor>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

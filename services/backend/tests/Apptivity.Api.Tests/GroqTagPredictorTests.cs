@@ -13,12 +13,15 @@ public sealed class GroqTagPredictorTests
     [Fact]
     public async Task PredictAsync_ReturnsResult_WhenResponseIsValid()
     {
+        var technologyId = Guid.Parse("40FD6D4C-0F95-49D5-BB6A-7A6419D15231");
+        var musicId = Guid.Parse("8BA4EFA4-9F4A-4A56-8646-644A8E3F079D");
+
         var httpClient = CreateHttpClient(HttpStatusCode.OK, """
             {
               "choices": [
                 {
                   "message": {
-                    "content": "{\"primary_tag\":\"Technology\",\"fallback_tag\":\"Music\"}"
+                    "content": "{\"tag_ids\":[\"40FD6D4C-0F95-49D5-BB6A-7A6419D15231\",\"8BA4EFA4-9F4A-4A56-8646-644A8E3F079D\"]}"
                   }
                 }
               ]
@@ -38,14 +41,20 @@ public sealed class GroqTagPredictorTests
 
         var result = await predictor.PredictAsync(
             new TagPredictionInput(
-                AllowedTags: new[] { "Technology", "Music", "Sports" },
+                AllowedTags: new[]
+                {
+                    new TagPredictionAllowedTag(technologyId, "Technology"),
+                    new TagPredictionAllowedTag(musicId, "Music"),
+                    new TagPredictionAllowedTag(Guid.Parse("96A9F6B2-40D7-4E15-9F8E-CB7596ED59F1"), "Sports")
+                },
                 InterestTags: new[] { "Technology" },
                 ApprovedHistoryTags: new[] { "Music" }),
             CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal("Technology", result!.PrimaryTag);
-        Assert.Equal("Music", result.FallbackTag);
+        Assert.Equal(2, result!.TagIds.Count);
+        Assert.Contains(technologyId, result.TagIds);
+        Assert.Contains(musicId, result.TagIds);
     }
 
     [Fact]
@@ -56,7 +65,7 @@ public sealed class GroqTagPredictorTests
               "choices": [
                 {
                   "message": {
-                    "content": "{\"primary_tag\":\"UnknownTag\",\"fallback_tag\":\"Music\"}"
+                    "content": "{\"tag_ids\":[\"11111111-1111-1111-1111-111111111111\"]}"
                   }
                 }
               ]
@@ -76,7 +85,12 @@ public sealed class GroqTagPredictorTests
 
         var result = await predictor.PredictAsync(
             new TagPredictionInput(
-                AllowedTags: new[] { "Technology", "Music", "Sports" },
+                AllowedTags: new[]
+                {
+                    new TagPredictionAllowedTag(Guid.Parse("40FD6D4C-0F95-49D5-BB6A-7A6419D15231"), "Technology"),
+                    new TagPredictionAllowedTag(Guid.Parse("8BA4EFA4-9F4A-4A56-8646-644A8E3F079D"), "Music"),
+                    new TagPredictionAllowedTag(Guid.Parse("96A9F6B2-40D7-4E15-9F8E-CB7596ED59F1"), "Sports")
+                },
                 InterestTags: new[] { "Technology" },
                 ApprovedHistoryTags: new[] { "Music" }),
             CancellationToken.None);
@@ -109,7 +123,12 @@ public sealed class GroqTagPredictorTests
 
         var result = await predictor.PredictAsync(
             new TagPredictionInput(
-                AllowedTags: new[] { "Technology", "Music", "Sports" },
+                AllowedTags: new[]
+                {
+                    new TagPredictionAllowedTag(Guid.Parse("40FD6D4C-0F95-49D5-BB6A-7A6419D15231"), "Technology"),
+                    new TagPredictionAllowedTag(Guid.Parse("8BA4EFA4-9F4A-4A56-8646-644A8E3F079D"), "Music"),
+                    new TagPredictionAllowedTag(Guid.Parse("96A9F6B2-40D7-4E15-9F8E-CB7596ED59F1"), "Sports")
+                },
                 InterestTags: new[] { "Technology" },
                 ApprovedHistoryTags: new[] { "Music" }),
             CancellationToken.None);
