@@ -3,10 +3,10 @@ import { Animated, Pressable, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { IconSymbol, IconSymbolName } from '@/components/ui/icon-symbol';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 // Route adına göre ikon eşleştirmesi
-function getIconName(routeName: string): IconSymbolName {
+function getIconName(routeName: string): React.ComponentProps<typeof IconSymbol>['name'] {
   switch (routeName) {
     case 'index':
       return 'house.fill';
@@ -63,7 +63,7 @@ function TabBarItem({ routeName, isFocused, label, onPress, onLongPress }: TabBa
         useNativeDriver: true,
       }),
     ]).start();
-  }, [isFocused]);
+  }, [isFocused, opacity, scale]);
 
   const color = isFocused ? '#5bcc2a' : '#9CA3AF';
   const iconName = getIconName(routeName);
@@ -163,7 +163,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         const { options } = descriptors[route.key];
 
         // Expo Router'da href: null olan sekmeleri (örn. notifications) gizle
-        if (options.href === null || route.name === 'notifications') {
+        if ((options as any).href === null || route.name === 'notifications') {
           return null;
         }
 

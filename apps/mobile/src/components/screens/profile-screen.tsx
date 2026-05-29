@@ -77,7 +77,6 @@ export function ProfileScreen() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draftInterestTagIds, setDraftInterestTagIds] = useState<string[]>([]);
   const toast = useToast();
-  const logout = useAuthStore((state) => state.logout);
 
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;

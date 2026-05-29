@@ -16,7 +16,6 @@ import { EventRowCard } from '@/src/components/events/event-row-card';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { CITY_OPTIONS } from '@/src/constants/events';
 import { useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
