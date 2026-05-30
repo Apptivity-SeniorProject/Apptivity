@@ -95,6 +95,7 @@ export interface DailyRecommendedNextResponseDto {
   currentTagOrder: number | null;
   remainingTagCount: number;
   message?: string | null;
+  debugLlmTagIds?: string[] | null;
 }
 
 export interface ApplyToEventResponseDto {

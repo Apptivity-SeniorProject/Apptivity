@@ -193,7 +193,7 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
             DailyRecommendedNextRequest request,
             CancellationToken cancellationToken)
             => Task.FromResult(Result<DailyRecommendedNextResponse>.Success(
-                new DailyRecommendedNextResponse(null, "depleted", null, 0, "No data")));
+                new DailyRecommendedNextResponse(null, "depleted", null, 0, "No data", Array.Empty<Guid>())));
 
         public Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken)
             => Task.FromResult(Result<IEnumerable<EventSummaryDto>>.Failure("TEST_001", "Not implemented."));

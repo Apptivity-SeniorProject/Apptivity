@@ -296,6 +296,7 @@ export async function getDailyRecommendedNext(request: {
   currentTagOrder: number | null;
   remainingTagCount: number;
   message?: string | null;
+  debugLlmTagIds?: string[] | null;
 }> {
   const response = await apiClient.post<ApiEnvelope<DailyRecommendedNextResponseDto>>(
     '/api/events/recommended/daily/next',
@@ -313,6 +314,7 @@ export async function getDailyRecommendedNext(request: {
     currentTagOrder: payload.currentTagOrder,
     remainingTagCount: payload.remainingTagCount,
     message: payload.message ?? null,
+    debugLlmTagIds: payload.debugLlmTagIds ?? null,
   };
 }
 

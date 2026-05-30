@@ -943,7 +943,8 @@ public sealed class EventService : IEventService
                         "unavailable",
                         null,
                         0,
-                        "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+                        "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                        null);
                 }
 
                 plan = planBuild.Plan;
@@ -969,7 +970,8 @@ public sealed class EventService : IEventService
                     "depleted",
                     null,
                     0,
-                    DailyRecommendationDepletedMessage);
+                    DailyRecommendationDepletedMessage,
+                    GetDebugLlmTagIds(plan));
             }
 
             var totalTagCount = plan.Tags.Count;
@@ -981,7 +983,8 @@ public sealed class EventService : IEventService
                     "unavailable",
                     null,
                     0,
-                    "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+                    "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                    GetDebugLlmTagIds(plan));
             }
 
             var fatigueSinceUtc = nowUtc.AddHours(-72);
@@ -1037,7 +1040,8 @@ public sealed class EventService : IEventService
                     "served",
                     tagOrder,
                     remainingTagCount,
-                    null);
+                    null,
+                    GetDebugLlmTagIds(plan));
             }
 
             cursor.IsDepleted = true;
@@ -1048,7 +1052,8 @@ public sealed class EventService : IEventService
                 "depleted",
                 null,
                 0,
-                DailyRecommendationDepletedMessage);
+                DailyRecommendationDepletedMessage,
+                GetDebugLlmTagIds(plan));
         }, txCancellationToken);
 
         DailyRecommendedNextResponse response;
@@ -1264,6 +1269,15 @@ public sealed class EventService : IEventService
             (double)userLat,
             (double)userLng);
         return true;
+    }
+
+    private static IReadOnlyCollection<Guid> GetDebugLlmTagIds(DailyRecommendationPlan plan)
+    {
+        return plan.Tags
+            .Where(x => x.Source == DailyRecommendationTagSource.Llm)
+            .OrderBy(x => x.TagOrder)
+            .Select(x => x.TagId)
+            .ToArray();
     }
 
     private static string GetIstanbulDayKey(DateTime nowUtc)
