@@ -26,6 +26,7 @@ public sealed class EventService : IEventService
     private readonly ITagPredictionCacheService _tagPredictionCacheService;
     private readonly IDailyRecommendationRepository _dailyRecommendationRepository;
     private readonly IRecommendationTransactionManager _recommendationTransactionManager;
+    private readonly IRecommendationFeatureFlags _recommendationFeatureFlags;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
@@ -40,6 +41,7 @@ public sealed class EventService : IEventService
         ITagPredictionCacheService tagPredictionCacheService,
         IDailyRecommendationRepository dailyRecommendationRepository,
         IRecommendationTransactionManager recommendationTransactionManager,
+        IRecommendationFeatureFlags recommendationFeatureFlags,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
@@ -53,6 +55,7 @@ public sealed class EventService : IEventService
         _tagPredictionCacheService = tagPredictionCacheService;
         _dailyRecommendationRepository = dailyRecommendationRepository;
         _recommendationTransactionManager = recommendationTransactionManager;
+        _recommendationFeatureFlags = recommendationFeatureFlags;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
@@ -932,7 +935,7 @@ public sealed class EventService : IEventService
             await _dailyRecommendationRepository.AcquireUserRecommendationLockAsync(userContext.AccountId, txToken);
 
             var plan = await _dailyRecommendationRepository.GetPlanForDayAsync(userContext.AccountId, dayKey, txToken);
-            if (plan is null)
+            if (plan is null || _recommendationFeatureFlags.DisableDailyLlmPlanReuseForTesting)
             {
                 var activeTags = await _tagRepository.GetActiveAsync(txToken);
                 var planBuild = await BuildDailyPlanAsync(account, activeTags, dayKey, nowUtc, txToken);
@@ -947,8 +950,16 @@ public sealed class EventService : IEventService
                         null);
                 }
 
-                plan = planBuild.Plan;
-                await _dailyRecommendationRepository.AddPlanAsync(plan, txToken);
+                if (plan is null)
+                {
+                    plan = planBuild.Plan;
+                    await _dailyRecommendationRepository.AddPlanAsync(plan, txToken);
+                }
+                else
+                {
+                    await _dailyRecommendationRepository.ResetPlanStateAsync(plan.Id, txToken);
+                    ApplyDailyPlanSnapshot(plan, planBuild.Plan, nowUtc);
+                }
             }
 
             var cursor = await _dailyRecommendationRepository.GetCursorForUpdateAsync(plan.Id, txToken) ?? plan.Cursor;
@@ -1204,6 +1215,35 @@ public sealed class EventService : IEventService
         }
 
         return new DailyPlanBuildResult(plan);
+    }
+
+    private static void ApplyDailyPlanSnapshot(
+        DailyRecommendationPlan targetPlan,
+        DailyRecommendationPlan sourcePlan,
+        DateTime nowUtc)
+    {
+        targetPlan.GeneratedAtUtc = nowUtc;
+        targetPlan.LlmGenerated = sourcePlan.LlmGenerated;
+
+        targetPlan.Tags.Clear();
+        foreach (var tag in sourcePlan.Tags.OrderBy(x => x.TagOrder))
+        {
+            targetPlan.Tags.Add(new DailyRecommendationPlanTag
+            {
+                PlanId = targetPlan.Id,
+                TagOrder = tag.TagOrder,
+                TagId = tag.TagId,
+                Source = tag.Source
+            });
+        }
+
+        targetPlan.Cursor ??= new DailyRecommendationCursor
+        {
+            PlanId = targetPlan.Id
+        };
+
+        targetPlan.Cursor.CurrentTagOrder = 1;
+        targetPlan.Cursor.IsDepleted = false;
     }
 
     private static Event? SelectNextDailyCandidate(

@@ -466,6 +466,34 @@ public sealed class DailyRecommendationRepository : IDailyRecommendationReposito
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task ResetPlanStateAsync(Guid planId, CancellationToken cancellationToken)
+    {
+        await _db.DailyRecommendationServedEvents
+            .Where(x => x.PlanId == planId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.DailyRecommendationPlanTags
+            .Where(x => x.PlanId == planId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var cursor = await _db.DailyRecommendationCursors
+            .FirstOrDefaultAsync(x => x.PlanId == planId, cancellationToken);
+
+        if (cursor is null)
+        {
+            await _db.DailyRecommendationCursors.AddAsync(new DailyRecommendationCursor
+            {
+                PlanId = planId,
+                CurrentTagOrder = 1,
+                IsDepleted = false
+            }, cancellationToken);
+            return;
+        }
+
+        cursor.CurrentTagOrder = 1;
+        cursor.IsDepleted = false;
+    }
+
     public async Task<IReadOnlyCollection<DailyRecommendationServedEvent>> GetRecentServedEventsAsync(
         Guid userId,
         DateTime sinceUtc,
