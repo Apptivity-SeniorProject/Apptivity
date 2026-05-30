@@ -1,6 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
+import { Alert, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -9,12 +12,14 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { TopBar } from '@/src/components/ui/top-bar';
 import { TabBar } from '@/src/components/ui/tab-bar';
+import { hitSlop } from '@/src/constants/theme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const logout = useAuthStore((state) => state.logout);
 
   if (!hasHydrated) {
     return null;
@@ -23,6 +28,35 @@ export default function TabLayout() {
   if (!accessToken) {
     return <Redirect href="/(auth)/landing" />;
   }
+
+  const handleLogout = () => {
+    Alert.alert('Çıkış Yap', 'Hesabından çıkış yapmak istediğine emin misin?', [
+      { text: 'İptal', style: 'cancel' },
+      {
+        text: 'Çıkış Yap',
+        style: 'destructive',
+        onPress: () => {
+          logout();
+          router.replace('/(auth)/landing');
+        },
+      },
+    ]);
+  };
+
+  const profileRightContent = (
+    <>
+      <Pressable
+        hitSlop={hitSlop.md}
+        onPress={() => router.push('/(tabs)/notifications')}>
+        <IconSymbol size={22} name="bell.fill" color="#6B7280" />
+      </Pressable>
+      <Pressable
+        hitSlop={hitSlop.md}
+        onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+      </Pressable>
+    </>
+  );
 
   return (
     <Tabs
@@ -79,9 +113,9 @@ export default function TabLayout() {
         options={{
           title: 'Profil',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          header: () => <TopBar rightContent={profileRightContent} />,
         }}
       />
     </Tabs>
   );
 }
-
