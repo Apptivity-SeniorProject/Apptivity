@@ -129,6 +129,28 @@ apiClient.interceptors.response.use(
   (response) => {
     if (ENABLE_API_LOGS) {
       console.log(`[API Response] ${response.status} ${response.config.url}`);
+
+      if (response.config.url?.includes('/api/events/recommended/daily/next')) {
+        const payload = response.data as
+          | ApiEnvelope<{
+              status?: string;
+              currentTagOrder?: number | null;
+              remainingTagCount?: number;
+              debugLlmTagIds?: string[] | null;
+            }>
+          | undefined;
+
+        const data = payload?.data;
+        console.log(
+          '[API DailyNext Debug]',
+          JSON.stringify({
+            status: data?.status ?? null,
+            currentTagOrder: data?.currentTagOrder ?? null,
+            remainingTagCount: data?.remainingTagCount ?? null,
+            debugLlmTagIds: data?.debugLlmTagIds ?? [],
+          })
+        );
+      }
     }
     return response;
   },

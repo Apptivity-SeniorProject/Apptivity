@@ -129,8 +129,6 @@ export default function HomeScreen() {
     isSuggestRequestInFlightRef.current = true;
     try {
       const result = await dailyRecommendationMutation.mutateAsync();
-      console.log('[daily-next] status=', result.status, 'currentTagOrder=', result.currentTagOrder, 'remainingTagCount=', result.remainingTagCount);
-      console.log('[daily-next] debugLlmTagIds=', result.debugLlmTagIds ?? []);
 
       if (result.status === 'served' && result.event) {
         setSuggestedEvent(result.event);
