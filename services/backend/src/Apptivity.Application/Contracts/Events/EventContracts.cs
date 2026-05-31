@@ -84,7 +84,8 @@ public sealed record DailyRecommendedNextResponse(
     string Status,
     int? CurrentTagOrder,
     int RemainingTagCount,
-    string? Message);
+    string? Message,
+    IReadOnlyCollection<Guid>? DebugLlmTagIds);
 
 public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status, EventStatus EventStatus);
 

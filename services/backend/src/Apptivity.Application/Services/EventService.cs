@@ -26,6 +26,7 @@ public sealed class EventService : IEventService
     private readonly ITagPredictionCacheService _tagPredictionCacheService;
     private readonly IDailyRecommendationRepository _dailyRecommendationRepository;
     private readonly IRecommendationTransactionManager _recommendationTransactionManager;
+    private readonly IRecommendationFeatureFlags _recommendationFeatureFlags;
     private readonly IEventLifecycleService _eventLifecycleService;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
@@ -40,6 +41,7 @@ public sealed class EventService : IEventService
         ITagPredictionCacheService tagPredictionCacheService,
         IDailyRecommendationRepository dailyRecommendationRepository,
         IRecommendationTransactionManager recommendationTransactionManager,
+        IRecommendationFeatureFlags recommendationFeatureFlags,
         IEventLifecycleService eventLifecycleService,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
@@ -53,6 +55,7 @@ public sealed class EventService : IEventService
         _tagPredictionCacheService = tagPredictionCacheService;
         _dailyRecommendationRepository = dailyRecommendationRepository;
         _recommendationTransactionManager = recommendationTransactionManager;
+        _recommendationFeatureFlags = recommendationFeatureFlags;
         _eventLifecycleService = eventLifecycleService;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
@@ -947,7 +950,7 @@ public sealed class EventService : IEventService
             await _dailyRecommendationRepository.AcquireUserRecommendationLockAsync(userContext.AccountId, txToken);
 
             var plan = await _dailyRecommendationRepository.GetPlanForDayAsync(userContext.AccountId, dayKey, txToken);
-            if (plan is null)
+            if (plan is null || _recommendationFeatureFlags.DisableDailyLlmPlanReuseForTesting)
             {
                 var activeTags = await _tagRepository.GetActiveAsync(txToken);
                 var planBuild = await BuildDailyPlanAsync(account, activeTags, dayKey, nowUtc, txToken);
@@ -958,11 +961,20 @@ public sealed class EventService : IEventService
                         "unavailable",
                         null,
                         0,
-                        "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+                        "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                        null);
                 }
 
-                plan = planBuild.Plan;
-                await _dailyRecommendationRepository.AddPlanAsync(plan, txToken);
+                if (plan is null)
+                {
+                    plan = planBuild.Plan;
+                    await _dailyRecommendationRepository.AddPlanAsync(plan, txToken);
+                }
+                else
+                {
+                    await _dailyRecommendationRepository.ResetPlanStateAsync(plan.Id, txToken);
+                    ApplyDailyPlanSnapshot(plan, planBuild.Plan, nowUtc);
+                }
             }
 
             var cursor = await _dailyRecommendationRepository.GetCursorForUpdateAsync(plan.Id, txToken) ?? plan.Cursor;
@@ -984,7 +996,8 @@ public sealed class EventService : IEventService
                     "depleted",
                     null,
                     0,
-                    DailyRecommendationDepletedMessage);
+                    DailyRecommendationDepletedMessage,
+                    GetDebugLlmTagIds(plan));
             }
 
             var totalTagCount = plan.Tags.Count;
@@ -996,7 +1009,8 @@ public sealed class EventService : IEventService
                     "unavailable",
                     null,
                     0,
-                    "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.");
+                    "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                    GetDebugLlmTagIds(plan));
             }
 
             var fatigueSinceUtc = nowUtc.AddHours(-72);
@@ -1052,7 +1066,8 @@ public sealed class EventService : IEventService
                     "served",
                     tagOrder,
                     remainingTagCount,
-                    null);
+                    null,
+                    GetDebugLlmTagIds(plan));
             }
 
             cursor.IsDepleted = true;
@@ -1063,7 +1078,8 @@ public sealed class EventService : IEventService
                 "depleted",
                 null,
                 0,
-                DailyRecommendationDepletedMessage);
+                DailyRecommendationDepletedMessage,
+                GetDebugLlmTagIds(plan));
         }, txCancellationToken);
 
         DailyRecommendedNextResponse response;
@@ -1216,6 +1232,35 @@ public sealed class EventService : IEventService
         return new DailyPlanBuildResult(plan);
     }
 
+    private static void ApplyDailyPlanSnapshot(
+        DailyRecommendationPlan targetPlan,
+        DailyRecommendationPlan sourcePlan,
+        DateTime nowUtc)
+    {
+        targetPlan.GeneratedAtUtc = nowUtc;
+        targetPlan.LlmGenerated = sourcePlan.LlmGenerated;
+
+        targetPlan.Tags.Clear();
+        foreach (var tag in sourcePlan.Tags.OrderBy(x => x.TagOrder))
+        {
+            targetPlan.Tags.Add(new DailyRecommendationPlanTag
+            {
+                PlanId = targetPlan.Id,
+                TagOrder = tag.TagOrder,
+                TagId = tag.TagId,
+                Source = tag.Source
+            });
+        }
+
+        targetPlan.Cursor ??= new DailyRecommendationCursor
+        {
+            PlanId = targetPlan.Id
+        };
+
+        targetPlan.Cursor.CurrentTagOrder = 1;
+        targetPlan.Cursor.IsDepleted = false;
+    }
+
     private static Event? SelectNextDailyCandidate(
         IReadOnlyCollection<Event> activeEvents,
         Guid tagId,
@@ -1279,6 +1324,15 @@ public sealed class EventService : IEventService
             (double)userLat,
             (double)userLng);
         return true;
+    }
+
+    private static IReadOnlyCollection<Guid> GetDebugLlmTagIds(DailyRecommendationPlan plan)
+    {
+        return plan.Tags
+            .Where(x => x.Source == DailyRecommendationTagSource.Llm)
+            .OrderBy(x => x.TagOrder)
+            .Select(x => x.TagId)
+            .ToArray();
     }
 
     private static string GetIstanbulDayKey(DateTime nowUtc)

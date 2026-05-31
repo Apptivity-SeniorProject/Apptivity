@@ -136,6 +136,61 @@ public sealed class GroqTagPredictorTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task PredictAsync_ReturnsFiveDistinctAllowedTags_WhenResponseContainsMore()
+    {
+        var id1 = Guid.Parse("40FD6D4C-0F95-49D5-BB6A-7A6419D15231");
+        var id2 = Guid.Parse("8BA4EFA4-9F4A-4A56-8646-644A8E3F079D");
+        var id3 = Guid.Parse("96A9F6B2-40D7-4E15-9F8E-CB7596ED59F1");
+        var id4 = Guid.Parse("2F1769F1-0C31-4915-B9CC-D0CF79D5A5F3");
+        var id5 = Guid.Parse("D4E42A0D-6A4D-4D35-84D1-86E4B7E7E122");
+        var id6 = Guid.Parse("65558F2C-8D3E-4E47-88B5-C2A87D5A0A7F");
+        var unknown = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var httpClient = CreateHttpClient(HttpStatusCode.OK, $$"""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "content": "{\"tag_ids\":[\"{{id1}}\",\"{{id2}}\",\"{{id3}}\",\"{{id4}}\",\"{{id5}}\",\"{{id6}}\",\"{{id3}}\",\"{{unknown}}\"]}"
+                  }
+                }
+              ]
+            }
+            """);
+
+        var predictor = new GroqTagPredictor(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(new GroqOptions
+            {
+                ApiKey = "dummy-key",
+                BaseUrl = "https://api.groq.com/openai/v1",
+                Model = "openai/gpt-oss-20b",
+                TimeoutMs = 5000
+            }),
+            NullLogger<GroqTagPredictor>.Instance);
+
+        var result = await predictor.PredictAsync(
+            new TagPredictionInput(
+                AllowedTags: new[]
+                {
+                    new TagPredictionAllowedTag(id1, "Technology"),
+                    new TagPredictionAllowedTag(id2, "Music"),
+                    new TagPredictionAllowedTag(id3, "Sports"),
+                    new TagPredictionAllowedTag(id4, "Art"),
+                    new TagPredictionAllowedTag(id5, "Education"),
+                    new TagPredictionAllowedTag(id6, "Gaming")
+                },
+                InterestTags: Array.Empty<string>(),
+                ApprovedHistoryTags: Array.Empty<string>()),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result!.TagIds.Count);
+        Assert.DoesNotContain(unknown, result.TagIds);
+        Assert.Equal(result.TagIds.Count, result.TagIds.Distinct().Count());
+    }
+
     private static HttpClient CreateHttpClient(HttpStatusCode statusCode, string body)
     {
         var handler = new FakeHttpMessageHandler((_, _) =>

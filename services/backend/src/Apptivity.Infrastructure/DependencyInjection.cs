@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
         services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
         services.Configure<GroqOptions>(configuration.GetSection(GroqOptions.SectionName));
+        services.Configure<RecommendationFeatureFlags>(configuration.GetSection(RecommendationFeatureFlags.SectionName));
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -62,6 +63,8 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, FirebaseNotificationService>();
         services.AddScoped<IImageService, CloudinaryImageService>();
         services.AddScoped<ITagPredictionCacheService, TagPredictionCacheService>();
+        services.AddSingleton<IRecommendationFeatureFlags>(sp =>
+            sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RecommendationFeatureFlags>>().Value);
         services.AddHttpClient<ITagPredictorService, GroqTagPredictor>();
 
         services.AddHttpClient(nameof(FirebaseNotificationService));

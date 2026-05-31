@@ -129,6 +129,7 @@ export default function HomeScreen() {
     isSuggestRequestInFlightRef.current = true;
     try {
       const result = await dailyRecommendationMutation.mutateAsync();
+
       if (result.status === 'served' && result.event) {
         setSuggestedEvent(result.event);
         setIsRecommendationModalOpen(true);
