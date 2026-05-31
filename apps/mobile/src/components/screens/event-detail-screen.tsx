@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
@@ -6,13 +7,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { applyToEvent, cancelEvent, withdrawFromEvent } from '@/src/api/eventService';
+import { applyToEvent, cancelEvent, updateEventParticipationStatus } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
+import type { ApiEnvelope } from '@/src/types/api';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
@@ -75,6 +77,14 @@ function isCancelledStatus(status: string | number | null | undefined): boolean 
   return false;
 }
 
+function getApiErrorCode(error: unknown): string | null {
+  if (!isAxiosError<ApiEnvelope<unknown>>(error)) {
+    return null;
+  }
+
+  return error.response?.data?.errors?.[0]?.code ?? null;
+}
+
 export function EventDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = params.id ?? '';
@@ -86,7 +96,9 @@ export function EventDetailScreen() {
   const clearUnread = useChatStore((state) => state.clearUnread);
   const insets = useSafeAreaInsets();
 
-  const { data, isPending } = useEventDetail(eventId);
+  const { data, isPending } = useEventDetail(eventId, {
+    refetchIntervalMs: 8000,
+  });
   const participantsQuery = useEventParticipants(eventId);
 
   const joinMutation = useMutation({
@@ -108,40 +120,13 @@ export function EventDetailScreen() {
       if (context?.previous) {
         queryClient.setQueryData(['event-detail', eventId], context.previous);
       }
-      toast.error(getApiErrorMessage(error));
-    },
-    onSuccess: (status) => {
-      queryClient.setQueryData<EventDetail>(['event-detail', eventId], (current) => {
-        if (!current) return current;
-        return { ...current, currentUserParticipationStatus: status };
-      });
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] });
-      await queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] });
-      await queryClient.invalidateQueries({ queryKey: ['my-participations'] });
-    },
-  });
 
-  const withdrawMutation = useMutation({
-    mutationFn: () => withdrawFromEvent(eventId),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['event-detail', eventId] });
-      const previous = queryClient.getQueryData<EventDetail>(['event-detail', eventId]);
-
-      if (previous) {
-        queryClient.setQueryData<EventDetail>(
-          ['event-detail', eventId],
-          applyOptimisticState(previous, 'Withdrawn')
-        );
+      if (getApiErrorCode(error) === 'PART_409') {
+        queryClient.setQueryData<EventDetail>(['event-detail', eventId], (current) => current);
+        toast.info('Bu etkinlige zaten katildin.');
+        return;
       }
 
-      return { previous };
-    },
-    onError: (error, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['event-detail', eventId], context.previous);
-      }
       toast.error(getApiErrorMessage(error));
     },
     onSuccess: (status) => {
@@ -175,6 +160,26 @@ export function EventDetailScreen() {
     },
   });
 
+  const reviewParticipationMutation = useMutation({
+    mutationFn: ({
+      accountId,
+      status,
+    }: {
+      accountId: string;
+      status: 'Approved' | 'Rejected';
+    }) => updateEventParticipationStatus(eventId, accountId, status),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] }),
+        queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
+        queryClient.invalidateQueries({ queryKey: ['my-participations'] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, 'Katilim durumu guncellenemedi.'));
+    },
+  });
+
   if (isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50">
@@ -197,12 +202,13 @@ export function EventDetailScreen() {
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
   const isOwner = Boolean(myAccountId && data.ownerId && myAccountId === data.ownerId);
   const isCancelledEvent = isCancelledStatus(data.status as string | number | null | undefined);
-  const isJoined =
-    data.currentUserParticipationStatus === 'Pending' || data.currentUserParticipationStatus === 'Approved';
-  const canOpenChat = data.currentUserParticipationStatus === 'Approved';
   const canJoin = !data.isPast && !data.isFull;
-  const joinButtonDisabled = !canJoin && !isJoined;
-  const actionLoading = joinMutation.isPending || withdrawMutation.isPending;
+  const joinButtonDisabled = !canJoin;
+  const isJoined =
+    data.currentUserParticipationStatus === 'Pending' ||
+    data.currentUserParticipationStatus === 'Approved';
+  const isApprovedParticipant = data.currentUserParticipationStatus === 'Approved';
+  const canOpenChat = isOwner || isApprovedParticipant;
   const approvedParticipants = participantsQuery.data?.participants.filter(
     (participant) => participant.status === 'Approved'
   ) ?? [];
@@ -233,11 +239,35 @@ export function EventDetailScreen() {
           <View className="gap-2">
             <View className="flex-row items-start justify-between gap-3">
               <Text className="flex-1 text-2xl font-bold text-slate-900">{data.title}</Text>
-              {!isOwner ? (
-                <Pressable onPress={() => setIsReportModalOpen(true)}>
-                  <Flag size={20} color="#ef4444" />
-                </Pressable>
-              ) : null}
+              <View className="flex-row items-center gap-2">
+                {canOpenChat ? (
+                  <Pressable
+                    className="h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white"
+                    onPress={() => {
+                      clearUnread(eventId);
+                      router.push({
+                        pathname: '/event/[id]/chat',
+                        params: { id: eventId, eventId, joined: isOwner ? '1' : undefined },
+                      });
+                    }}>
+                    <MessageCircle size={18} color="#0f172a" />
+                    {unreadCount > 0 ? (
+                      <View className="absolute -right-0.5 -top-0.5 min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1">
+                        <Text className="text-[10px] font-semibold text-white">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                ) : null}
+                {!isOwner ? (
+                  <Pressable
+                    className="h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white"
+                    onPress={() => setIsReportModalOpen(true)}>
+                    <Flag size={18} color="#ef4444" />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
             <Text className="text-sm text-slate-500">
               {data.primaryTagName ? `Kategori: ${data.primaryTagName}` : 'Kategori belirtilmedi'}
@@ -318,10 +348,38 @@ export function EventDetailScreen() {
                 <View
                   key={participant.accountId}
                   className="flex-row items-center justify-between rounded-xl bg-slate-100 px-3 py-2">
-                  <Text className="text-sm text-slate-800">{participant.displayName}</Text>
-                  <Text className="text-xs font-semibold text-slate-600">
-                    {participant.status ?? 'N/A'}
-                  </Text>
+                  <View className="flex-1 pr-3">
+                    <Text className="text-sm text-slate-800">{participant.displayName}</Text>
+                    <Text className="text-xs font-semibold text-slate-600">
+                      {participant.status ?? 'N/A'}
+                    </Text>
+                  </View>
+                  {isOwner && participant.status === 'Pending' ? (
+                    <View className="flex-row items-center gap-2">
+                      <Pressable
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5"
+                        disabled={reviewParticipationMutation.isPending}
+                        onPress={() =>
+                          reviewParticipationMutation.mutate({
+                            accountId: participant.accountId,
+                            status: 'Approved',
+                          })
+                        }>
+                        <Text className="text-xs font-semibold text-white">Onayla</Text>
+                      </Pressable>
+                      <Pressable
+                        className="rounded-lg bg-rose-600 px-3 py-1.5"
+                        disabled={reviewParticipationMutation.isPending}
+                        onPress={() =>
+                          reviewParticipationMutation.mutate({
+                            accountId: participant.accountId,
+                            status: 'Rejected',
+                          })
+                        }>
+                        <Text className="text-xs font-semibold text-white">Reddet</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               ))}
               {(participantsQuery.data?.participants ?? []).length === 0 ? (
@@ -330,37 +388,16 @@ export function EventDetailScreen() {
             </View>
           </View>
 
-          <Button
-            label={canOpenChat ? (unreadCount > 0 ? `Sohbete Git (${unreadCount} yeni)` : 'Sohbete Git') : 'Sohbet Kilitli'}
-            className={canOpenChat ? 'bg-slate-900' : 'bg-slate-300'}
-            textClassName={canOpenChat ? 'text-white' : 'text-slate-600'}
-            disabled={!canOpenChat}
-            onPress={() => {
-              clearUnread(eventId);
-              router.push(`/event/${eventId}/chat`);
-            }}
-          />
-          {!canOpenChat ? (
-            <View className="flex-row items-center gap-2">
-              <MessageCircle size={14} color="#64748B" />
-              <Text className="text-xs text-slate-500">Sohbet sadece onayli katilimcilara aciktir.</Text>
-            </View>
-          ) : null}
-
           {!isOwner ? (
-            <Button
-              label={isJoined ? 'Ayril' : 'Katil'}
-              isLoading={actionLoading}
-              disabled={joinButtonDisabled}
-              className={isJoined ? 'bg-rose-600' : 'bg-blue-600'}
-              onPress={() => {
-                if (isJoined) {
-                  withdrawMutation.mutate();
-                  return;
-                }
-                joinMutation.mutate();
-              }}
-            />
+            !isJoined ? (
+              <Button
+                label="Etkinlige Katil"
+                isLoading={joinMutation.isPending}
+                disabled={joinButtonDisabled}
+                className="bg-blue-600"
+                onPress={() => joinMutation.mutate()}
+              />
+            ) : null
           ) : !isCancelledEvent ? (
             <Button
               label="Etkinligi Sil"

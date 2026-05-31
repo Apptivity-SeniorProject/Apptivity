@@ -14,7 +14,9 @@ public sealed record EventSearchFilter(
     decimal? UserLat,
     decimal? UserLng,
     int? NearbyRadiusKm,
-    string? Sort);
+    string? Sort,
+    Guid RequesterAccountId,
+    bool IsRequesterAdmin);
 
 public interface IEventRepository
 {

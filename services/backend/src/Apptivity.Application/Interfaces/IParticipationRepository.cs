@@ -11,6 +11,8 @@ public interface IParticipationRepository
     Task<int> CountApprovedByEventAsync(Guid eventId, CancellationToken cancellationToken);
     Task<int> CountApprovedByUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<bool> HasApprovedParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken);
+    Task<bool> HasChatAccessParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Guid>> GetApprovedParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<Guid>> GetChatParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken);
     Task AddAsync(Participation entity, CancellationToken cancellationToken);
 }

@@ -58,7 +58,10 @@ public sealed class EventService : IEventService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, CancellationToken cancellationToken)
+    public async Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(
+        EventSearchRequest request,
+        UserContext userContext,
+        CancellationToken cancellationToken)
     {
         await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
@@ -81,7 +84,9 @@ public sealed class EventService : IEventService
             request.UserLat,
             request.UserLng,
             request.NearbyRadiusKm,
-            request.Sort);
+            request.Sort,
+            userContext.AccountId,
+            userContext.AccountType == AccountType.Admin);
 
         var (items, totalCount) = await _eventRepository.SearchAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
         var mapped = items
@@ -282,7 +287,17 @@ public sealed class EventService : IEventService
                 x.Event.Time,
                 x.Event.Status,
                 x.Status,
-                x.RejectionReason))
+                x.RejectionReason,
+                x.Event.BannerImage,
+                x.Event.LocationData,
+                x.Event.Price,
+                x.Event.Owner.Type == AccountType.Organization && x.Event.Owner.ClubProfile != null
+                    ? x.Event.Owner.ClubProfile.Name
+                    : x.Event.Owner.UserProfile != null
+                        ? x.Event.Owner.UserProfile.Name + " " + x.Event.Owner.UserProfile.Surname
+                        : x.Event.Owner.Username,
+                x.Event.Owner.Type,
+                x.Event.Owner.ProfilePhoto))
             .ToArray();
 
         return Result<PagedResult<MyParticipationDto>>.Success(new PagedResult<MyParticipationDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
@@ -1299,9 +1314,28 @@ public sealed class EventService : IEventService
 
     private static EventSummaryDto MapEventSummary(Event eventEntity)
     {
+        var owner = eventEntity.Owner;
+        var ownerName = "Organizator";
+        var ownerType = AccountType.Individual;
+        string? ownerProfilePhoto = null;
+
+        if (owner is not null)
+        {
+            ownerType = owner.Type;
+            ownerProfilePhoto = owner.ProfilePhoto;
+            ownerName = owner.Type == AccountType.Organization && owner.ClubProfile != null
+                ? owner.ClubProfile.Name
+                : owner.UserProfile != null
+                    ? owner.UserProfile.Name + " " + owner.UserProfile.Surname
+                    : owner.Username;
+        }
+
         return new EventSummaryDto(
             eventEntity.Id,
             eventEntity.OwnerId,
+            ownerName,
+            ownerType,
+            ownerProfilePhoto,
             eventEntity.PrimaryTagId,
             MapTags(eventEntity.Tags),
             eventEntity.Name,
@@ -1324,6 +1358,9 @@ public sealed class EventService : IEventService
         return new RecommendedEventSummaryDto(
             eventSummary.Id,
             eventSummary.OwnerId,
+            eventSummary.OwnerName,
+            eventSummary.OwnerType,
+            eventSummary.OwnerProfilePhoto,
             eventSummary.PrimaryTagId,
             eventSummary.Tags,
             eventSummary.Name,

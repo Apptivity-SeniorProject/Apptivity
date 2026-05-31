@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
+  KeyboardEvent,
   Platform,
   Text,
   TextInput,
@@ -14,9 +16,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { chatSignalRService, getEventMessages } from '@/src/api/chatService';
+import { getEventMessages, mapRawMessage, type RawMessageDto } from '@/src/api/chatService';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail } from '@/src/hooks/useEvents';
+import { useSignalR } from '@/src/hooks/useSignalR';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
 import type { MessageDto } from '@/src/types/chat';
@@ -35,16 +38,30 @@ function senderDisplayName(message: MessageDto, myAccountId?: string): string {
     return 'Sen';
   }
 
-  if (message.senderName) {
-    return message.senderName;
+  if (message.senderName?.trim()) {
+    return message.senderName.trim();
   }
 
-  return `Kullanici ${message.senderAccountId.slice(0, 6)}`;
+  return 'Kullanici';
 }
 
-export function EventChatScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
-  const eventId = params.id ?? '';
+function getInitials(value: string): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return '?';
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 1).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+export function ChatScreen() {
+  const params = useLocalSearchParams<{ id?: string; eventId?: string; joined?: string }>();
+  const eventId = params.eventId ?? params.id ?? '';
+  const joinedHint = params.joined === '1';
 
   const accessToken = useAuthStore((state) => state.accessToken);
   const myAccountId = useAuthStore((state) => state.user?.id);
@@ -53,30 +70,38 @@ export function EventChatScreen() {
   const clearUnread = useChatStore((state) => state.clearUnread);
   const incrementUnread = useChatStore((state) => state.incrementUnread);
 
+  const listRef = useRef<FlatList<MessageDto>>(null);
   const [inputValue, setInputValue] = useState('');
   const [liveMessages, setLiveMessages] = useState<MessageDto[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [composerHeight, setComposerHeight] = useState(76);
 
-  const eventDetailQuery = useEventDetail(eventId);
+  const eventDetailQuery = useEventDetail(eventId, {
+    refetchIntervalMs: 8000,
+  });
+  const isOwner = Boolean(
+    myAccountId &&
+      eventDetailQuery.data?.ownerId &&
+      myAccountId === eventDetailQuery.data.ownerId
+  );
   const isApprovedParticipant = eventDetailQuery.data?.currentUserParticipationStatus === 'Approved';
+  const canAccessChat = joinedHint || isOwner || isApprovedParticipant;
 
   const messagesQuery = useQuery({
     queryKey: ['chat-messages', eventId],
     queryFn: () => getEventMessages(eventId, 1, 50),
-    enabled: Boolean(eventId && isApprovedParticipant),
+    enabled: Boolean(eventId && canAccessChat),
     staleTime: 30000,
   });
 
-  useEffect(() => {
-    if (!eventId || !accessToken || !isApprovedParticipant) {
-      return;
-    }
+  const { connectionStatus, leaveEventRoom, stopConnection, sendMessageToRoom } = useSignalR<RawMessageDto>({
+    eventId,
+    accessToken,
+    enabled: Boolean(eventId && accessToken && canAccessChat),
+    onReceiveMessage: (payload) => {
+      const message = mapRawMessage(payload);
 
-    let disposed = false;
-    setActiveEvent(eventId);
-    clearUnread(eventId);
-
-    const unsubscribe = chatSignalRService.onReceiveMessage((message) => {
       if (message.eventId !== eventId) {
         incrementUnread(message.eventId);
         return;
@@ -88,41 +113,38 @@ export function EventChatScreen() {
         }
         return [...current, message];
       });
-      if (message.senderAccountId !== myAccountId) {
-        incrementUnread(eventId);
-      }
-    });
+    },
+  });
 
-    chatSignalRService
-      .startConnection(eventId, accessToken)
-      .catch((error: unknown) => {
-        if (!disposed) {
-          setConnectionError(getApiErrorMessage(error, 'Sohbet baglantisi kurulamadi.'));
-        }
-      });
+  useEffect(() => {
+    if (!eventId) {
+      return;
+    }
+
+    setActiveEvent(eventId);
+    clearUnread(eventId);
 
     return () => {
-      disposed = true;
-      unsubscribe();
       setActiveEvent(null);
-      chatSignalRService.stopConnection().catch(() => {
-        // ekran kapatilirken baglanti durdurma hatasi yutulur
-      });
+      void leaveEventRoom(eventId);
+      void stopConnection();
     };
-  }, [
-    accessToken,
-    clearUnread,
-    eventId,
-    incrementUnread,
-    isApprovedParticipant,
-    myAccountId,
-    setActiveEvent,
-  ]);
+  }, [clearUnread, eventId, leaveEventRoom, setActiveEvent, stopConnection]);
+
+  useEffect(() => {
+    if (connectionStatus === 'Disconnected' && eventId && accessToken && canAccessChat) {
+      setConnectionError('Sohbet baglantisi kesildi. Yeniden baglaniliyor.');
+      return;
+    }
+
+    setConnectionError(null);
+  }, [accessToken, canAccessChat, connectionStatus, eventId]);
 
   const allMessages = useMemo(() => {
     const apiItems = messagesQuery.data?.items ?? [];
     const merged = [...apiItems, ...liveMessages];
     const map = new Map<string, MessageDto>();
+
     merged.forEach((message) => {
       map.set(message.messageId, message);
     });
@@ -132,13 +154,50 @@ export function EventChatScreen() {
     );
   }, [liveMessages, messagesQuery.data?.items]);
 
+  useEffect(() => {
+    if (allMessages.length === 0) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [allMessages.length]);
+
+  useEffect(() => {
+    const handleKeyboardShow = (event: KeyboardEvent) => {
+      setKeyboardHeight(event.endCoordinates.height);
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      });
+    };
+
+    const handleKeyboardHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSub = Keyboard.addListener('keyboardDidShow', handleKeyboardShow);
+    const hideSub = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const sendMutation = useMutation({
-    mutationFn: (content: string) => chatSignalRService.sendMessage(eventId, content),
+    mutationFn: (content: string) => sendMessageToRoom(eventId, content),
     onSuccess: () => {
       setInputValue('');
+      clearUnread(eventId);
     },
     onError: (error) => {
-      setConnectionError(getApiErrorMessage(error, 'Mesaj gonderilemedi.'));
+      const message = getApiErrorMessage(error, 'Mesaj gonderilemedi.');
+      if (message.toLowerCase().includes('expired')) {
+        setConnectionError('Etkinlik sohbet suresi doldu (baslangictan 2 saat sonra kapanir).');
+        return;
+      }
+      setConnectionError(message);
     },
   });
 
@@ -152,11 +211,11 @@ export function EventChatScreen() {
     );
   }
 
-  if (!isApprovedParticipant) {
+  if (!canAccessChat) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-6">
         <Text className="text-center text-base text-slate-600">
-          Sohbete yalnizca onayli katilimcilar erisebilir.
+          Sohbete sadece etkinlik sahibi veya onayli katilimcilar erisebilir.
         </Text>
       </View>
     );
@@ -165,10 +224,7 @@ export function EventChatScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <Stack.Screen options={{ title: 'Etkinlik Sohbeti' }} />
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+      <View className="flex-1">
         {connectionError ? (
           <View className="mx-4 mt-3 rounded-xl bg-rose-100 px-3 py-2">
             <Text className="text-sm text-rose-700">{connectionError}</Text>
@@ -176,29 +232,66 @@ export function EventChatScreen() {
         ) : null}
 
         <FlatList
+          ref={listRef}
           className="flex-1 px-4 pt-4"
           data={allMessages}
           keyExtractor={(item) => item.messageId}
-          contentContainerClassName="gap-3 pb-4"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            gap: 12,
+            paddingBottom:
+              composerHeight + (Platform.OS === 'android' ? keyboardHeight : 0) + 12,
+          }}
+          onContentSizeChange={() => {
+            if (allMessages.length > 0) {
+              listRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
           renderItem={({ item }) => {
             const isMine = item.senderAccountId === myAccountId;
+            const name = senderDisplayName(item, myAccountId);
+            const bubbleClassName = isMine
+              ? 'max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2'
+              : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2';
+
             return (
               <View className={isMine ? 'items-end' : 'items-start'}>
-                <View
-                  className={
-                    isMine
-                      ? 'max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2'
-                      : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2'
-                  }>
-                  <Text className={isMine ? 'text-xs font-semibold text-emerald-100' : 'text-xs font-semibold text-slate-500'}>
-                    {senderDisplayName(item, myAccountId)}
-                  </Text>
-                  <Text className={isMine ? 'mt-1 text-sm text-white' : 'mt-1 text-sm text-slate-800'}>
-                    {item.content}
-                  </Text>
-                  <Text className={isMine ? 'mt-1 text-[11px] text-emerald-100' : 'mt-1 text-[11px] text-slate-400'}>
-                    {formatTimestamp(item.sentAtUtc)}
-                  </Text>
+                <View className={isMine ? '' : 'flex-row items-end gap-2'}>
+                  {!isMine ? (
+                    item.senderProfilePhoto ? (
+                      <Image
+                        source={{ uri: item.senderProfilePhoto }}
+                        style={{ width: 24, height: 24, borderRadius: 999 }}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View className="h-6 w-6 items-center justify-center rounded-full bg-slate-200">
+                        <Text className="text-[10px] font-semibold text-slate-700">
+                          {getInitials(name)}
+                        </Text>
+                      </View>
+                    )
+                  ) : null}
+
+                  <View className={bubbleClassName}>
+                    <Text
+                      className={
+                        isMine
+                          ? 'text-xs font-semibold text-emerald-100'
+                          : 'text-xs font-semibold text-slate-500'
+                      }>
+                      {name}
+                    </Text>
+                    <Text className={isMine ? 'mt-1 text-sm text-white' : 'mt-1 text-sm text-slate-800'}>
+                      {item.content}
+                    </Text>
+                    <Text
+                      className={
+                        isMine ? 'mt-1 text-[11px] text-emerald-100' : 'mt-1 text-[11px] text-slate-400'
+                      }>
+                      {formatTimestamp(item.sentAtUtc)}
+                    </Text>
+                  </View>
                 </View>
               </View>
             );
@@ -210,13 +303,23 @@ export function EventChatScreen() {
           }
         />
 
-        <View className="flex-row items-end gap-2 border-t border-slate-200 bg-white px-4 pb-4 pt-3">
+        <View
+          className="absolute inset-x-0 flex-row items-end gap-2 border-t border-slate-200 bg-white px-4 pb-4 pt-3"
+          style={{ bottom: Platform.OS === 'android' ? keyboardHeight : 0 }}
+          onLayout={(event) => {
+            setComposerHeight(event.nativeEvent.layout.height);
+          }}>
           <TextInput
             className="min-h-12 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
             placeholder="Mesaj yaz..."
             placeholderTextColor="#94A3B8"
             value={inputValue}
             onChangeText={setInputValue}
+            onFocus={() => {
+              requestAnimationFrame(() => {
+                listRef.current?.scrollToEnd({ animated: true });
+              });
+            }}
             multiline
             maxLength={500}
           />
@@ -224,11 +327,13 @@ export function EventChatScreen() {
             label="Gonder"
             className="h-12 px-4"
             isLoading={sendMutation.isPending}
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || connectionStatus !== 'Connected'}
             onPress={() => sendMutation.mutate(inputValue.trim())}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
+
+export { ChatScreen as EventChatScreen };

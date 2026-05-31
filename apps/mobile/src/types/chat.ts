@@ -3,6 +3,7 @@ export interface MessageDto {
   eventId: string;
   senderAccountId: string;
   senderName?: string;
+  senderProfilePhoto?: string;
   content: string;
   sentAtUtc: string;
 }

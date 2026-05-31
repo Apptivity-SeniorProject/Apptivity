@@ -35,6 +35,11 @@ interface UseEventsOptions {
   enabled?: boolean;
 }
 
+interface RealtimeQueryOptions {
+  enabled?: boolean;
+  refetchIntervalMs?: number;
+}
+
 const DEFAULT_PAGE_SIZE = 10;
 
 export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
@@ -136,11 +141,13 @@ export function useDailyRecommendedNext() {
   });
 }
 
-export function useEventDetail(eventId: string) {
+export function useEventDetail(eventId: string, options?: RealtimeQueryOptions) {
   return useQuery<EventDetail>({
     queryKey: ['event-detail', eventId],
     queryFn: () => getEventDetail(eventId),
-    enabled: Boolean(eventId),
+    enabled: options?.enabled ?? Boolean(eventId),
+    refetchInterval: options?.refetchIntervalMs,
+    refetchIntervalInBackground: false,
     staleTime: 120000,
     gcTime: 900000,
   });
@@ -165,10 +172,13 @@ export function useMyEvents(pageSize = 10) {
   });
 }
 
-export function useMyParticipations(pageSize = 10) {
+export function useMyParticipations(pageSize = 10, options?: RealtimeQueryOptions) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['my-participations', pageSize],
     queryFn: () => getMyParticipations(1, pageSize),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchIntervalMs,
+    refetchIntervalInBackground: false,
     staleTime: 120000,
     gcTime: 900000,
   });

@@ -79,12 +79,24 @@ function extractBannerImageUrl(description: string): string | undefined {
   return match?.[0];
 }
 
-function normalizeParticipationStatus(value?: string | null): ParticipationStatus | null {
-  if (!value || typeof value !== 'string') {
+function normalizeParticipationStatus(value?: string | number | null): ParticipationStatus | null {
+  if (value === null || value === undefined) {
     return null;
   }
 
-  const normalized = value.toLowerCase();
+  if (typeof value === 'number') {
+    if (value === 1) return 'Pending';
+    if (value === 2) return 'Approved';
+    if (value === 3) return 'Rejected';
+    if (value === 4) return 'Withdrawn';
+    return null;
+  }
+
+  const normalized = value.toLowerCase().trim();
+  if (normalized === '1') return 'Pending';
+  if (normalized === '2') return 'Approved';
+  if (normalized === '3') return 'Rejected';
+  if (normalized === '4') return 'Withdrawn';
   if (normalized === 'pending') return 'Pending';
   if (normalized === 'approved') return 'Approved';
   if (normalized === 'rejected') return 'Rejected';
@@ -97,7 +109,7 @@ function mapEventParticipant(
 ): EventParticipantProfileDto {
   return {
     ...participant,
-    status: normalizeParticipationStatus(participant.status as string | null),
+    status: normalizeParticipationStatus(participant.status as string | number | null),
   };
 }
 
@@ -119,7 +131,8 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     location,
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
-    organizerName: 'Organizator',
+    organizerName: dto.ownerName ?? 'Organizator',
+    organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
     bannerImageUrl,
     status: dto.status,
     remainingParticipationCount: dto.remainingParticipationCount,
@@ -132,23 +145,28 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
 }
 
 function mapMyParticipation(dto: MyParticipationDto): EventListItem {
+  const location = parseLocationData(dto.locationData);
+  const bannerImageUrl = dto.bannerImage ?? location.imageUrls?.[0] ?? undefined;
+
   return {
     id: dto.eventId,
     title: dto.eventName,
     description: dto.rejectionReason ?? '',
     date: dto.date,
     time: dto.time,
-    location: {},
-    price: 0,
-    isPaid: false,
-    organizerName: 'Organizator',
-    organizerProfilePhoto: undefined,
+    location,
+    price: Number(dto.price ?? 0),
+    isPaid: Number(dto.price ?? 0) > 0,
+    organizerName: dto.ownerName ?? 'Organizator',
+    organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
+    bannerImageUrl,
     status: dto.eventStatus,
     remainingParticipationCount: 0,
     capacity: 0,
     tags: [],
     participantCount: 0,
     currentUserParticipationStatus: normalizeParticipationStatus(dto.participationStatus),
+    imageUrls: location.imageUrls,
   };
 }
 
@@ -170,7 +188,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     price,
     isPaid: price > 0,
     organizerName: dto.ownerName ?? 'Organizator',
-    organizerType: dto.ownerType,
+    organizerType: dto.ownerType !== undefined && dto.ownerType !== null ? String(dto.ownerType) : undefined,
     organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
     bannerImageUrl: dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description),
     status: dto.status,
@@ -412,6 +430,26 @@ export async function withdrawFromEvent(eventId: string): Promise<ParticipationS
   const response = await apiClient.post<ApiEnvelope<ParticipationStatusDto>>(`/api/events/${eventId}/withdraw`);
   const payload = unwrapEnvelope(response.data);
   return normalizeParticipationStatus(payload.status) ?? 'Withdrawn';
+}
+
+export async function updateEventParticipationStatus(
+  eventId: string,
+  userId: string,
+  status: 'Approved' | 'Rejected',
+  rejectionReason?: string
+): Promise<ParticipationStatus> {
+  const statusCode = status === 'Approved' ? 2 : 3;
+
+  const response = await apiClient.patch<ApiEnvelope<ParticipationStatusDto>>(
+    `/api/events/${eventId}/participants/${userId}/status`,
+    {
+      status: statusCode,
+      rejectionReason: rejectionReason ?? null,
+    }
+  );
+
+  const payload = unwrapEnvelope(response.data);
+  return normalizeParticipationStatus(payload.status) ?? status;
 }
 
 export async function cancelEvent(eventId: string): Promise<void> {

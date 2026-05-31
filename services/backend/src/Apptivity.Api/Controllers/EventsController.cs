@@ -208,7 +208,16 @@ public sealed class EventsController : ApiControllerBase
             pageNumber,
             pageSize);
 
-        var result = await _eventService.SearchAsync(request, cancellationToken);
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var result = await _eventService.SearchAsync(request, context, cancellationToken);
         return FromResult(result);
     }
 
@@ -324,7 +333,7 @@ public sealed class EventsController : ApiControllerBase
     }
 
     [HttpPatch("{eventId:guid}/participants/{userId:guid}/status")]
-    [Authorize(Roles = "Organization,Admin")]
+    [Authorize]
     public async Task<IActionResult> UpdateParticipationStatus(
         Guid eventId,
         Guid userId,
@@ -475,6 +484,9 @@ public sealed class EventsController : ApiControllerBase
         var mappedItems = source.Items.Select(x => new RecommendedEventSummaryDto(
             x.Id,
             x.OwnerId,
+            x.OwnerName,
+            x.OwnerType,
+            x.OwnerProfilePhoto,
             x.PrimaryTagId,
             x.Tags,
             x.Name,

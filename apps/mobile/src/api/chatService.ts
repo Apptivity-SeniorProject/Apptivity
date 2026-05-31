@@ -1,30 +1,20 @@
-import {
-  HubConnection,
-  HubConnectionBuilder,
-  HttpTransportType,
-  LogLevel,
-} from '@microsoft/signalr';
-
 import { apiClient } from '@/src/api/apiClient';
-import { CHAT_HUB_URL } from '@/src/constants/env';
 import type { ApiEnvelope } from '@/src/types/api';
 import type { MessageDto } from '@/src/types/chat';
 import type { PagedResult } from '@/src/types/event';
 
-type ReceiveMessageHandler = (message: MessageDto) => void;
-
-const ENABLE_CHAT_LOGS = typeof __DEV__ !== 'undefined' && __DEV__;
-
-interface RawMessageDto {
+export interface RawMessageDto {
   messageId?: string;
   eventId?: string;
   senderAccountId?: string;
+  senderProfilePhoto?: string;
   content?: string;
   sentAtUtc?: string;
   senderName?: string;
   MessageId?: string;
   EventId?: string;
   SenderAccountId?: string;
+  SenderProfilePhoto?: string;
   Content?: string;
   SentAtUtc?: string;
   SenderName?: string;
@@ -38,95 +28,17 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
   throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
 }
 
-function mapMessage(raw: RawMessageDto): MessageDto {
+export function mapRawMessage(raw: RawMessageDto): MessageDto {
   return {
     messageId: raw.messageId ?? raw.MessageId ?? '',
     eventId: raw.eventId ?? raw.EventId ?? '',
     senderAccountId: raw.senderAccountId ?? raw.SenderAccountId ?? '',
     senderName: raw.senderName ?? raw.SenderName ?? undefined,
+    senderProfilePhoto: raw.senderProfilePhoto ?? raw.SenderProfilePhoto ?? undefined,
     content: raw.content ?? raw.Content ?? '',
     sentAtUtc: raw.sentAtUtc ?? raw.SentAtUtc ?? new Date().toISOString(),
   };
 }
-
-class ChatSignalRService {
-  private connection: HubConnection | null = null;
-  private connectedEventId: string | null = null;
-  private handlers = new Set<ReceiveMessageHandler>();
-
-  onReceiveMessage(handler: ReceiveMessageHandler): () => void {
-    this.handlers.add(handler);
-    return () => this.handlers.delete(handler);
-  }
-
-  private emitMessage(message: MessageDto): void {
-    this.handlers.forEach((handler) => {
-      handler(message);
-    });
-  }
-
-  async startConnection(eventId: string, token: string): Promise<void> {
-    if (this.connection && this.connectedEventId === eventId) {
-      return;
-    }
-
-    await this.stopConnection();
-    if (ENABLE_CHAT_LOGS) {
-      console.log('Attempting to connect to SignalR at:', CHAT_HUB_URL);
-    }
-
-    const connection = new HubConnectionBuilder()
-      .withUrl(CHAT_HUB_URL, {
-        accessTokenFactory: () => token,
-        transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Warning)
-      .build();
-
-    connection.on('ReceiveMessage', (payload: RawMessageDto) => {
-      this.emitMessage(mapMessage(payload));
-    });
-
-    await connection.start();
-    await connection.invoke('JoinEventChat', eventId);
-
-    this.connection = connection;
-    this.connectedEventId = eventId;
-  }
-
-  async stopConnection(): Promise<void> {
-    if (!this.connection) {
-      return;
-    }
-
-    const currentConnection = this.connection;
-    const currentEventId = this.connectedEventId;
-
-    this.connection = null;
-    this.connectedEventId = null;
-
-    try {
-      if (currentEventId) {
-        await currentConnection.invoke('LeaveEventChat', currentEventId);
-      }
-    } catch {
-      // baglanti kopmussa leave invoke hatasi yutulur
-    } finally {
-      await currentConnection.stop();
-    }
-  }
-
-  async sendMessage(eventId: string, content: string): Promise<void> {
-    if (!this.connection) {
-      throw new Error('Chat baglantisi yok.');
-    }
-
-    await this.connection.invoke('SendMessage', eventId, content);
-  }
-}
-
-export const chatSignalRService = new ChatSignalRService();
 
 export async function getEventMessages(
   eventId: string,
@@ -144,6 +56,6 @@ export async function getEventMessages(
 
   return {
     ...payload,
-    items: payload.items.map(mapMessage),
+    items: payload.items.map(mapRawMessage),
   };
 }

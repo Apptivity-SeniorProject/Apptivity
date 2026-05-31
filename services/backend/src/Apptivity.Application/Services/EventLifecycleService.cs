@@ -7,6 +7,7 @@ namespace Apptivity.Application.Services;
 public sealed class EventLifecycleService : IEventLifecycleService
 {
     private readonly IEventRepository _eventRepository;
+    private readonly IChatRepository _chatRepository;
     private readonly IParticipationRepository _participationRepository;
     private readonly INotificationService _notificationService;
     private readonly IEventReputationService _reputationService;
@@ -14,12 +15,14 @@ public sealed class EventLifecycleService : IEventLifecycleService
 
     public EventLifecycleService(
         IEventRepository eventRepository,
+        IChatRepository chatRepository,
         IParticipationRepository participationRepository,
         INotificationService notificationService,
         IEventReputationService reputationService,
         IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
+        _chatRepository = chatRepository;
         _participationRepository = participationRepository;
         _notificationService = notificationService;
         _reputationService = reputationService;
@@ -57,7 +60,10 @@ public sealed class EventLifecycleService : IEventLifecycleService
             }
         }
 
-        if (!hasChanges)
+        var purgedChatCount = await _chatRepository.PurgeExpiredEventChatsAsync(nowUtc, cancellationToken);
+        var hasChatChanges = purgedChatCount > 0;
+
+        if (!hasChanges && !hasChatChanges)
         {
             return;
         }

@@ -53,6 +53,9 @@ export interface PagedResult<T> {
 export interface EventSummaryDto {
   id: string;
   ownerId?: string;
+  ownerName?: string;
+  ownerType?: string | number;
+  ownerProfilePhoto?: string | null;
   primaryTagId?: string | null;
   tags?: EventTag[];
   name: string;
@@ -100,14 +103,14 @@ export interface DailyRecommendedNextResponseDto {
 export interface ApplyToEventResponseDto {
   eventId: string;
   userId: string;
-  status: ParticipationStatus;
+  status: ParticipationStatus | number | string;
   eventStatus: string;
 }
 
 export interface ParticipationStatusDto {
   eventId: string;
   userId: string;
-  status: ParticipationStatus;
+  status: ParticipationStatus | number | string;
   rejectionReason?: string | null;
   eventStatus: string;
 }
@@ -118,8 +121,14 @@ export interface MyParticipationDto {
   date: string;
   time: string;
   eventStatus: string;
-  participationStatus: ParticipationStatus;
+  participationStatus: ParticipationStatus | number | string;
   rejectionReason?: string | null;
+  bannerImage?: string | null;
+  locationData?: string | null;
+  price?: number;
+  ownerName?: string;
+  ownerType?: string | number;
+  ownerProfilePhoto?: string | null;
 }
 
 export type ParticipationStatus = 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn';
@@ -131,7 +140,7 @@ export interface EventParticipantProfileDto {
   username: string;
   profilePhoto?: string | null;
   displayName: string;
-  status?: ParticipationStatus | null;
+  status?: ParticipationStatus | number | string | null;
 }
 
 export interface EventParticipantsResponseDto {
@@ -161,7 +170,7 @@ export interface EventDetailsDto {
   price: number;
   locationData?: string | null;
   isBookmarkedByCurrentUser?: boolean;
-  currentUserParticipationStatus?: string | null;
+  currentUserParticipationStatus?: string | number | null;
 }
 
 export interface EventLocation {

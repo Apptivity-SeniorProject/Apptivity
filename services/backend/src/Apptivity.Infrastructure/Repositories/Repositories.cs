@@ -221,6 +221,10 @@ public sealed class EventRepository : IEventRepository
         var query = _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
             .Where(x => x.OwnerId == ownerId);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -240,7 +244,11 @@ public sealed class EventRepository : IEventRepository
             .AsNoTracking()
             .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved)
             .Select(x => x.Event)
-            .Include(x => x.Tags);
+            .Include(x => x.Tags)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -285,8 +293,16 @@ public sealed class EventRepository : IEventRepository
         var query = _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
             .Where(x =>
-                (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing || x.Status == EventStatus.Completed || x.Status == EventStatus.PendingApproval)
+                (x.Status == EventStatus.Published ||
+                 x.Status == EventStatus.Ongoing ||
+                 x.Status == EventStatus.Completed ||
+                 (x.Status == EventStatus.PendingApproval &&
+                  (filter.IsRequesterAdmin || x.OwnerId == filter.RequesterAccountId)))
                 && x.Owner.Status == AccountStatus.Active
                 && x.Owner.IsActive);
 
@@ -377,6 +393,10 @@ public sealed class EventRepository : IEventRepository
         var query = _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
             .Where(x =>
                 x.Status == EventStatus.Published &&
                 x.Owner.Status == AccountStatus.Active &&
@@ -422,6 +442,10 @@ public sealed class EventRepository : IEventRepository
         return await _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Owner)
+                .ThenInclude(o => o.ClubProfile)
             .Where(x => x.Id != eventId && x.PrimaryTagId == primaryTagId && x.Status == EventStatus.Published)
             .OrderByDescending(x => x.CreatedAt)
             .Take(count)
@@ -586,6 +610,13 @@ public sealed class ParticipationRepository : IParticipationRepository
         var query = _db.Participations
             .AsNoTracking()
             .Include(x => x.Event)
+                .ThenInclude(e => e.Owner)
+                    .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Event)
+                .ThenInclude(e => e.Owner)
+                    .ThenInclude(o => o.ClubProfile)
+            .Include(x => x.Event)
+                .ThenInclude(e => e.Tags)
             .Where(x => x.UserId == userId);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -617,11 +648,30 @@ public sealed class ParticipationRepository : IParticipationRepository
             .AnyAsync(x => x.UserId == userId && x.EventId == eventId && x.Status == ParticipationStatus.Approved, cancellationToken);
     }
 
+    public Task<bool> HasChatAccessParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return _db.Participations.AnyAsync(
+            x => x.UserId == userId &&
+                 x.EventId == eventId &&
+                 x.Status == ParticipationStatus.Approved,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Guid>> GetApprovedParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken)
     {
         return await _db.Participations
             .Where(x => x.EventId == eventId && x.Status == ParticipationStatus.Approved)
             .Select(x => x.UserId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Guid>> GetChatParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return await _db.Participations
+            .Where(x => x.EventId == eventId &&
+                        x.Status == ParticipationStatus.Approved)
+            .Select(x => x.UserId)
+            .Distinct()
             .ToListAsync(cancellationToken);
     }
 
@@ -634,6 +684,7 @@ public sealed class ParticipationRepository : IParticipationRepository
 public sealed class ChatRepository : IChatRepository
 {
     private readonly AppDbContext _db;
+    private static readonly TimeSpan ChatLifetimeAfterEventStart = TimeSpan.FromHours(2);
 
     public ChatRepository(AppDbContext db)
     {
@@ -669,6 +720,10 @@ public sealed class ChatRepository : IChatRepository
         var query = _db.Messages
             .AsNoTracking()
             .Include(x => x.Chat)
+            .Include(x => x.SenderAccount)
+                .ThenInclude(x => x.UserProfile)
+            .Include(x => x.SenderAccount)
+                .ThenInclude(x => x.ClubProfile)
             .Where(x => x.Chat.EventId == eventId);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -685,6 +740,95 @@ public sealed class ChatRepository : IChatRepository
     public async Task AddMessageAsync(Message message, CancellationToken cancellationToken)
     {
         await _db.Messages.AddAsync(message, cancellationToken);
+    }
+
+    public async Task<bool> IsEventChatExpiredAsync(Guid eventId, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var eventData = await _db.Events
+            .AsNoTracking()
+            .Where(x => x.Id == eventId)
+            .Select(x => new { x.Date, x.Time })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (eventData is null)
+        {
+            return false;
+        }
+
+        var expiresAtUtc = ToUtcDateTime(eventData.Date, eventData.Time).Add(ChatLifetimeAfterEventStart);
+        return expiresAtUtc <= nowUtc;
+    }
+
+    public async Task PurgeEventChatAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        var chat = await _db.Chats.FirstOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
+        if (chat is null)
+        {
+            return;
+        }
+
+        var messages = await _db.Messages
+            .Where(x => x.ChatId == chat.Id)
+            .ToListAsync(cancellationToken);
+
+        if (messages.Count > 0)
+        {
+            _db.Messages.RemoveRange(messages);
+        }
+
+        _db.Chats.Remove(chat);
+    }
+
+    public async Task<int> PurgeExpiredEventChatsAsync(DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var chatCandidates = await _db.Chats
+            .AsNoTracking()
+            .Include(x => x.Event)
+            .Select(x => new
+            {
+                x.Id,
+                x.EventId,
+                x.Event.Date,
+                x.Event.Time
+            })
+            .ToListAsync(cancellationToken);
+
+        var expiredChatIds = chatCandidates
+            .Where(x => ToUtcDateTime(x.Date, x.Time).Add(ChatLifetimeAfterEventStart) <= nowUtc)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToArray();
+
+        if (expiredChatIds.Length == 0)
+        {
+            return 0;
+        }
+
+        var messages = await _db.Messages
+            .Where(x => expiredChatIds.Contains(x.ChatId))
+            .ToListAsync(cancellationToken);
+
+        if (messages.Count > 0)
+        {
+            _db.Messages.RemoveRange(messages);
+        }
+
+        var chats = await _db.Chats
+            .Where(x => expiredChatIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        if (chats.Count > 0)
+        {
+            _db.Chats.RemoveRange(chats);
+        }
+
+        return chats.Count;
+    }
+
+    private static DateTime ToUtcDateTime(DateOnly date, TimeOnly time)
+    {
+        var localDateTime = date.ToDateTime(time, DateTimeKind.Utc);
+        return DateTime.SpecifyKind(localDateTime, DateTimeKind.Utc);
     }
 }
 
@@ -1094,6 +1238,12 @@ public sealed class EventBookmarkRepository : IEventBookmarkRepository
             .AsNoTracking()
             .Include(x => x.Event)
                 .ThenInclude(e => e.Tags)
+            .Include(x => x.Event)
+                .ThenInclude(e => e.Owner)
+                    .ThenInclude(o => o.UserProfile)
+            .Include(x => x.Event)
+                .ThenInclude(e => e.Owner)
+                    .ThenInclude(o => o.ClubProfile)
             .Where(x => x.AccountId == accountId);
 
         var totalCount = await query.CountAsync(cancellationToken);

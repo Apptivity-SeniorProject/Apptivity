@@ -25,6 +25,9 @@ public sealed record EventSearchRequest(
 public sealed record EventSummaryDto(
     Guid Id,
     Guid OwnerId,
+    string OwnerName,
+    AccountType OwnerType,
+    string? OwnerProfilePhoto,
     Guid? PrimaryTagId,
     IReadOnlyCollection<TagDto> Tags,
     string Name,
@@ -42,6 +45,9 @@ public sealed record EventSummaryDto(
 public sealed record RecommendedEventSummaryDto(
     Guid Id,
     Guid OwnerId,
+    string OwnerName,
+    AccountType OwnerType,
+    string? OwnerProfilePhoto,
     Guid? PrimaryTagId,
     IReadOnlyCollection<TagDto> Tags,
     string Name,
@@ -98,7 +104,13 @@ public sealed record MyParticipationDto(
     TimeOnly Time,
     EventStatus EventStatus,
     ParticipationStatus ParticipationStatus,
-    string? RejectionReason);
+    string? RejectionReason,
+    string? BannerImage,
+    string? LocationData,
+    decimal Price,
+    string OwnerName,
+    AccountType OwnerType,
+    string? OwnerProfilePhoto);
 
 public sealed record EventParticipantProfileDto(
     Guid AccountId,
@@ -167,7 +179,7 @@ public sealed record EventDetailsDto(
 
 public interface IEventService
 {
-    Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, CancellationToken cancellationToken);
+    Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<ApplyToEventResponse>> ApplyToEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<ParticipationStatusDto>> UpdateParticipationStatusAsync(Guid eventId, Guid userId, ManageParticipationStatusRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<ParticipationStatusDto>> WithdrawAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);

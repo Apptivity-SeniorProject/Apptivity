@@ -1,2 +1,2 @@
-export { EventChatScreen as default } from '@/src/components/screens/event-chat-screen';
+export { ChatScreen as default } from '@/src/components/screens/event-chat-screen';
 

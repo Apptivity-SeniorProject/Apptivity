@@ -7,6 +7,8 @@ public sealed record ChatMessageDto(
     Guid MessageId,
     Guid EventId,
     Guid SenderAccountId,
+    string SenderName,
+    string? SenderProfilePhoto,
     string Content,
     DateTime SentAtUtc);
 

@@ -21,15 +21,15 @@ import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/us
 import { useMyProfile, useProfileStats, useSetMyInterests } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
 import { useToast } from '@/src/hooks/useToast';
-import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventListItem } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { cn } from '@/src/utils/cn';
 
-type ProfileTab = 'my-events' | 'my-participations' | 'my-bookmarks' | 'my-cancelled';
+type ProfileTab = 'my-events' | 'my-pending' | 'my-participations' | 'my-bookmarks' | 'my-cancelled';
 
 const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'my-events', label: 'Etkinliklerim' },
+  { key: 'my-pending', label: 'Onayda' },
   { key: 'my-participations', label: 'Katıldıklarım' },
   { key: 'my-bookmarks', label: 'Beğendiklerim' },
   { key: 'my-cancelled', label: 'İptal Ettiklerim' },
@@ -50,6 +50,11 @@ function isRejectedStatus(status?: string | number | null): boolean {
 function isHiddenFromActiveTabs(status?: string | number | null): boolean {
   return isCancelledStatus(status) || isRejectedStatus(status);
 }
+function isPendingApprovalStatus(status?: string | number | null): boolean {
+  if (typeof status === 'string') return status.toLowerCase() === 'pendingapproval';
+  if (typeof status === 'number') return status === 6;
+  return false;
+}
 
 function getDisplayName(username: string, name?: string, surname?: string): string {
   const fullName = [name, surname].filter(Boolean).join(' ').trim();
@@ -65,6 +70,7 @@ function getInitials(displayName: string): string {
 
 function getEmptyStateText(tab: ProfileTab): string {
   if (tab === 'my-events') return 'Henüz oluşturduğun etkinlik yok.';
+  if (tab === 'my-pending') return 'Onay bekleyen etkinliğin yok.';
   if (tab === 'my-participations') return 'Katılım kaydın bulunmuyor.';
   if (tab === 'my-cancelled') return 'İptal edilen etkinlik bulunmuyor.';
   return 'Beğendiğin etkinlik bulunmuyor.';
@@ -83,7 +89,7 @@ export function ProfileScreen() {
 
   const statsQuery = useProfileStats(profile?.accountId);
   const myEventsQuery = useMyEvents(20);
-  const myParticipationsQuery = useMyParticipations(20);
+  const myParticipationsQuery = useMyParticipations(20, { refetchIntervalMs: 10000 });
   const myBookmarksQuery = useMyBookmarks(20);
   const tagsQuery = useTags();
   const setInterestsMutation = useSetMyInterests();
@@ -117,7 +123,12 @@ export function ProfileScreen() {
 
   const activeItems = useMemo<EventListItem[]>(() => {
     if (activeTab === 'my-events') {
-      return (myEventsQuery.data?.items ?? []).filter((item) => !isHiddenFromActiveTabs(item.status));
+      return (myEventsQuery.data?.items ?? []).filter(
+        (item) => !isHiddenFromActiveTabs(item.status) && !isPendingApprovalStatus(item.status)
+      );
+    }
+    if (activeTab === 'my-pending') {
+      return (myEventsQuery.data?.items ?? []).filter((item) => isPendingApprovalStatus(item.status));
     }
     if (activeTab === 'my-participations') {
       return (myParticipationsQuery.data?.items ?? []).filter((item) => !isHiddenFromActiveTabs(item.status));
