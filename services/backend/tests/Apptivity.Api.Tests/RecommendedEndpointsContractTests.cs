@@ -198,7 +198,7 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
         public Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken)
             => Task.FromResult(Result<IEnumerable<EventSummaryDto>>.Failure("TEST_001", "Not implemented."));
 
-        public Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, CancellationToken cancellationToken)
+        public Task<Result<PagedResult<EventSummaryDto>>> SearchAsync(EventSearchRequest request, UserContext userContext, CancellationToken cancellationToken)
             => Task.FromResult(Result<PagedResult<EventSummaryDto>>.Failure("TEST_001", "Not implemented."));
 
         public Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
