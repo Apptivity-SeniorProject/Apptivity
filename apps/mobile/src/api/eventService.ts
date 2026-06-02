@@ -442,7 +442,7 @@ export async function updateEventParticipationStatus(
 ): Promise<ParticipationStatus> {
   const statusCode = status === 'Approved' ? 2 : 3;
 
-  const response = await apiClient.patch<ApiEnvelope<ParticipationStatusDto>>(
+  const response = await apiClient.post<ApiEnvelope<ParticipationStatusDto>>(
     `/api/events/${eventId}/participants/${userId}/status`,
     {
       status: statusCode,

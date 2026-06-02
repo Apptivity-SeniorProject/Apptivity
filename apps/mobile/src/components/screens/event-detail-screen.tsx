@@ -2,15 +2,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CalendarDays, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
+import { ArrowLeft, CalendarDays, ChevronRight, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { applyToEvent, cancelEvent, updateEventParticipationStatus } from '@/src/api/eventService';
+import { applyToEvent, cancelEvent } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
-import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
+import { useEventDetail } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
@@ -99,7 +99,7 @@ export function EventDetailScreen() {
   const { data, isPending } = useEventDetail(eventId, {
     refetchIntervalMs: 8000,
   });
-  const participantsQuery = useEventParticipants(eventId);
+
 
   const joinMutation = useMutation({
     mutationFn: () => applyToEvent(eventId),
@@ -160,25 +160,7 @@ export function EventDetailScreen() {
     },
   });
 
-  const reviewParticipationMutation = useMutation({
-    mutationFn: ({
-      accountId,
-      status,
-    }: {
-      accountId: string;
-      status: 'Approved' | 'Rejected';
-    }) => updateEventParticipationStatus(eventId, accountId, status),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] }),
-        queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
-        queryClient.invalidateQueries({ queryKey: ['my-participations'] }),
-      ]);
-    },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Katilim durumu guncellenemedi.'));
-    },
-  });
+
 
   if (isPending) {
     return (
@@ -209,12 +191,7 @@ export function EventDetailScreen() {
     data.currentUserParticipationStatus === 'Approved';
   const isApprovedParticipant = data.currentUserParticipationStatus === 'Approved';
   const canOpenChat = isOwner || isApprovedParticipant;
-  const approvedParticipants = participantsQuery.data?.participants.filter(
-    (participant) => participant.status === 'Approved'
-  ) ?? [];
-  const pendingParticipants = participantsQuery.data?.participants.filter(
-    (participant) => participant.status === 'Pending'
-  ) ?? [];
+
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
@@ -329,64 +306,29 @@ export function EventDetailScreen() {
             ) : null}
           </View>
 
-          <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-base font-semibold text-slate-900">Katilim Durumlari</Text>
-            <View className="mt-3 flex-row gap-2">
-              <View className="rounded-full bg-emerald-100 px-3 py-1">
-                <Text className="text-xs font-semibold text-emerald-700">
-                  Approved: {approvedParticipants.length}
-                </Text>
+          <Pressable
+            className="flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-4"
+            onPress={() =>
+              router.push({
+                pathname: '/event/[id]/participants' as const,
+                params: { id: eventId },
+              } as never)
+            }>
+            <View className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                <Users size={18} color="#2563eb" />
               </View>
-              <View className="rounded-full bg-amber-100 px-3 py-1">
-                <Text className="text-xs font-semibold text-amber-700">
-                  Pending: {pendingParticipants.length}
+              <View>
+                <Text className="text-base font-semibold text-slate-900">
+                  {isOwner ? 'Katilimci Yonetimi' : 'Katilimcilar'}
+                </Text>
+                <Text className="text-xs text-slate-500">
+                  {data.participantCount}/{data.capacity} katilimci
                 </Text>
               </View>
             </View>
-            <View className="mt-3 gap-2">
-              {(participantsQuery.data?.participants ?? []).slice(0, 6).map((participant) => (
-                <View
-                  key={participant.accountId}
-                  className="flex-row items-center justify-between rounded-xl bg-slate-100 px-3 py-2">
-                  <View className="flex-1 pr-3">
-                    <Text className="text-sm text-slate-800">{participant.displayName}</Text>
-                    <Text className="text-xs font-semibold text-slate-600">
-                      {participant.status ?? 'N/A'}
-                    </Text>
-                  </View>
-                  {isOwner && participant.status === 'Pending' ? (
-                    <View className="flex-row items-center gap-2">
-                      <Pressable
-                        className="rounded-lg bg-emerald-600 px-3 py-1.5"
-                        disabled={reviewParticipationMutation.isPending}
-                        onPress={() =>
-                          reviewParticipationMutation.mutate({
-                            accountId: participant.accountId,
-                            status: 'Approved',
-                          })
-                        }>
-                        <Text className="text-xs font-semibold text-white">Onayla</Text>
-                      </Pressable>
-                      <Pressable
-                        className="rounded-lg bg-rose-600 px-3 py-1.5"
-                        disabled={reviewParticipationMutation.isPending}
-                        onPress={() =>
-                          reviewParticipationMutation.mutate({
-                            accountId: participant.accountId,
-                            status: 'Rejected',
-                          })
-                        }>
-                        <Text className="text-xs font-semibold text-white">Reddet</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-              {(participantsQuery.data?.participants ?? []).length === 0 ? (
-                <Text className="text-xs text-slate-500">Henuz katilimci bulunmuyor.</Text>
-              ) : null}
-            </View>
-          </View>
+            <ChevronRight size={20} color="#94a3b8" />
+          </Pressable>
 
           {!isOwner ? (
             !isJoined ? (

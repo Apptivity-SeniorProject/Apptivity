@@ -156,11 +156,6 @@ public sealed class EventService : IEventService
             return Result<ParticipationStatusDto>.Failure(ErrorCodes.Validation, "Status must be Approved or Rejected.");
         }
 
-        if (request.Status == ParticipationStatus.Rejected && string.IsNullOrWhiteSpace(request.RejectionReason))
-        {
-            return Result<ParticipationStatusDto>.Failure(ErrorCodes.Validation, "Rejection reason is required when rejecting a participation.");
-        }
-
         await _eventLifecycleService.ProcessTransitionsAndNotifyAsync(cancellationToken);
 
         var participation = await _participationRepository.GetByEventAndUserAsync(eventId, userId, cancellationToken);

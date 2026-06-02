@@ -332,7 +332,7 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
-    [HttpPatch("{eventId:guid}/participants/{userId:guid}/status")]
+    [HttpPost("{eventId:guid}/participants/{userId:guid}/status")]
     [Authorize]
     public async Task<IActionResult> UpdateParticipationStatus(
         Guid eventId,
