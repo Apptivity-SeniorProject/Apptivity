@@ -16,6 +16,7 @@ import {
   getMyParticipations,
   getRecommendedEvents,
   getDailyRecommendedNext,
+  toggleEventBookmark,
 } from '@/src/api/eventService';
 import {
   getCurrentRecommendationCoordinates,
@@ -190,5 +191,11 @@ export function useMyBookmarks(pageSize = 10) {
     queryFn: () => getMyBookmarks(1, pageSize),
     staleTime: 120000,
     gcTime: 900000,
+  });
+}
+
+export function useToggleEventBookmark() {
+  return useMutation({
+    mutationFn: (eventId: string) => toggleEventBookmark(eventId),
   });
 }

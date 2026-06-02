@@ -1506,14 +1506,8 @@ public sealed class EventService : IEventService
     private static bool IsActiveEvent(Event eventEntity, DateTime nowUtc)
     {
         var startUtc = eventEntity.Date.ToDateTime(eventEntity.Time, DateTimeKind.Utc);
-        var endUtc = startUtc.AddMinutes(eventEntity.DurationMinutes);
 
-        return eventEntity.Status switch
-        {
-            EventStatus.Published => startUtc >= nowUtc,
-            EventStatus.Ongoing => startUtc <= nowUtc && nowUtc < endUtc,
-            _ => false
-        };
+        return eventEntity.Status == EventStatus.Published && startUtc >= nowUtc;
     }
 
     private static bool TryGetMinimumDistanceKm(

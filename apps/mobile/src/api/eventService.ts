@@ -198,6 +198,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     durationMinutes: dto.durationMinutes,
     primaryTagName: dto.primaryTagName ?? undefined,
     currentUserParticipationStatus: participationStatus,
+    isBookmarkedByCurrentUser: dto.isBookmarkedByCurrentUser ?? false,
     isPast: eventDateTime.getTime() < Date.now(),
     isFull: dto.remainingParticipationCount <= 0,
     imageUrls: location.imageUrls,
@@ -458,6 +459,13 @@ export async function cancelEvent(eventId: string): Promise<void> {
   const response = await apiClient.delete<ApiEnvelope<EventSummaryDto>>(`/api/events/${eventId}`);
   if (!response.data.isSuccess) {
     throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik silinemedi.');
+  }
+}
+
+export async function toggleEventBookmark(eventId: string): Promise<void> {
+  const response = await apiClient.post<ApiEnvelope<null>>(`/api/events/${eventId}/bookmark`);
+  if (!response.data.isSuccess) {
+    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik begeni durumu guncellenemedi.');
   }
 }
 

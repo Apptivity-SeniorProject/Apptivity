@@ -2,12 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CalendarDays, ChevronRight, Clock3, Flag, MapPin, MessageCircle, Users } from 'lucide-react-native';
+import { ArrowLeft, CalendarDays, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { applyToEvent, cancelEvent } from '@/src/api/eventService';
+import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useEventDetail } from '@/src/hooks/useEvents';
@@ -160,6 +160,36 @@ export function EventDetailScreen() {
     },
   });
 
+  const bookmarkMutation = useMutation({
+    mutationFn: () => toggleEventBookmark(eventId),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['event-detail', eventId] });
+      const previous = queryClient.getQueryData<EventDetail>(['event-detail', eventId]);
+
+      if (previous) {
+        queryClient.setQueryData<EventDetail>(['event-detail', eventId], {
+          ...previous,
+          isBookmarkedByCurrentUser: !previous.isBookmarkedByCurrentUser,
+        });
+      }
+
+      return { previous };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['event-detail', eventId], context.previous);
+      }
+
+      toast.error(getApiErrorMessage(error, 'Begeni durumu guncellenemedi.'));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['my-bookmarks'] });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] });
+    },
+  });
+
 
 
   if (isPending) {
@@ -191,6 +221,7 @@ export function EventDetailScreen() {
     data.currentUserParticipationStatus === 'Approved';
   const isApprovedParticipant = data.currentUserParticipationStatus === 'Approved';
   const canOpenChat = isOwner || isApprovedParticipant;
+  const isBookmarked = Boolean(data.isBookmarkedByCurrentUser);
 
 
   return (
@@ -237,6 +268,16 @@ export function EventDetailScreen() {
                     ) : null}
                   </Pressable>
                 ) : null}
+                <Pressable
+                  className="h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white"
+                  disabled={bookmarkMutation.isPending}
+                  onPress={() => bookmarkMutation.mutate()}>
+                  <Heart
+                    size={18}
+                    color={isBookmarked ? '#ef4444' : '#0f172a'}
+                    fill={isBookmarked ? '#ef4444' : 'transparent'}
+                  />
+                </Pressable>
                 {!isOwner ? (
                   <Pressable
                     className="h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white"

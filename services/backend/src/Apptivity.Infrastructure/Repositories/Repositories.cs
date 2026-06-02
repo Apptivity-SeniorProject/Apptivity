@@ -179,7 +179,7 @@ public sealed class EventRepository : IEventRepository
         return _db.Events
             .Include(x => x.PrimaryTag)
             .Include(x => x.Tags)
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == eventId && !x.IsDeleted, cancellationToken);
     }
 
     public IQueryable<Event> Query()
@@ -193,7 +193,7 @@ public sealed class EventRepository : IEventRepository
             .Include(x => x.Owner)
             .Include(x => x.PrimaryTag)
             .Include(x => x.Tags)
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == eventId && !x.IsDeleted, cancellationToken);
     }
 
     public Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
@@ -208,12 +208,12 @@ public sealed class EventRepository : IEventRepository
             .Include(x => x.Participations)
                 .ThenInclude(p => p.User)
                     .ThenInclude(u => u.Account)
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == eventId && !x.IsDeleted, cancellationToken);
     }
 
     public Task<int> CountByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken)
     {
-        return _db.Events.CountAsync(x => x.OwnerId == ownerId, cancellationToken);
+        return _db.Events.CountAsync(x => x.OwnerId == ownerId && !x.IsDeleted, cancellationToken);
     }
 
     public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken)
@@ -225,7 +225,7 @@ public sealed class EventRepository : IEventRepository
                 .ThenInclude(o => o.UserProfile)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
-            .Where(x => x.OwnerId == ownerId);
+            .Where(x => x.OwnerId == ownerId && !x.IsDeleted);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -242,7 +242,7 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Participations
             .AsNoTracking()
-            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved)
+            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved && !x.Event.IsDeleted)
             .Select(x => x.Event)
             .Include(x => x.Tags)
             .Include(x => x.Owner)
@@ -271,6 +271,7 @@ public sealed class EventRepository : IEventRepository
             .Include(x => x.Tags)
             .Where(x =>
                 (x.Status == EventStatus.Published || x.Status == EventStatus.Ongoing) &&
+                !x.IsDeleted &&
                 x.Owner.Status == AccountStatus.Active &&
                 x.Owner.IsActive)
             .ToListAsync(cancellationToken);
@@ -290,6 +291,10 @@ public sealed class EventRepository : IEventRepository
 
     public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> SearchAsync(EventSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
+        var nowUtc = DateTime.UtcNow;
+        var todayUtc = DateOnly.FromDateTime(nowUtc);
+        var currentTimeUtc = TimeOnly.FromDateTime(nowUtc);
+
         var query = _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
@@ -298,13 +303,11 @@ public sealed class EventRepository : IEventRepository
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
             .Where(x =>
-                (x.Status == EventStatus.Published ||
-                 x.Status == EventStatus.Ongoing ||
-                 x.Status == EventStatus.Completed ||
-                 (x.Status == EventStatus.PendingApproval &&
-                  (filter.IsRequesterAdmin || x.OwnerId == filter.RequesterAccountId)))
-                && x.Owner.Status == AccountStatus.Active
-                && x.Owner.IsActive);
+                x.Status == EventStatus.Published &&
+                !x.IsDeleted &&
+                (x.Date > todayUtc || (x.Date == todayUtc && x.Time >= currentTimeUtc)) &&
+                x.Owner.Status == AccountStatus.Active &&
+                x.Owner.IsActive);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
@@ -390,6 +393,10 @@ public sealed class EventRepository : IEventRepository
             return (Array.Empty<Event>(), 0);
         }
 
+        var nowUtc = DateTime.UtcNow;
+        var todayUtc = DateOnly.FromDateTime(nowUtc);
+        var currentTimeUtc = TimeOnly.FromDateTime(nowUtc);
+
         var query = _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
@@ -399,6 +406,8 @@ public sealed class EventRepository : IEventRepository
                 .ThenInclude(o => o.ClubProfile)
             .Where(x =>
                 x.Status == EventStatus.Published &&
+                !x.IsDeleted &&
+                (x.Date > todayUtc || (x.Date == todayUtc && x.Time >= currentTimeUtc)) &&
                 x.Owner.Status == AccountStatus.Active &&
                 x.Owner.IsActive &&
                 x.Tags.Any(tag => normalizedTagIds.Contains(tag.Id)));
@@ -439,6 +448,10 @@ public sealed class EventRepository : IEventRepository
 
     public async Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken)
     {
+        var nowUtc = DateTime.UtcNow;
+        var todayUtc = DateOnly.FromDateTime(nowUtc);
+        var currentTimeUtc = TimeOnly.FromDateTime(nowUtc);
+
         return await _db.Events
             .AsNoTracking()
             .Include(x => x.Tags)
@@ -446,7 +459,12 @@ public sealed class EventRepository : IEventRepository
                 .ThenInclude(o => o.UserProfile)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
-            .Where(x => x.Id != eventId && x.PrimaryTagId == primaryTagId && x.Status == EventStatus.Published)
+            .Where(x =>
+                x.Id != eventId &&
+                x.PrimaryTagId == primaryTagId &&
+                x.Status == EventStatus.Published &&
+                !x.IsDeleted &&
+                (x.Date > todayUtc || (x.Date == todayUtc && x.Time >= currentTimeUtc)))
             .OrderByDescending(x => x.CreatedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
@@ -645,7 +663,7 @@ public sealed class ParticipationRepository : IParticipationRepository
                     .ThenInclude(o => o.ClubProfile)
             .Include(x => x.Event)
                 .ThenInclude(e => e.Tags)
-            .Where(x => x.UserId == userId);
+            .Where(x => x.UserId == userId && !x.Event.IsDeleted);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -1272,7 +1290,7 @@ public sealed class EventBookmarkRepository : IEventBookmarkRepository
             .Include(x => x.Event)
                 .ThenInclude(e => e.Owner)
                     .ThenInclude(o => o.ClubProfile)
-            .Where(x => x.AccountId == accountId);
+            .Where(x => x.AccountId == accountId && !x.Event.IsDeleted);
 
         var totalCount = await query.CountAsync(cancellationToken);
 

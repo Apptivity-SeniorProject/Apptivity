@@ -100,8 +100,6 @@ export function ProfileScreen() {
     : '';
   const initials = getInitials(displayName || profile?.username || 'U');
 
-  const reviewCount = statsQuery.data?.totalReviews ?? 0;
-  
   const rawScore = statsQuery.data?.reputationScore ?? 0;
   const repLevelName = statsQuery.data?.reputationLevel ?? 'Yeni'; 
 
@@ -275,13 +273,6 @@ export function ProfileScreen() {
               {myParticipationsQuery.data?.totalCount ?? 0}
             </Text>
             <Text className="text-[11px] text-gray-500">Katılım</Text>
-          </View>
-          <View className="flex-1 bg-gray-50 rounded-xl px-2 py-3 items-center border border-gray-200">
-            <IconSymbol name="bubble.left.and.bubble.right.fill" size={16} color="#77e349" />
-            <Text className="text-[22px] font-semibold text-gray-900 mt-1 mb-1 leading-none">
-              {reviewCount}
-            </Text>
-            <Text className="text-[11px] text-gray-500">Yorum</Text>
           </View>
         </View>
       </View>

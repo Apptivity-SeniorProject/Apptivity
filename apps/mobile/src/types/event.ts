@@ -226,6 +226,7 @@ export interface EventDetail {
   durationMinutes: number;
   primaryTagName?: string;
   currentUserParticipationStatus?: ParticipationStatus | null;
+  isBookmarkedByCurrentUser?: boolean;
   isPast: boolean;
   isFull: boolean;
   imageUrls?: string[];
