@@ -54,18 +54,30 @@ public sealed record AdminEventsFilterRequest(
 
 public sealed record ReportsFilterRequest(
     ReportStatus? Status,
+    string? OrganizationQuery,
+    string? UserQuery,
+    string? EventQuery,
     int PageNumber = 1,
     int PageSize = 20);
 
 public sealed record AdminReportDto(
     Guid ReportId,
     Guid ReporterId,
+    string ReporterUsername,
     Guid TargetId,
     ReportTargetType TargetType,
     ReportReasonCategory ReasonCategory,
     string Description,
+    string? EvidenceImageUrl,
     ReportStatus Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    Guid? EventId,
+    string? EventName,
+    Guid? RelatedAccountId,
+    AccountType? RelatedAccountType,
+    string? RelatedUsername,
+    string? RelatedUserFullName,
+    string? RelatedOrganizationName);
 
 public interface IAdminService
 {

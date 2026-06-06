@@ -15,6 +15,7 @@ public sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.Property(x => x.TargetType).HasConversion<int>().IsRequired();
         builder.Property(x => x.ReasonCategory).HasConversion<int>().IsRequired();
         builder.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+        builder.Property(x => x.EvidenceImageUrl).HasMaxLength(1000);
         builder.Property(x => x.Status).HasConversion<int>().IsRequired();
 
         builder.HasOne(x => x.Reporter)

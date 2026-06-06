@@ -1136,22 +1136,115 @@ public sealed class AdminRepository : IAdminRepository
         return _db.Accounts.FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
     }
 
-    public async Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(
-        ReportStatus? status,
+    public async Task<(IReadOnlyCollection<AdminReportListItem> Items, int TotalCount)> GetReportsAsync(
+        AdminReportFilter filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var query = _db.Reports.AsNoTracking();
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(x => x.Status == status.Value);
+            query = query.Where(x => x.Status == filter.Status.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(x => x.CreatedAt)
+        query = query.OrderByDescending(x => x.CreatedAt);
+
+        var projected = query.Select(x => new AdminReportListItem(
+            x,
+            _db.Accounts
+                .IgnoreQueryFilters()
+                .Where(a => a.Id == x.ReporterId)
+                .Select(a => a.Username)
+                .FirstOrDefault() ?? string.Empty,
+            x.TargetType == ReportTargetType.Event ? x.TargetId : (Guid?)null,
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => e.Name)
+                    .FirstOrDefault()
+                : null,
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => (Guid?)e.OwnerId)
+                    .FirstOrDefault()
+                : x.TargetId,
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => (AccountType?)e.Owner.Type)
+                    .FirstOrDefault()
+                : _db.Accounts
+                    .IgnoreQueryFilters()
+                    .Where(a => a.Id == x.TargetId)
+                    .Select(a => (AccountType?)a.Type)
+                    .FirstOrDefault(),
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => e.Owner.Username)
+                    .FirstOrDefault()
+                : _db.Accounts
+                    .IgnoreQueryFilters()
+                    .Where(a => a.Id == x.TargetId)
+                    .Select(a => a.Username)
+                    .FirstOrDefault(),
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => e.Owner.UserProfile != null ? e.Owner.UserProfile.Name + " " + e.Owner.UserProfile.Surname : null)
+                    .FirstOrDefault()
+                : _db.Accounts
+                    .IgnoreQueryFilters()
+                    .Where(a => a.Id == x.TargetId)
+                    .Select(a => a.UserProfile != null ? a.UserProfile.Name + " " + a.UserProfile.Surname : null)
+                    .FirstOrDefault(),
+            x.TargetType == ReportTargetType.Event
+                ? _db.Events
+                    .IgnoreQueryFilters()
+                    .Where(e => e.Id == x.TargetId)
+                    .Select(e => e.Owner.ClubProfile != null ? e.Owner.ClubProfile.Name : null)
+                    .FirstOrDefault()
+                : _db.Accounts
+                    .IgnoreQueryFilters()
+                    .Where(a => a.Id == x.TargetId)
+                    .Select(a => a.ClubProfile != null ? a.ClubProfile.Name : null)
+                    .FirstOrDefault()));
+
+        if (!string.IsNullOrWhiteSpace(filter.OrganizationQuery))
+        {
+            var organizationQuery = filter.OrganizationQuery.Trim().ToLower();
+            projected = projected.Where(x =>
+                x.RelatedAccountType == AccountType.Organization &&
+                (((x.RelatedOrganizationName ?? string.Empty).ToLower().Contains(organizationQuery)) ||
+                 ((x.RelatedUsername ?? string.Empty).ToLower().Contains(organizationQuery))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.UserQuery))
+        {
+            var userQuery = filter.UserQuery.Trim().ToLower();
+            projected = projected.Where(x =>
+                x.RelatedAccountType == AccountType.Individual &&
+                (((x.RelatedUserFullName ?? string.Empty).ToLower().Contains(userQuery)) ||
+                 ((x.RelatedUsername ?? string.Empty).ToLower().Contains(userQuery))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.EventQuery))
+        {
+            var eventQuery = filter.EventQuery.Trim().ToLower();
+            projected = projected.Where(x =>
+                ((x.EventName ?? string.Empty).ToLower().Contains(eventQuery)));
+        }
+
+        var totalCount = await projected.CountAsync(cancellationToken);
+        var items = await projected
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

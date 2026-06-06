@@ -141,17 +141,27 @@ public sealed class AdminService : IAdminService
         };
         paging.Normalize();
 
-        var (items, totalCount) = await _adminRepository.GetReportsAsync(request.Status, paging.PageNumber, paging.PageSize, cancellationToken);
+        var filter = new AdminReportFilter(request.Status, request.OrganizationQuery, request.UserQuery, request.EventQuery);
+        var (items, totalCount) = await _adminRepository.GetReportsAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
         var mapped = items
             .Select(x => new AdminReportDto(
-                x.Id,
-                x.ReporterId,
-                x.TargetId,
-                x.TargetType,
-                x.ReasonCategory,
-                x.Description,
-                x.Status,
-                x.CreatedAt))
+                x.Report.Id,
+                x.Report.ReporterId,
+                x.ReporterUsername,
+                x.Report.TargetId,
+                x.Report.TargetType,
+                x.Report.ReasonCategory,
+                x.Report.Description,
+                x.Report.EvidenceImageUrl,
+                x.Report.Status,
+                x.Report.CreatedAt,
+                x.EventId,
+                x.EventName,
+                x.RelatedAccountId,
+                x.RelatedAccountType,
+                x.RelatedUsername,
+                x.RelatedUserFullName,
+                x.RelatedOrganizationName))
             .ToArray();
 
         return Result<PagedResult<AdminReportDto>>.Success(new PagedResult<AdminReportDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));

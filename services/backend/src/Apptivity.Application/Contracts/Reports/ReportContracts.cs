@@ -8,7 +8,8 @@ public sealed record CreateReportRequest(
     Guid TargetId,
     ReportTargetType TargetType,
     ReportReasonCategory ReasonCategory,
-    string Description);
+    string? Description,
+    string? EvidenceImageUrl);
 
 public sealed record ReportResponse(
     Guid Id,
@@ -17,6 +18,7 @@ public sealed record ReportResponse(
     ReportTargetType TargetType,
     ReportReasonCategory ReasonCategory,
     string Description,
+    string? EvidenceImageUrl,
     ReportStatus Status,
     DateTime CreatedAt);
 

@@ -1,4 +1,4 @@
-import i18n from 'i18next'
+﻿import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const resources = {
@@ -108,6 +108,7 @@ const resources = {
                 menu: {
                     eventApproval: 'Etkinlik Onayı',
                     userApproval: 'Kullanıcı Onayı',
+                    reports: 'Raporlar',
                     tagManagement: 'Etiket Yönetimi',
                 },
                 events: {
@@ -221,6 +222,65 @@ const resources = {
                         clubProfileName: 'Kulüp Adı',
                         clubProfileDescription: 'Kulüp Açıklaması',
                         clubProfileCity: 'Kulüp Şehri',
+                    },
+                },
+                reports: {
+                    empty: 'Bu filtrede rapor bulunamadı.',
+                    error: 'Raporlar alınamadı. Lütfen tekrar deneyin.',
+                    infoCard: 'Görüntüle',
+                    detailsTitle: 'Rapor Detayı',
+                    columns: {
+                        reporter: 'Raporlayan',
+                        event: 'Etkinlik',
+                        user: 'Kullanıcı',
+                        organization: 'Organizasyon',
+                        reason: 'Sebep',
+                        status: 'Durum',
+                        createdAt: 'Tarih',
+                        infoCard: 'Bilgi Kartı',
+                    },
+                    filters: {
+                        all: 'Tümü',
+                        pending: 'Bekliyor',
+                        resolved: 'Çözüldü',
+                        ignored: 'Yoksayıldı',
+                        title: 'Filtreler',
+                        organizationPlaceholder: 'Organizasyon ara',
+                        userPlaceholder: 'Kullanıcı ara',
+                        eventPlaceholder: 'Etkinlik ara',
+                        apply: 'Filtrele',
+                        reset: 'Temizle',
+                    },
+                    targetTypes: {
+                        event: 'Etkinlik',
+                        account: 'Hesap',
+                    },
+                    statuses: {
+                        all: 'Tümü',
+                        pending: 'Bekliyor',
+                        resolved: 'Çözüldü',
+                        ignored: 'Yoksayıldı',
+                    },
+                    reasonCategories: {
+                        spam: 'Spam',
+                        inappropriate: 'Uygunsuz İçerik',
+                        fake: 'Sahte İçerik',
+                        harassment: 'Taciz',
+                        violence: 'Şiddet',
+                        other: 'Diğer',
+                    },
+                    attributes: {
+                        reportId: 'Rapor Id',
+                        reporter: 'Raporlayan',
+                        targetType: 'Hedef Türü',
+                        event: 'Etkinlik',
+                        user: 'Kullanıcı',
+                        organization: 'Organizasyon',
+                        reason: 'Sebep',
+                        status: 'Durum',
+                        comment: 'Yorum',
+                        createdAt: 'Tarih',
+                        image: 'Görsel',
                     },
                 },
                 tags: {
@@ -553,6 +613,7 @@ const resources = {
                 menu: {
                     eventApproval: 'Event Approval',
                     userApproval: 'User Approval',
+                    reports: 'Reports',
                     tagManagement: 'Tag Management',
                 },
                 events: {
@@ -666,6 +727,65 @@ const resources = {
                         clubProfileName: 'Club Name',
                         clubProfileDescription: 'Club Description',
                         clubProfileCity: 'Club City',
+                    },
+                },
+                reports: {
+                    empty: 'No reports were found for this filter.',
+                    error: 'Reports could not be fetched. Please try again.',
+                    infoCard: 'View',
+                    detailsTitle: 'Report Details',
+                    columns: {
+                        reporter: 'Reporter',
+                        event: 'Event',
+                        user: 'User',
+                        organization: 'Organization',
+                        reason: 'Reason',
+                        status: 'Status',
+                        createdAt: 'Created At',
+                        infoCard: 'Info Card',
+                    },
+                    filters: {
+                        all: 'All',
+                        pending: 'Pending',
+                        resolved: 'Resolved',
+                        ignored: 'Ignored',
+                        title: 'Filters',
+                        organizationPlaceholder: 'Search organization',
+                        userPlaceholder: 'Search user',
+                        eventPlaceholder: 'Search event',
+                        apply: 'Apply',
+                        reset: 'Reset',
+                    },
+                    targetTypes: {
+                        event: 'Event',
+                        account: 'Account',
+                    },
+                    statuses: {
+                        all: 'All',
+                        pending: 'Pending',
+                        resolved: 'Resolved',
+                        ignored: 'Ignored',
+                    },
+                    reasonCategories: {
+                        spam: 'Spam',
+                        inappropriate: 'Inappropriate Content',
+                        fake: 'Fake Content',
+                        harassment: 'Harassment',
+                        violence: 'Violence',
+                        other: 'Other',
+                    },
+                    attributes: {
+                        reportId: 'Report Id',
+                        reporter: 'Reporter',
+                        targetType: 'Target Type',
+                        event: 'Event',
+                        user: 'User',
+                        organization: 'Organization',
+                        reason: 'Reason',
+                        status: 'Status',
+                        comment: 'Comment',
+                        createdAt: 'Created At',
+                        image: 'Image',
                     },
                 },
                 tags: {
@@ -906,3 +1026,4 @@ i18n
     })
 
 export default i18n
+

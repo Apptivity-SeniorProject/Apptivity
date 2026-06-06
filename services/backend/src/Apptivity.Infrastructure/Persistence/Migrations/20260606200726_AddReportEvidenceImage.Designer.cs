@@ -3,6 +3,7 @@ using System;
 using Apptivity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Apptivity.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606200726_AddReportEvidenceImage")]
+    partial class AddReportEvidenceImage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1004,7 +1007,7 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsDeleted = false,
-                            ReputationPoint = 45.0,
+                            ReputationPoint = 0.0,
                             UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -1012,7 +1015,7 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
                             CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsDeleted = false,
-                            ReputationPoint = -35.0,
+                            ReputationPoint = 0.0,
                             UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -1020,7 +1023,7 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
                             CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsDeleted = false,
-                            ReputationPoint = 75.0,
+                            ReputationPoint = 0.0,
                             UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -1028,7 +1031,7 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
                             CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsDeleted = false,
-                            ReputationPoint = -5.0,
+                            ReputationPoint = 0.0,
                             UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });

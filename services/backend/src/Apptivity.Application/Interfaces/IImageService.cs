@@ -6,4 +6,5 @@ public interface IImageService
 {
     Task<ImageUploadResult> UploadProfilePhotoAsync(Stream fileStream, string fileName, CancellationToken cancellationToken);
     Task<ImageUploadResult> UploadEventBannerAsync(Stream fileStream, string fileName, CancellationToken cancellationToken);
+    Task<ImageUploadResult> UploadReportEvidenceAsync(Stream fileStream, string fileName, CancellationToken cancellationToken);
 }

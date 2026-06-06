@@ -5,10 +5,17 @@ export interface ReportRequest {
   targetId: string;
   targetType: ReportTargetType;
   reasonCategory: ReportReasonCategory;
-  description: string;
+  description?: string;
+  evidenceImageUrl?: string;
 }
 
 export interface ReportReasonOption {
   label: string;
   value: ReportReasonCategory;
+}
+
+export interface ReportImageAsset {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
 }

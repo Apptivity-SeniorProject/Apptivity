@@ -1,9 +1,10 @@
-import { CalendarOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
+import { CalendarOutlined, FlagOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
 import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import EventApprovalSection from '../components/admin/EventApprovalSection'
+import ReportsSection from '../components/admin/ReportsSection'
 import UserApprovalSection from '../components/admin/UserApprovalSection'
 import TagManagementSection from '../components/admin/TagManagementSection'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
@@ -36,6 +37,11 @@ function AdminHomePage() {
             key: 'user-approval',
             icon: <UserSwitchOutlined />,
             label: t('admin.menu.userApproval'),
+        },
+        {
+            key: 'reports',
+            icon: <FlagOutlined />,
+            label: t('admin.menu.reports'),
         },
         {
             key: 'tag-management',
@@ -170,13 +176,21 @@ function AdminHomePage() {
                 <Layout>
                     <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
                         <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                            {selectedKey === 'user-approval' ? t('admin.menu.userApproval') : selectedKey === 'tag-management' ? t('admin.menu.tagManagement') : t('admin.menu.eventApproval')}
+                            {selectedKey === 'user-approval'
+                                ? t('admin.menu.userApproval')
+                                : selectedKey === 'reports'
+                                    ? t('admin.menu.reports')
+                                    : selectedKey === 'tag-management'
+                                        ? t('admin.menu.tagManagement')
+                                        : t('admin.menu.eventApproval')}
                         </Typography.Title>
 
                         {selectedKey === 'event-approval' ? (
                             <EventApprovalSection />
                         ) : selectedKey === 'user-approval' ? (
                             <UserApprovalSection />
+                        ) : selectedKey === 'reports' ? (
+                            <ReportsSection />
                         ) : selectedKey === 'tag-management' ? (
                             <TagManagementSection />
                         ) : (

@@ -50,6 +50,39 @@ export async function getAdminAccounts({ status, pageNumber = 1, pageSize = 20 }
     })
 }
 
+export async function getAdminReports({
+    status,
+    organizationQuery,
+    userQuery,
+    eventQuery,
+    pageNumber = 1,
+    pageSize = 20,
+}) {
+    const query = new URLSearchParams()
+    query.set('pageNumber', String(pageNumber))
+    query.set('pageSize', String(pageSize))
+
+    if (status) {
+        query.set('status', status)
+    }
+
+    if (organizationQuery?.trim()) {
+        query.set('organizationQuery', organizationQuery.trim())
+    }
+
+    if (userQuery?.trim()) {
+        query.set('userQuery', userQuery.trim())
+    }
+
+    if (eventQuery?.trim()) {
+        query.set('eventQuery', eventQuery.trim())
+    }
+
+    return apiRequest(`/admin/reports?${query.toString()}`, {
+        method: 'GET',
+    })
+}
+
 export async function getProfileById(accountId) {
     return apiRequest(`/profiles/${accountId}`, {
         method: 'GET',

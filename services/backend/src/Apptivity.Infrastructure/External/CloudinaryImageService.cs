@@ -48,6 +48,16 @@ public sealed class CloudinaryImageService : IImageService
             cancellationToken);
     }
 
+    public Task<ImageUploadResultContract> UploadReportEvidenceAsync(Stream fileStream, string fileName, CancellationToken cancellationToken)
+    {
+        return UploadAsync(
+            fileStream,
+            fileName,
+            _options.ReportEvidenceFolder,
+            new Transformation().Width(1600).Height(1600).Crop("limit"),
+            cancellationToken);
+    }
+
     private async Task<ImageUploadResultContract> UploadAsync(
         Stream fileStream,
         string fileName,
