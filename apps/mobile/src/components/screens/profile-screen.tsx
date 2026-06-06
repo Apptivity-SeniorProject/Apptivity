@@ -147,9 +147,10 @@ export function ProfileScreen() {
     );
   }
 
-  const thumbPosition = (rawScore + 1) / 2; // 0.0 - 1.0 arası
-  const fillWidth = Math.abs(rawScore) / 2; // 0.0 - 0.5 arası
-  const fillStart = rawScore >= 0 ? 0.5 : 0.5 - fillWidth;
+  const normalized = rawScore / 100; // [-100,+100] → [-1,+1]
+  const thumbPosition = (normalized + 1) / 2; // 0.0 - 1.0 arası
+  const fillWidth = Math.abs(normalized) / 2; // 0.0 - 0.5 arası
+  const fillStart = normalized >= 0 ? 0.5 : 0.5 - fillWidth;
 
   const thumbLeftPercent = thumbPosition * 100;
   const fillWidthPercent = fillWidth * 100;

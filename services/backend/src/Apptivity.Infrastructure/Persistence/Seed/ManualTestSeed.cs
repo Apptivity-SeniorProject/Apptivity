@@ -256,7 +256,7 @@ public static class ManualTestSeed
         new
         {
             Id = Individual1Id,
-            ReputationPoint = 0.0,
+            ReputationPoint = 45.0,
             CreatedAt = SeedCreatedAt,
             UpdatedAt = SeedCreatedAt,
             IsDeleted = false,
@@ -265,7 +265,7 @@ public static class ManualTestSeed
         new
         {
             Id = Individual2Id,
-            ReputationPoint = 0.0,
+            ReputationPoint = -35.0,
             CreatedAt = SeedCreatedAt,
             UpdatedAt = SeedCreatedAt,
             IsDeleted = false,
@@ -274,7 +274,7 @@ public static class ManualTestSeed
         new
         {
             Id = Individual3Id,
-            ReputationPoint = 0.0,
+            ReputationPoint = 75.0,
             CreatedAt = SeedCreatedAt,
             UpdatedAt = SeedCreatedAt,
             IsDeleted = false,
@@ -283,7 +283,7 @@ public static class ManualTestSeed
         new
         {
             Id = Individual4Id,
-            ReputationPoint = 0.0,
+            ReputationPoint = -5.0,
             CreatedAt = SeedCreatedAt,
             UpdatedAt = SeedCreatedAt,
             IsDeleted = false,
