@@ -21,6 +21,7 @@ public sealed class EventService : IEventService
     private readonly IEventBookmarkRepository _eventBookmarkRepository;
     private readonly IParticipationRepository _participationRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IReviewRepository _reviewRepository;
     private readonly ITagRepository _tagRepository;
     private readonly ITagPredictorService _tagPredictorService;
     private readonly ITagPredictionCacheService _tagPredictionCacheService;
@@ -36,6 +37,7 @@ public sealed class EventService : IEventService
         IEventBookmarkRepository eventBookmarkRepository,
         IParticipationRepository participationRepository,
         IUserRepository userRepository,
+        IReviewRepository reviewRepository,
         ITagRepository tagRepository,
         ITagPredictorService tagPredictorService,
         ITagPredictionCacheService tagPredictionCacheService,
@@ -50,6 +52,7 @@ public sealed class EventService : IEventService
         _eventBookmarkRepository = eventBookmarkRepository;
         _participationRepository = participationRepository;
         _userRepository = userRepository;
+        _reviewRepository = reviewRepository;
         _tagRepository = tagRepository;
         _tagPredictorService = tagPredictorService;
         _tagPredictionCacheService = tagPredictionCacheService;
@@ -301,13 +304,24 @@ public sealed class EventService : IEventService
         return Result<PagedResult<MyParticipationDto>>.Success(new PagedResult<MyParticipationDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
-    public async Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+    public async Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
     {
         var eventEntity = await _eventRepository.GetWithParticipantsAsync(eventId, cancellationToken);
 
         if (eventEntity is null)
         {
             return Result<EventParticipantsResponse>.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        var currentUserReviewTargets = new HashSet<Guid>();
+        if (userContext.AccountId != Guid.Empty && userContext.AccountType == AccountType.Individual)
+        {
+            var eventReviews = await _reviewRepository.GetReviewsByEventIdAsync(eventId, cancellationToken);
+            var currentUserReviews = eventReviews.Where(r => r.ReviewerId == userContext.AccountId).Select(r => r.ReviewedId);
+            foreach (var rId in currentUserReviews)
+            {
+                currentUserReviewTargets.Add(rId);
+            }
         }
 
         var ownerDto = new EventParticipantProfileDto(
@@ -317,7 +331,11 @@ public sealed class EventService : IEventService
             eventEntity.Owner.ProfilePhoto,
             eventEntity.Owner.Type == AccountType.Organization && eventEntity.Owner.ClubProfile != null ? eventEntity.Owner.ClubProfile.Name :
             eventEntity.Owner.UserProfile != null ? eventEntity.Owner.UserProfile.Name + " " + eventEntity.Owner.UserProfile.Surname : eventEntity.Owner.Username,
-            null);
+            null,
+            currentUserReviewTargets.Contains(eventEntity.OwnerId),
+            eventEntity.Owner.Type == AccountType.Individual 
+                ? eventEntity.Owner.UserProfile?.Reputation?.Level.ToString() 
+                : (eventEntity.Owner.ClubProfile?.ClubRating?.Rating > 0 ? eventEntity.Owner.ClubProfile.ClubRating.Rating.ToString("F1") + " Yıldız" : null));
 
         var participantDtos = eventEntity.Participations.Select(p => new EventParticipantProfileDto(
             p.UserId,
@@ -325,7 +343,9 @@ public sealed class EventService : IEventService
             p.User.Account.Username,
             p.User.Account.ProfilePhoto,
             p.User.Name + " " + p.User.Surname,
-            p.Status)).ToList();
+            p.Status,
+            currentUserReviewTargets.Contains(p.UserId),
+            p.User.Reputation?.Level.ToString())).ToList();
 
         return Result<EventParticipantsResponse>.Success(new EventParticipantsResponse(eventEntity.Id, eventEntity.Status, ownerDto, participantDtos));
     }

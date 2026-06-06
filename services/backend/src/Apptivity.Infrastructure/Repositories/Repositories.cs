@@ -201,13 +201,18 @@ public sealed class EventRepository : IEventRepository
         return _db.Events
             .Include(x => x.Owner)
                 .ThenInclude(o => o.UserProfile)
+                    .ThenInclude(u => u!.Reputation)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
+                    .ThenInclude(c => c!.ClubRating)
             .Include(x => x.PrimaryTag)
             .Include(x => x.Tags)
             .Include(x => x.Participations)
                 .ThenInclude(p => p.User)
                     .ThenInclude(u => u.Account)
+            .Include(x => x.Participations)
+                .ThenInclude(p => p.User)
+                    .ThenInclude(u => u.Reputation)
             .FirstOrDefaultAsync(x => x.Id == eventId && !x.IsDeleted, cancellationToken);
     }
 

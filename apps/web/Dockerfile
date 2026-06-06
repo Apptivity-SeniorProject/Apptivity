@@ -4,8 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install only web dependencies
-COPY apps/web/package.json ./apps/web/
-RUN npm install --silent --prefix apps/web
+COPY apps/web/package.json apps/web/package-lock.json* ./apps/web/
+RUN npm install --prefix apps/web
 
 # Copy full web app and build
 COPY apps/web/ ./apps/web/

@@ -142,6 +142,8 @@ export interface EventParticipantProfileDto {
   profilePhoto?: string | null;
   displayName: string;
   status?: ParticipationStatus | number | string | null;
+  isVoted?: boolean;
+  reputationLevel?: string | null;
 }
 
 export interface EventParticipantsResponseDto {

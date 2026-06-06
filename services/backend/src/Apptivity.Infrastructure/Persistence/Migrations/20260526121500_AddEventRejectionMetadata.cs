@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Apptivity.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
+    [Microsoft.EntityFrameworkCore.Infrastructure.DbContext(typeof(AppDbContext))]
+    [Migration("20260526121500_AddEventRejectionMetadata")]
     public partial class AddEventRejectionMetadata : Migration
     {
         /// <inheritdoc />

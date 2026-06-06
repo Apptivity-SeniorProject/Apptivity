@@ -119,7 +119,9 @@ public sealed record EventParticipantProfileDto(
     string Username,
     string? ProfilePhoto,
     string DisplayName,
-    ParticipationStatus? Status);
+    ParticipationStatus? Status,
+    bool IsVoted = false,
+    string? ReputationLevel = null);
 
 public sealed record EventParticipantsResponse(
     Guid EventId,
@@ -185,7 +187,7 @@ public interface IEventService
     Task<Result<ParticipationStatusDto>> UpdateParticipationStatusAsync(Guid eventId, Guid userId, ManageParticipationStatusRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<ParticipationStatusDto>> WithdrawAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<MyParticipationDto>>> GetMyParticipationsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
-    Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, CancellationToken cancellationToken);
+    Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     
     Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<EventDetailsDto>> GetEventDetailsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);

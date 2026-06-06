@@ -115,7 +115,18 @@ public sealed class EventLifecycleService : IEventLifecycleService
 
     private static DateTime ToUtcDateTime(DateOnly date, TimeOnly time)
     {
-        var localDateTime = date.ToDateTime(time, DateTimeKind.Utc);
-        return DateTime.SpecifyKind(localDateTime, DateTimeKind.Utc);
+        var localDateTime = date.ToDateTime(time, DateTimeKind.Unspecified);
+        
+        TimeZoneInfo turkeyTimeZone;
+        try
+        {
+            turkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            turkeyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(localDateTime, turkeyTimeZone);
     }
 }

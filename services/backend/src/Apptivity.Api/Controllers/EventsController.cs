@@ -394,7 +394,8 @@ public sealed class EventsController : ApiControllerBase
     [HttpGet("{id:guid}/participants")]
     public async Task<IActionResult> GetParticipants(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _eventService.GetEventParticipantsAsync(id, cancellationToken);
+        var context = _userContextAccessor.GetCurrentUser() ?? new Apptivity.Application.Interfaces.UserContext(Guid.Empty, Apptivity.Domain.Enums.AccountType.Individual);
+        var result = await _eventService.GetEventParticipantsAsync(id, context, cancellationToken);
         return FromResult(result);
     }
 
