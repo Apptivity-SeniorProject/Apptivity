@@ -11,5 +11,6 @@ public sealed class Report : BaseEntity
     public ReportTargetType TargetType { get; set; }
     public ReportReasonCategory ReasonCategory { get; set; }
     public required string Description { get; set; }
+    public string? EvidenceImageUrl { get; set; }
     public ReportStatus Status { get; set; } = ReportStatus.Pending;
 }

@@ -13,6 +13,23 @@ public sealed record AdminAccountListItem(
     Account Account,
     int ReportCount);
 
+public sealed record AdminReportFilter(
+    ReportStatus? Status,
+    string? OrganizationQuery,
+    string? UserQuery,
+    string? EventQuery);
+
+public sealed record AdminReportListItem(
+    Report Report,
+    string ReporterUsername,
+    Guid? EventId,
+    string? EventName,
+    Guid? RelatedAccountId,
+    AccountType? RelatedAccountType,
+    string? RelatedUsername,
+    string? RelatedUserFullName,
+    string? RelatedOrganizationName);
+
 public interface IAdminRepository
 {
     Task<int> CountAccountsAsync(CancellationToken cancellationToken);
@@ -23,6 +40,6 @@ public interface IAdminRepository
     Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken);
     Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken cancellationToken);
     Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken);
-    Task<(IReadOnlyCollection<Report> Items, int TotalCount)> GetReportsAsync(ReportStatus? status, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<(IReadOnlyCollection<AdminReportListItem> Items, int TotalCount)> GetReportsAsync(AdminReportFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task AddAuditLogAsync(AuditLog auditLog, CancellationToken cancellationToken);
 }

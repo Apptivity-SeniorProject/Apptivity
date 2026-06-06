@@ -28,9 +28,9 @@ public sealed class ReportService : IReportService
 
     public async Task<Result<ReportResponse>> CreateAsync(CreateReportRequest request, UserContext userContext, CancellationToken cancellationToken)
     {
-        if (request.TargetId == Guid.Empty || string.IsNullOrWhiteSpace(request.Description))
+        if (request.TargetId == Guid.Empty)
         {
-            return Result<ReportResponse>.Failure(ErrorCodes.Validation, "Target and description are required.");
+            return Result<ReportResponse>.Failure(ErrorCodes.Validation, "Target is required.");
         }
 
         if (request.TargetType == ReportTargetType.Account)
@@ -67,7 +67,10 @@ public sealed class ReportService : IReportService
             TargetId = request.TargetId,
             TargetType = request.TargetType,
             ReasonCategory = request.ReasonCategory,
-            Description = request.Description.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
+            EvidenceImageUrl = string.IsNullOrWhiteSpace(request.EvidenceImageUrl)
+                ? null
+                : request.EvidenceImageUrl.Trim(),
             Status = ReportStatus.Pending
         };
 
@@ -81,6 +84,7 @@ public sealed class ReportService : IReportService
             report.TargetType,
             report.ReasonCategory,
             report.Description,
+            report.EvidenceImageUrl,
             report.Status,
             report.CreatedAt));
     }

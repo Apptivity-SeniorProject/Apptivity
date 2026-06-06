@@ -161,6 +161,51 @@ public sealed class ImagesController : ApiControllerBase
         }, HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("reports/evidence")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> UploadReportEvidence([FromForm] ReportEvidenceUploadRequest request, CancellationToken cancellationToken)
+    {
+        var file = request.File;
+        var userContext = _userContextAccessor.GetCurrentUser();
+        if (userContext is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }, HttpContext.TraceIdentifier));
+        }
+
+        var validationError = ValidateImageFile(file);
+        if (validationError is not null)
+        {
+            return BadRequest(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("VAL_001", validationError)
+            }, HttpContext.TraceIdentifier));
+        }
+
+        ImageUploadResult upload;
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            upload = await _imageService.UploadReportEvidenceAsync(stream, file.FileName, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("IMG_CONFIG_MISSING", ex.Message)
+            }, HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiEnvelope<object>.Success(new
+        {
+            imageUrl = upload.Url,
+            publicId = upload.PublicId
+        }, HttpContext.TraceIdentifier));
+    }
+
     private string? ValidateImageFile(IFormFile? file)
     {
         if (file is null || file.Length == 0)
@@ -196,6 +241,11 @@ public sealed class ImagesController : ApiControllerBase
     }
 
     public sealed class EventBannerUploadRequest
+    {
+        public IFormFile File { get; set; } = null!;
+    }
+
+    public sealed class ReportEvidenceUploadRequest
     {
         public IFormFile File { get; set; } = null!;
     }
