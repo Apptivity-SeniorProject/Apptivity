@@ -14,6 +14,7 @@ public sealed class Account : BaseEntity
     public string? SocialLinks { get; set; }
     public AccountStatus Status { get; set; } = AccountStatus.Active;
     public bool IsActive { get; set; } = true;
+    public DateTime? SuspendedUntilUtc { get; set; }
 
     public User? UserProfile { get; set; }
     public Club? ClubProfile { get; set; }

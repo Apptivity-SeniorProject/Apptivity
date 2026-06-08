@@ -12,8 +12,10 @@ public sealed record AdminDashboardStatsDto(
 public sealed record AdminAccountsFilterRequest(
     bool? IsActive,
     AccountStatus? Status,
+    AccountStatus? ExcludeStatus,
     AccountType? Type,
     int? MinReportCount,
+    string? Query,
     int PageNumber = 1,
     int PageSize = 20);
 
@@ -26,9 +28,24 @@ public sealed record AdminAccountDto(
     AccountStatus Status,
     bool IsActive,
     int ReportCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? DisplayName,
+    string? OrganizationName,
+    string? OrganizationCity,
+    DateTime? SuspendedUntilUtc);
 
-public sealed record UpdateAccountStatusRequest(AccountStatus Status);
+public sealed record CreateAdminOrganizationRequest(
+    string Username,
+    string Phone,
+    string? Email,
+    string Password,
+    string Name,
+    string LocationCity,
+    string? Description,
+    decimal? Latitude,
+    decimal? Longitude);
+
+public sealed record UpdateAccountStatusRequest(AccountStatus Status, int? SuspensionDays = null);
 
 public sealed record VerifyClubRequest(bool IsVerified = true);
 
@@ -83,6 +100,7 @@ public interface IAdminService
 {
     Task<Result<AdminDashboardStatsDto>> GetDashboardStatsAsync(CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminAccountDto>>> GetAccountsAsync(AdminAccountsFilterRequest request, CancellationToken cancellationToken);
+    Task<Result<AdminAccountDto>> CreateOrganizationAsync(CreateAdminOrganizationRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<AdminAccountDto>> UpdateAccountStatusAsync(Guid accountId, UpdateAccountStatusRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken);

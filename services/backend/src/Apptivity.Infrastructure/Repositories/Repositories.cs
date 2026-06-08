@@ -34,6 +34,16 @@ public sealed class UserRepository : IUserRepository
             .FirstOrDefaultAsync(x => x.Id == accountId, cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<Account>> GetExpiredSuspendedAccountsAsync(DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        return await _db.Accounts
+            .Where(x =>
+                x.Status == AccountStatus.Suspended &&
+                x.SuspendedUntilUtc.HasValue &&
+                x.SuspendedUntilUtc.Value <= nowUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyCollection<Account> Items, int TotalCount)> SearchProfilesAsync(ProfileSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var query = BuildProfileQuery()
@@ -1082,15 +1092,39 @@ public sealed class AdminRepository : IAdminRepository
             query = query.Where(x => x.Status == filter.Status.Value);
         }
 
+        if (filter.ExcludeStatus.HasValue)
+        {
+            query = query.Where(x => x.Status != filter.ExcludeStatus.Value);
+        }
+
         if (filter.Type.HasValue)
         {
             query = query.Where(x => x.Type == filter.Type.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var normalizedQuery = filter.Query.Trim().ToLower();
+            query = query.Where(x =>
+                x.Username.ToLower().Contains(normalizedQuery) ||
+                x.Phone.ToLower().Contains(normalizedQuery) ||
+                (x.Email != null && x.Email.ToLower().Contains(normalizedQuery)) ||
+                (x.ClubProfile != null && x.ClubProfile.Name.ToLower().Contains(normalizedQuery)) ||
+                (x.UserProfile != null && (
+                    x.UserProfile.Name.ToLower().Contains(normalizedQuery) ||
+                    x.UserProfile.Surname.ToLower().Contains(normalizedQuery))));
         }
 
         var projected = query
             .Select(x => new
             {
                 Account = x,
+                DisplayName = x.UserProfile != null
+                    ? ((x.UserProfile.Name + " " + x.UserProfile.Surname).Trim())
+                    : (x.ClubProfile != null ? x.ClubProfile.Name : null),
+                OrganizationName = x.ClubProfile != null ? x.ClubProfile.Name : null,
+                OrganizationCity = x.ClubProfile != null ? x.ClubProfile.LocationCity : null,
+                SuspendedUntilUtc = x.SuspendedUntilUtc,
                 ReportCount = _db.Reports.Count(r =>
                     (r.TargetType == ReportTargetType.Account && r.TargetId == x.Id) ||
                     (r.TargetType == ReportTargetType.Event &&
@@ -1110,7 +1144,7 @@ public sealed class AdminRepository : IAdminRepository
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return (rows.Select(x => new AdminAccountListItem(x.Account, x.ReportCount)).ToArray(), totalCount);
+        return (rows.Select(x => new AdminAccountListItem(x.Account, x.ReportCount, x.DisplayName, x.OrganizationName, x.OrganizationCity, x.SuspendedUntilUtc)).ToArray(), totalCount);
     }
 
     public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetEventsAsync(

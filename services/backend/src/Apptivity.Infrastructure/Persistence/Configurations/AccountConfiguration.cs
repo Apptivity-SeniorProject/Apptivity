@@ -20,11 +20,13 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(x => x.SocialLinks).HasMaxLength(2000);
         builder.Property(x => x.Status).HasConversion<int>().IsRequired();
         builder.Property(x => x.IsActive).HasDefaultValue(true);
+        builder.Property(x => x.SuspendedUntilUtc);
 
         builder.HasIndex(x => x.Username).IsUnique();
         builder.HasIndex(x => x.Phone).IsUnique();
         builder.HasIndex(x => x.Email).IsUnique();
         builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => x.SuspendedUntilUtc);
 
         builder.HasMany(x => x.InterestTags)
             .WithMany(x => x.Accounts)

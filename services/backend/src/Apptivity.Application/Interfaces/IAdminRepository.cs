@@ -6,12 +6,18 @@ namespace Apptivity.Application.Interfaces;
 public sealed record AdminAccountFilter(
     bool? IsActive,
     AccountStatus? Status,
+    AccountStatus? ExcludeStatus,
     AccountType? Type,
-    int? MinReportCount);
+    int? MinReportCount,
+    string? Query);
 
 public sealed record AdminAccountListItem(
     Account Account,
-    int ReportCount);
+    int ReportCount,
+    string? DisplayName,
+    string? OrganizationName,
+    string? OrganizationCity,
+    DateTime? SuspendedUntilUtc);
 
 public sealed record AdminReportFilter(
     ReportStatus? Status,

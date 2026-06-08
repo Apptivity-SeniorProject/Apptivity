@@ -1,17 +1,21 @@
-import { CalendarOutlined, FlagOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
+import { ApartmentOutlined, CalendarOutlined, FlagOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
 import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import EventApprovalSection from '../components/admin/EventApprovalSection'
+import OrganizationCreateSection from '../components/admin/OrganizationCreateSection'
+import OrganizationManagementSection from '../components/admin/OrganizationManagementSection'
 import ReportsSection from '../components/admin/ReportsSection'
 import UserApprovalSection from '../components/admin/UserApprovalSection'
+import UserManagementSection from '../components/admin/UserManagementSection'
 import TagManagementSection from '../components/admin/TagManagementSection'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
 function AdminHomePage() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { t } = useTranslation()
     const screens = Grid.useBreakpoint()
     const isMobile = !screens.md
@@ -27,6 +31,22 @@ function AdminHomePage() {
         }
     }, [isAdmin, navigate])
 
+    useEffect(() => {
+        const nextKey = (
+            location.pathname === '/admin/organizations/create' ? 'organization-create'
+                : location.pathname === '/admin/organizations/manage' ? 'organization-manage'
+                    : location.pathname === '/admin/organizations/banned' ? 'organization-banned'
+                    : location.pathname === '/admin/users' || location.pathname === '/admin/users/approval' ? 'user-approval'
+                        : location.pathname === '/admin/users/manage' ? 'user-manage'
+                            : location.pathname === '/admin/users/banned' ? 'user-banned'
+                                : location.pathname === '/admin/reports' ? 'reports'
+                                    : location.pathname === '/admin/tags' ? 'tag-management'
+                                        : 'event-approval'
+        )
+
+        setSelectedKey(nextKey)
+    }, [location.pathname])
+
     const menuItems = [
         {
             key: 'event-approval',
@@ -34,9 +54,42 @@ function AdminHomePage() {
             label: t('admin.menu.eventApproval'),
         },
         {
-            key: 'user-approval',
+            key: 'users',
             icon: <UserSwitchOutlined />,
-            label: t('admin.menu.userApproval'),
+            label: t('admin.menu.users.title'),
+            children: [
+                {
+                    key: 'user-approval',
+                    label: t('admin.menu.users.approval'),
+                },
+                {
+                    key: 'user-manage',
+                    label: t('admin.menu.users.manage'),
+                },
+                {
+                    key: 'user-banned',
+                    label: t('admin.menu.users.banned'),
+                },
+            ],
+        },
+        {
+            key: 'organizations',
+            icon: <ApartmentOutlined />,
+            label: t('admin.menu.organizations.title'),
+            children: [
+                {
+                    key: 'organization-create',
+                    label: t('admin.menu.organizations.create'),
+                },
+                {
+                    key: 'organization-manage',
+                    label: t('admin.menu.organizations.manage'),
+                },
+                {
+                    key: 'organization-banned',
+                    label: t('admin.menu.organizations.banned'),
+                },
+            ],
         },
         {
             key: 'reports',
@@ -52,6 +105,30 @@ function AdminHomePage() {
 
     if (!isAdmin) {
         return null
+    }
+
+    const pageTitleByKey = {
+        'event-approval': t('admin.menu.eventApproval'),
+        'user-approval': t('admin.menu.users.approval'),
+        'user-manage': t('admin.menu.users.manage'),
+        'user-banned': t('admin.menu.users.banned'),
+        'organization-create': t('admin.menu.organizations.create'),
+        'organization-manage': t('admin.menu.organizations.manage'),
+        'organization-banned': t('admin.menu.organizations.banned'),
+        reports: t('admin.menu.reports'),
+        'tag-management': t('admin.menu.tagManagement'),
+    }
+
+    const pathByKey = {
+        'event-approval': '/admin',
+        'user-approval': '/admin/users/approval',
+        'user-manage': '/admin/users/manage',
+        'user-banned': '/admin/users/banned',
+        'organization-create': '/admin/organizations/create',
+        'organization-manage': '/admin/organizations/manage',
+        'organization-banned': '/admin/organizations/banned',
+        reports: '/admin/reports',
+        'tag-management': '/admin/tags',
     }
 
     return (
@@ -140,9 +217,16 @@ function AdminHomePage() {
                                 <Menu
                                     mode="inline"
                                     inlineCollapsed={isCollapsed}
+                                    defaultOpenKeys={['users', 'organizations']}
                                     selectedKeys={[selectedKey]}
                                     items={menuItems}
-                                    onClick={({ key }) => setSelectedKey(key)}
+                                    onClick={({ key }) => {
+                                        const nextPath = pathByKey[key]
+                                        setSelectedKey(key)
+                                        if (nextPath) {
+                                            navigate(nextPath)
+                                        }
+                                    }}
                                     style={{ borderInlineEnd: 'none', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
                                 />
                             </div>
@@ -176,19 +260,23 @@ function AdminHomePage() {
                 <Layout>
                     <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
                         <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                            {selectedKey === 'user-approval'
-                                ? t('admin.menu.userApproval')
-                                : selectedKey === 'reports'
-                                    ? t('admin.menu.reports')
-                                    : selectedKey === 'tag-management'
-                                        ? t('admin.menu.tagManagement')
-                                        : t('admin.menu.eventApproval')}
+                            {pageTitleByKey[selectedKey] || t('admin.menu.eventApproval')}
                         </Typography.Title>
 
                         {selectedKey === 'event-approval' ? (
                             <EventApprovalSection />
                         ) : selectedKey === 'user-approval' ? (
                             <UserApprovalSection />
+                        ) : selectedKey === 'user-manage' ? (
+                            <UserManagementSection />
+                        ) : selectedKey === 'user-banned' ? (
+                            <UserManagementSection mode="banned" />
+                        ) : selectedKey === 'organization-create' ? (
+                            <OrganizationCreateSection />
+                        ) : selectedKey === 'organization-manage' ? (
+                            <OrganizationManagementSection />
+                        ) : selectedKey === 'organization-banned' ? (
+                            <OrganizationManagementSection mode="banned" />
                         ) : selectedKey === 'reports' ? (
                             <ReportsSection />
                         ) : selectedKey === 'tag-management' ? (
@@ -211,11 +299,16 @@ function AdminHomePage() {
             >
                 <Menu
                     mode="inline"
+                    defaultOpenKeys={['users', 'organizations']}
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => {
                         setSelectedKey(key)
                         setIsMobileMenuOpen(false)
+                        const nextPath = pathByKey[key]
+                        if (nextPath) {
+                            navigate(nextPath)
+                        }
                     }}
                     style={{ borderInlineEnd: 'none' }}
                 />

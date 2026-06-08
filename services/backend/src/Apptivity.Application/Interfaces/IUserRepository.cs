@@ -17,6 +17,7 @@ public interface IUserRepository
     Task<Account?> GetAccountByPhoneAsync(string phone, CancellationToken cancellationToken);
     Task<Account?> GetAccountByUsernameAsync(string username, CancellationToken cancellationToken);
     Task<Account?> GetAccountByIdWithInterestsAsync(Guid accountId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<Account>> GetExpiredSuspendedAccountsAsync(DateTime nowUtc, CancellationToken cancellationToken);
 
     Task AddAccountAsync(Account account, CancellationToken cancellationToken);
     Task AddUserProfileAsync(User user, CancellationToken cancellationToken);

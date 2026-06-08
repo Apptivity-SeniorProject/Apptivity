@@ -34,14 +34,29 @@ public sealed class AdminController : ApiControllerBase
     public async Task<IActionResult> GetAccounts(
         [FromQuery] bool? isActive,
         [FromQuery] AccountStatus? status,
+        [FromQuery] AccountStatus? excludeStatus,
         [FromQuery] AccountType? type,
         [FromQuery] int? minReportCount,
+        [FromQuery] string? query,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var request = new AdminAccountsFilterRequest(isActive, status, type, minReportCount, pageNumber, pageSize);
+        var request = new AdminAccountsFilterRequest(isActive, status, excludeStatus, type, minReportCount, query, pageNumber, pageSize);
         var result = await _adminService.GetAccountsAsync(request, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPost("organizations")]
+    public async Task<IActionResult> CreateOrganization([FromBody] CreateAdminOrganizationRequest request, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return UnauthorizedResponse();
+        }
+
+        var result = await _adminService.CreateOrganizationAsync(request, context, cancellationToken);
         return FromResult(result);
     }
 

@@ -10,11 +10,22 @@ namespace Apptivity.Application.Services;
 public sealed class AdminService : IAdminService
 {
     private readonly IAdminRepository _adminRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IReputationRepository _reputationRepository;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
 
-    public AdminService(IAdminRepository adminRepository, IUnitOfWork unitOfWork)
+    public AdminService(
+        IAdminRepository adminRepository,
+        IUserRepository userRepository,
+        IReputationRepository reputationRepository,
+        IPasswordHasher passwordHasher,
+        IUnitOfWork unitOfWork)
     {
         _adminRepository = adminRepository;
+        _userRepository = userRepository;
+        _reputationRepository = reputationRepository;
+        _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
     }
 
@@ -31,6 +42,8 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<PagedResult<AdminAccountDto>>> GetAccountsAsync(AdminAccountsFilterRequest request, CancellationToken cancellationToken)
     {
+        await NormalizeExpiredSuspensionsAsync(cancellationToken);
+
         var paging = new PagedRequest
         {
             PageNumber = request.PageNumber,
@@ -38,7 +51,7 @@ public sealed class AdminService : IAdminService
         };
         paging.Normalize();
 
-        var filter = new AdminAccountFilter(request.IsActive, request.Status, request.Type, request.MinReportCount);
+        var filter = new AdminAccountFilter(request.IsActive, request.Status, request.ExcludeStatus, request.Type, request.MinReportCount, request.Query);
         var (items, totalCount) = await _adminRepository.GetAccountsAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
 
         var mapped = items.Select(x => new AdminAccountDto(
@@ -50,9 +63,109 @@ public sealed class AdminService : IAdminService
             x.Account.Status,
             x.Account.IsActive,
             x.ReportCount,
-            x.Account.CreatedAt)).ToArray();
+            x.Account.CreatedAt,
+            x.DisplayName,
+            x.OrganizationName,
+            x.OrganizationCity,
+            x.SuspendedUntilUtc)).ToArray();
 
         return Result<PagedResult<AdminAccountDto>>.Success(new PagedResult<AdminAccountDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
+    public async Task<Result<AdminAccountDto>> CreateOrganizationAsync(CreateAdminOrganizationRequest request, UserContext adminContext, CancellationToken cancellationToken)
+    {
+        if (!IsAdmin(adminContext))
+        {
+            return Result<AdminAccountDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can create organizations.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Username) ||
+            string.IsNullOrWhiteSpace(request.Phone) ||
+            string.IsNullOrWhiteSpace(request.Password) ||
+            string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(request.LocationCity))
+        {
+            return Result<AdminAccountDto>.Failure(ErrorCodes.Validation, "Username, phone, password, organization name, and city are required.");
+        }
+
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
+        var normalizedPhone = NormalizePhone(request.Phone);
+        var normalizedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+
+        var existingByUsername = await _userRepository.GetAccountByUsernameAsync(normalizedUsername, cancellationToken);
+        if (existingByUsername is not null)
+        {
+            return Result<AdminAccountDto>.Failure(ErrorCodes.AccountAlreadyExists, "Username already exists.");
+        }
+
+        var existingByPhone = await _userRepository.GetAccountByPhoneAsync(normalizedPhone, cancellationToken);
+        if (existingByPhone is not null)
+        {
+            return Result<AdminAccountDto>.Failure(ErrorCodes.AccountAlreadyExists, "Phone number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            var existingByEmail = await _userRepository.GetAccountByEmailAsync(normalizedEmail, cancellationToken);
+            if (existingByEmail is not null)
+            {
+                return Result<AdminAccountDto>.Failure(ErrorCodes.AccountAlreadyExists, "Email already exists.");
+            }
+        }
+
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Type = AccountType.Organization,
+            Username = normalizedUsername,
+            Phone = normalizedPhone,
+            Email = normalizedEmail,
+            Password = _passwordHasher.Hash(request.Password),
+            Status = AccountStatus.Active,
+            IsActive = true,
+            IsDeleted = false
+        };
+
+        var club = new Club
+        {
+            Id = account.Id,
+            Account = account,
+            Name = request.Name.Trim(),
+            LocationCity = request.LocationCity.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            IsVerified = true,
+            IsDeleted = false
+        };
+
+        var clubRating = new ClubRating
+        {
+            Id = account.Id,
+            Rating = 0,
+            RatedCount = 0
+        };
+
+        await _userRepository.AddAccountAsync(account, cancellationToken);
+        await _userRepository.AddClubProfileAsync(club, cancellationToken);
+        await _reputationRepository.AddClubRatingAsync(clubRating, cancellationToken);
+        await AddAuditLogAsync(adminContext.AccountId, "OrganizationCreated", "Account", account.Id, $"username={account.Username}", cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<AdminAccountDto>.Success(new AdminAccountDto(
+            account.Id,
+            account.Username,
+            account.Phone,
+            account.Email,
+            account.Type,
+            account.Status,
+            account.IsActive,
+            0,
+            account.CreatedAt,
+            club.Name,
+            club.Name,
+            club.LocationCity,
+            account.SuspendedUntilUtc));
     }
 
     public async Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken)
@@ -90,9 +203,24 @@ public sealed class AdminService : IAdminService
             return Result<AdminAccountDto>.Failure(ErrorCodes.AdminAccountNotFound, "Account not found.");
         }
 
+        if (request.Status == AccountStatus.Suspended && (!request.SuspensionDays.HasValue || request.SuspensionDays.Value <= 0))
+        {
+            return Result<AdminAccountDto>.Failure(ErrorCodes.Validation, "Suspension days must be greater than 0.");
+        }
+
         account.Status = request.Status;
         account.IsActive = request.Status == AccountStatus.Active;
-        await AddAuditLogAsync(adminContext.AccountId, "AccountStatusUpdated", "Account", account.Id, $"status={request.Status}", cancellationToken);
+        account.SuspendedUntilUtc = request.Status == AccountStatus.Suspended
+            ? DateTime.UtcNow.AddDays(request.SuspensionDays!.Value)
+            : null;
+
+        await AddAuditLogAsync(
+            adminContext.AccountId,
+            "AccountStatusUpdated",
+            "Account",
+            account.Id,
+            $"status={request.Status};suspensionDays={request.SuspensionDays}",
+            cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<AdminAccountDto>.Success(new AdminAccountDto(
@@ -104,7 +232,13 @@ public sealed class AdminService : IAdminService
             account.Status,
             account.IsActive,
             0,
-            account.CreatedAt));
+            account.CreatedAt,
+            account.UserProfile is not null
+                ? $"{account.UserProfile.Name} {account.UserProfile.Surname}".Trim()
+                : account.ClubProfile?.Name,
+            account.ClubProfile?.Name,
+            account.ClubProfile?.LocationCity,
+            account.SuspendedUntilUtc));
     }
 
     public async Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken)
@@ -231,6 +365,29 @@ public sealed class AdminService : IAdminService
             EntityId = entityId,
             Details = details
         }, cancellationToken);
+    }
+
+    private async Task NormalizeExpiredSuspensionsAsync(CancellationToken cancellationToken)
+    {
+        var expiredAccounts = await _userRepository.GetExpiredSuspendedAccountsAsync(DateTime.UtcNow, cancellationToken);
+        if (expiredAccounts.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var account in expiredAccounts)
+        {
+            account.Status = AccountStatus.Active;
+            account.IsActive = true;
+            account.SuspendedUntilUtc = null;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string NormalizePhone(string phoneNumber)
+    {
+        return phoneNumber.Trim().Replace(" ", string.Empty, StringComparison.Ordinal);
     }
 
     private static bool IsAdmin(UserContext context) => context.AccountType == AccountType.Admin;

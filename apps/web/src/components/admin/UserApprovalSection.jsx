@@ -51,6 +51,7 @@ function UserApprovalSection() {
 
         const result = await getAdminAccounts({
             status: ACCOUNT_STATUS_QUERY[nextStatusFilter],
+            type: 'Individual',
             pageNumber: nextPageNumber,
             pageSize: nextPageSize,
         })

@@ -37,6 +37,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddHostedService<VotingCloseWorker>();
+builder.Services.AddHostedService<AccountSuspensionWorker>();
 builder.Services.Configure<RecommendationOptions>(builder.Configuration.GetSection(RecommendationOptions.SectionName));
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy())

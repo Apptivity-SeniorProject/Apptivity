@@ -10,6 +10,13 @@ const EVENT_STATUS_VALUES = {
     Rejected: 7,
 }
 
+const ACCOUNT_STATUS_VALUES = {
+    Active: 1,
+    Suspended: 2,
+    Deactivated: 3,
+    Banned: 4,
+}
+
 function resolveEventStatusValue(status) {
     if (typeof status === 'number' && Number.isFinite(status)) {
         return status
@@ -17,6 +24,18 @@ function resolveEventStatusValue(status) {
 
     if (typeof status === 'string' && Object.prototype.hasOwnProperty.call(EVENT_STATUS_VALUES, status)) {
         return EVENT_STATUS_VALUES[status]
+    }
+
+    return status
+}
+
+function resolveAccountStatusValue(status) {
+    if (typeof status === 'number' && Number.isFinite(status)) {
+        return status
+    }
+
+    if (typeof status === 'string' && Object.prototype.hasOwnProperty.call(ACCOUNT_STATUS_VALUES, status)) {
+        return ACCOUNT_STATUS_VALUES[status]
     }
 
     return status
@@ -36,7 +55,15 @@ export async function getAdminEvents({ status, pageNumber = 1, pageSize = 20 }) 
     })
 }
 
-export async function getAdminAccounts({ status, pageNumber = 1, pageSize = 20 }) {
+export async function getAdminAccounts({
+    status,
+    excludeStatus,
+    type,
+    isActive,
+    query: searchQuery,
+    pageNumber = 1,
+    pageSize = 20,
+}) {
     const query = new URLSearchParams()
     query.set('pageNumber', String(pageNumber))
     query.set('pageSize', String(pageSize))
@@ -45,8 +72,34 @@ export async function getAdminAccounts({ status, pageNumber = 1, pageSize = 20 }
         query.set('status', status)
     }
 
+    if (excludeStatus) {
+        query.set('excludeStatus', excludeStatus)
+    }
+
+    if (type) {
+        query.set('type', type)
+    }
+
+    if (typeof isActive === 'boolean') {
+        query.set('isActive', String(isActive))
+    }
+
+    if (searchQuery?.trim()) {
+        query.set('query', searchQuery.trim())
+    }
+
     return apiRequest(`/admin/accounts?${query.toString()}`, {
         method: 'GET',
+    })
+}
+
+export async function createAdminOrganization(payload) {
+    return apiRequest('/admin/organizations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
     })
 }
 
@@ -89,13 +142,20 @@ export async function getProfileById(accountId) {
     })
 }
 
-export async function updateAdminAccountStatus(accountId, status) {
+export async function updateAdminAccountStatus(accountId, statusOrPayload) {
+    const payload = typeof statusOrPayload === 'object' && statusOrPayload !== null
+        ? statusOrPayload
+        : { status: statusOrPayload }
+
     return apiRequest(`/admin/accounts/${accountId}/status`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+            status: resolveAccountStatusValue(payload.status),
+            suspensionDays: payload.suspensionDays ?? null,
+        }),
     })
 }
 

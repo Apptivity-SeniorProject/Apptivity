@@ -80,6 +80,8 @@ public sealed class AuthService : IAuthService
             return Result<AuthResponse>.Failure(ErrorCodes.AccountNotFound, "Account not found for this phone number.");
         }
 
+        await NormalizeSuspendedAccountIfExpiredAsync(account, cancellationToken);
+
         if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
@@ -117,6 +119,8 @@ public sealed class AuthService : IAuthService
         {
             return Result<AuthResponse>.Failure(ErrorCodes.InvalidCredential, "Invalid identifier or password.");
         }
+
+        await NormalizeSuspendedAccountIfExpiredAsync(account, cancellationToken);
 
         if (!_passwordHasher.Verify(request.Password, account.Password))
         {
@@ -257,7 +261,7 @@ public sealed class AuthService : IAuthService
             Description = request.Description,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
-            IsVerified = false,
+            IsVerified = true,
             IsDeleted = false
         };
 
@@ -287,6 +291,8 @@ public sealed class AuthService : IAuthService
         existing.RevokedAt = DateTime.UtcNow;
 
         var account = existing.Account;
+        await NormalizeSuspendedAccountIfExpiredAsync(account, cancellationToken);
+
         if (account.Status != AccountStatus.Active || !account.IsActive)
         {
             return Result<AuthResponse>.Failure(ErrorCodes.Unauthorized, "This account is suspended.");
@@ -307,6 +313,8 @@ public sealed class AuthService : IAuthService
         {
             return Result.Failure(ErrorCodes.AccountNotFound, "Account not found.");
         }
+
+        await NormalizeSuspendedAccountIfExpiredAsync(account, cancellationToken);
 
         if (account.Status != AccountStatus.Active || !account.IsActive)
         {
@@ -375,6 +383,21 @@ public sealed class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<AuthResponse>.Success(new AuthResponse(pair.AccessToken, pair.RefreshToken));
+    }
+
+    private async Task NormalizeSuspendedAccountIfExpiredAsync(Account account, CancellationToken cancellationToken)
+    {
+        if (account.Status != AccountStatus.Suspended ||
+            !account.SuspendedUntilUtc.HasValue ||
+            account.SuspendedUntilUtc.Value > DateTime.UtcNow)
+        {
+            return;
+        }
+
+        account.Status = AccountStatus.Active;
+        account.IsActive = true;
+        account.SuspendedUntilUtc = null;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private static string NormalizePhone(string phoneNumber)
