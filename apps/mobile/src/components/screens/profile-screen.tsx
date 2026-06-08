@@ -18,9 +18,8 @@ import { colors, radius, hitSlop } from '@/src/constants/theme';
 import { EventCard } from '@/src/components/events/event-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/useEvents';
-import { useMyProfile, useProfileStats, useSetMyInterests } from '@/src/hooks/useProfile';
+import { useMyProfile, useProfileStats } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
-import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { cn } from '@/src/utils/cn';
@@ -81,18 +80,15 @@ function getEmptyStateText(tab: ProfileTab): string {
 export function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('my-events');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [draftInterestTagIds, setDraftInterestTagIds] = useState<string[]>([]);
-  const toast = useToast();
 
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;
 
   const statsQuery = useProfileStats(profile?.accountId);
   const myEventsQuery = useMyEvents(20);
-  const myParticipationsQuery = useMyParticipations(20, { refetchIntervalMs: 10000 });
+  const myParticipationsQuery = useMyParticipations(20);
   const myBookmarksQuery = useMyBookmarks(20);
   const tagsQuery = useTags();
-  const setInterestsMutation = useSetMyInterests();
 
   const isLoading = profileQuery.isPending || statsQuery.isPending;
   const displayName = profile
@@ -178,9 +174,10 @@ export function ProfileScreen() {
       {/* Profil Header Kartı */}
       <View className="bg-white px-4 pb-4 pt-5 border-b border-gray-200">
         <View className="flex-row items-center mb-4">
-          <View className="h-16 w-16 rounded-full bg-[#f0fce8] border-2 border-[#77e349] items-center justify-center mr-3.5 shrink-0">
+          <View 
+            className="h-16 w-16 rounded-full bg-[#f0fce8] border-2 border-[#77e349] items-center justify-center mr-3.5 shrink-0 overflow-hidden relative">
             {profile?.profilePhoto ? (
-              <Image source={{ uri: profile.profilePhoto }} className="h-full w-full rounded-full" />
+              <Image source={{ uri: profile.profilePhoto }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
             ) : (
               <Text className="text-[22px] font-semibold text-[#357c1c]">{initials}</Text>
             )}
@@ -190,14 +187,11 @@ export function ProfileScreen() {
               {displayName}
             </Text>
             <Text className="text-[13px] text-gray-500" numberOfLines={1}>
-              @{profile?.type ? String(profile.type).toLowerCase() : 'user'}.{profile?.username}
+              @{profile?.username}
             </Text>
           </View>
           <Pressable
-            onPress={() => {
-              setDraftInterestTagIds(profile?.interests?.map((i) => i.id) ?? []);
-              setIsEditModalOpen(true);
-            }}
+            onPress={() => setIsEditModalOpen(true)}
             hitSlop={hitSlop.md}
             style={{
               width: 36,
@@ -348,19 +342,7 @@ export function ProfileScreen() {
         visible={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         tags={tagsQuery.data ?? []}
-        selectedTagIds={draftInterestTagIds}
-        onToggleTag={(tagId) => {
-          setDraftInterestTagIds((current) =>
-            current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]
-          );
-        }}
-        isSaving={setInterestsMutation.isPending}
-        onSave={() => {
-          setInterestsMutation.mutate(draftInterestTagIds, {
-            onSuccess: () => setIsEditModalOpen(false),
-            onError: (error) => toast.error(getApiErrorMessage(error)),
-          });
-        }}
+        profile={profile}
       />
     </View>
   );

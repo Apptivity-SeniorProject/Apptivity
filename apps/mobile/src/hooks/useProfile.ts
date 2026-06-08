@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getMyProfile, getProfileStats, setMyInterests, updateMyProfile } from '@/src/api/profileService';
+import { getMyProfile, getProfileStats, setMyInterests, updateMyProfile, uploadProfilePhoto } from '@/src/api/profileService';
 import type { ProfileDto, ProfileStatsDto, UpdateProfilePayload } from '@/src/types/profile';
 
 export function useMyProfile() {
@@ -41,6 +41,23 @@ export function useSetMyInterests() {
     onSuccess: (updatedProfile) => {
       queryClient.setQueryData(['profile-me'], updatedProfile);
       queryClient.invalidateQueries({ queryKey: ['recommended-events'] });
+    },
+  });
+}
+
+export function useUploadProfilePhoto() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ uri, mimeType }: { uri: string; mimeType: string }) => uploadProfilePhoto(uri, mimeType),
+    onSuccess: (profilePhotoUrl) => {
+      queryClient.setQueryData<ProfileDto | undefined>(['profile-me'], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          profilePhoto: profilePhotoUrl,
+        };
+      });
     },
   });
 }

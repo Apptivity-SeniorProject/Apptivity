@@ -119,6 +119,7 @@ function mapEventParticipant(
 ): EventParticipantProfileDto {
   return {
     ...participant,
+    profilePhoto: getFullImageUrl(participant.profilePhoto),
     status: normalizeParticipationStatus(participant.status as string | number | null),
   };
 }

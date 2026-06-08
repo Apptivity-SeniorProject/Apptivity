@@ -34,7 +34,8 @@ public sealed class LocalImageService : IImageService
         await SaveFileAsync(fileStream, filePath, cancellationToken);
 
         var url = BuildRelativeUrl("api/uploads", ProfilePhotosFolder, savedFileName);
-        return new ImageUploadResult(url, accountId.ToString());
+        var timestampUrl = $"{url}?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        return new ImageUploadResult(timestampUrl, accountId.ToString());
     }
 
     public async Task<ImageUploadResult> UploadEventPhotoAsync(
@@ -58,7 +59,8 @@ public sealed class LocalImageService : IImageService
         await SaveFileAsync(fileStream, filePath, cancellationToken);
 
         var url = BuildRelativeUrl("api/uploads", EventPhotosFolder, eventId.ToString(), savedFileName);
-        return new ImageUploadResult(url, $"{eventId}/{photoIndex}");
+        var timestampUrl = $"{url}?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        return new ImageUploadResult(timestampUrl, $"{eventId}/{photoIndex}");
     }
 
     public async Task<ImageUploadResult> UploadReportEvidenceAsync(
@@ -89,12 +91,19 @@ public sealed class LocalImageService : IImageService
         var files = Directory.GetFiles(directory)
             .Select(f => new
             {
+                FullPath = f,
                 FileName = Path.GetFileName(f),
                 Index = int.TryParse(Path.GetFileNameWithoutExtension(f), out var idx) ? idx : 0
             })
             .Where(f => f.Index >= 1 && f.Index <= 3)
             .OrderBy(f => f.Index)
-            .Select(f => BuildRelativeUrl("api/uploads", EventPhotosFolder, eventId.ToString(), f.FileName))
+            .Select(f => f.FullPath)
+            .Select(f => 
+            {
+                var fileInfo = new FileInfo(f);
+                var url = BuildRelativeUrl("api/uploads", EventPhotosFolder, eventId.ToString(), Path.GetFileName(f));
+                return $"{url}?v={fileInfo.LastWriteTimeUtc.Ticks}";
+            })
             .ToList();
 
         return Task.FromResult<IReadOnlyList<string>>(files);
