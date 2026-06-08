@@ -60,7 +60,6 @@ services:
         condition: service_healthy
 
   web:
-    profiles: ["web"]
     build:
       context: .
       dockerfile: apps/web/Dockerfile

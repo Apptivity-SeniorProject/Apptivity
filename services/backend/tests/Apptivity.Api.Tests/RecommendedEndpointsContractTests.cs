@@ -168,7 +168,7 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
         public Task<Result<PagedResult<MyParticipationDto>>> GetMyParticipationsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken)
             => Task.FromResult(Result<PagedResult<MyParticipationDto>>.Failure("TEST_001", "Not implemented."));
 
-        public Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, CancellationToken cancellationToken)
+        public Task<Result<EventParticipantsResponse>> GetEventParticipantsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
             => Task.FromResult(Result<EventParticipantsResponse>.Failure("TEST_001", "Not implemented."));
 
         public Task<Result<EventDetailsDto>> GetEventDetailsAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
