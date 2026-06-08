@@ -7,13 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
+import { hitSlop } from '@/src/constants/theme';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { buildAuthUser } from '@/src/utils/auth';
 import { getApiErrorMessage } from '@/src/utils/error';
-import { hitSlop } from '@/src/constants/theme';
-
-// ─── Country Code ────────────────────────────────────────────────────────────
 
 interface CountryCodeOption {
   label: string;
@@ -21,17 +19,15 @@ interface CountryCodeOption {
 }
 
 const COUNTRY_CODES: CountryCodeOption[] = [
-  { label: '🇹🇷  Türkiye (+90)', value: '+90' },
-  { label: '🇺🇸  ABD (+1)', value: '+1' },
-  { label: '🇩🇪  Almanya (+49)', value: '+49' },
-  { label: '🇬🇧  İngiltere (+44)', value: '+44' },
+  { label: 'Türkiye (+90)', value: '+90' },
+  { label: 'ABD (+1)', value: '+1' },
+  { label: 'Almanya (+49)', value: '+49' },
+  { label: 'İngiltere (+44)', value: '+44' },
 ];
 
 function normalizePhone(countryCode: string, input: string): string {
   return `${countryCode}${input.replace(/\D/g, '')}`;
 }
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export function LoginScreen() {
   const [countryCode, setCountryCode] = useState('+90');
@@ -41,10 +37,10 @@ export function LoginScreen() {
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
 
   const toast = useToast();
-  const setTokens = useAuthStore((s) => s.setTokens);
-  const setUser = useAuthStore((s) => s.setUser);
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const setTokens = useAuthStore((state) => state.setTokens);
+  const setUser = useAuthStore((state) => state.setUser);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const phoneNumber = useMemo(
     () => normalizePhone(countryCode, phoneInput),
@@ -73,7 +69,6 @@ export function LoginScreen() {
     },
   });
 
-  // ── Early returns AFTER all hooks ──
   if (hasHydrated && accessToken) {
     return <Redirect href="/(tabs)" />;
   }
@@ -86,6 +81,7 @@ export function LoginScreen() {
       setInputError('Geçerli bir telefon numarası girin.');
       return;
     }
+
     if (!password.trim()) {
       setInputError('Şifre giriniz.');
       return;
@@ -98,13 +94,15 @@ export function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 px-6 pt-16">
-        {/* ── Header ── */}
-        <Text className="font-sans-bold text-3xl text-gray-900">Giriş Yap</Text>
+        <Pressable hitSlop={hitSlop.md} onPress={() => router.replace('/(auth)/landing')}>
+          <Text className="font-sans-medium text-sm text-gray-500">{'<'} Geri</Text>
+        </Pressable>
+
+        <Text className="mt-4 font-sans-bold text-3xl text-gray-900">Giriş Yap</Text>
         <Text className="mt-2 font-sans text-base text-gray-500">
           Telefon numaran ve şifrenle giriş yap.
         </Text>
 
-        {/* ── Phone Input ── */}
         <View className="mt-10 flex-row gap-3">
           <Pressable
             className="h-12 items-center justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
@@ -115,14 +113,13 @@ export function LoginScreen() {
 
           <Input
             keyboardType="phone-pad"
-            placeholder="5XX XXX XX XX"
+            placeholder="Telefon numaranız"
             value={phoneInput}
             onChangeText={setPhoneInput}
             containerClassName="flex-1"
           />
         </View>
 
-        {/* ── Password Input ── */}
         <Input
           label="Şifre"
           placeholder="Şifrenizi girin"
@@ -133,7 +130,6 @@ export function LoginScreen() {
           error={inputError}
         />
 
-        {/* ── Forgot Password ── */}
         <Pressable
           className="mt-3 self-end"
           hitSlop={hitSlop.sm}
@@ -141,7 +137,6 @@ export function LoginScreen() {
           <Text className="font-sans-medium text-sm text-primary-600">Şifremi Unuttum</Text>
         </Pressable>
 
-        {/* ── Login Button ── */}
         <Button
           className="mt-8"
           label="Giriş Yap"
@@ -150,16 +145,14 @@ export function LoginScreen() {
           onPress={handleLogin}
         />
 
-        {/* ── Register Link ── */}
         <View className="mt-6 flex-row items-center justify-center gap-1">
           <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
-          <Pressable hitSlop={hitSlop.sm} onPress={() => router.push('/(auth)/register')}>
+          <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/register')}>
             <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* ── Country Code Modal ── */}
       <Modal animationType="slide" transparent visible={isCountryModalOpen}>
         <Pressable
           className="flex-1 justify-end bg-black/40"

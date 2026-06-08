@@ -18,6 +18,7 @@ export function Input({
   className,
   containerClassName,
   secureTextEntry,
+  multiline,
   ...props
 }: InputProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -32,17 +33,21 @@ export function Input({
       <View className="relative">
         <TextInput
           className={cn(
-            'h-12 rounded-button border bg-surface-secondary px-4 font-sans text-base text-gray-900',
+            multiline
+              ? 'min-h-24 rounded-card border bg-surface-secondary px-4 py-3 font-sans text-base text-gray-900'
+              : 'h-12 rounded-button border bg-surface-secondary px-4 font-sans text-base text-gray-900',
             error ? 'border-error' : 'border-gray-200',
             'focus:border-primary',
             className
           )}
           placeholderTextColor={colors.inputPlaceholder}
           secureTextEntry={isSecure}
+          multiline={multiline}
+          style={multiline ? { textAlignVertical: 'top' } : undefined}
           {...props}
         />
 
-        {secureTextEntry ? (
+        {secureTextEntry && !multiline ? (
           <Pressable
             className="absolute right-0 top-0 h-12 items-center justify-center px-4"
             hitSlop={hitSlop.sm}
