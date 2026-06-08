@@ -13,6 +13,42 @@ import TagManagementSection from '../components/admin/TagManagementSection'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
+function getSelectedAdminMenuKey(pathname) {
+    if (pathname === '/admin/organizations/create') {
+        return 'organization-create'
+    }
+
+    if (pathname === '/admin/organizations/manage') {
+        return 'organization-manage'
+    }
+
+    if (pathname === '/admin/organizations/banned') {
+        return 'organization-banned'
+    }
+
+    if (pathname === '/admin/users' || pathname === '/admin/users/approval') {
+        return 'user-approval'
+    }
+
+    if (pathname === '/admin/users/manage') {
+        return 'user-manage'
+    }
+
+    if (pathname === '/admin/users/banned') {
+        return 'user-banned'
+    }
+
+    if (pathname === '/admin/reports') {
+        return 'reports'
+    }
+
+    if (pathname === '/admin/tags') {
+        return 'tag-management'
+    }
+
+    return 'event-approval'
+}
+
 function AdminHomePage() {
     const navigate = useNavigate()
     const location = useLocation()
@@ -21,31 +57,15 @@ function AdminHomePage() {
     const isMobile = !screens.md
     const session = getAuthSession()
     const isAdmin = session?.role === 'admin'
-    const [selectedKey, setSelectedKey] = useState('event-approval')
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+    const selectedKey = getSelectedAdminMenuKey(location.pathname)
 
     useEffect(() => {
         if (!isAdmin) {
             navigate('/login/admin', { replace: true })
         }
     }, [isAdmin, navigate])
-
-    useEffect(() => {
-        const nextKey = (
-            location.pathname === '/admin/organizations/create' ? 'organization-create'
-                : location.pathname === '/admin/organizations/manage' ? 'organization-manage'
-                    : location.pathname === '/admin/organizations/banned' ? 'organization-banned'
-                    : location.pathname === '/admin/users' || location.pathname === '/admin/users/approval' ? 'user-approval'
-                        : location.pathname === '/admin/users/manage' ? 'user-manage'
-                            : location.pathname === '/admin/users/banned' ? 'user-banned'
-                                : location.pathname === '/admin/reports' ? 'reports'
-                                    : location.pathname === '/admin/tags' ? 'tag-management'
-                                        : 'event-approval'
-        )
-
-        setSelectedKey(nextKey)
-    }, [location.pathname])
 
     const menuItems = [
         {
@@ -222,7 +242,6 @@ function AdminHomePage() {
                                     items={menuItems}
                                     onClick={({ key }) => {
                                         const nextPath = pathByKey[key]
-                                        setSelectedKey(key)
                                         if (nextPath) {
                                             navigate(nextPath)
                                         }
@@ -303,7 +322,6 @@ function AdminHomePage() {
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => {
-                        setSelectedKey(key)
                         setIsMobileMenuOpen(false)
                         const nextPath = pathByKey[key]
                         if (nextPath) {

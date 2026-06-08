@@ -256,6 +256,9 @@ public sealed class EventServiceSchedulingTests
         public Task<Account?> GetAccountByIdWithInterestsAsync(Guid accountId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
+        public Task<IReadOnlyCollection<Account>> GetExpiredSuspendedAccountsAsync(DateTime nowUtc, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyCollection<Account>>(Array.Empty<Account>());
+
         public Task AddAccountAsync(Account account, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
