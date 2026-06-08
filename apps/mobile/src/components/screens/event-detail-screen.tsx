@@ -3,11 +3,9 @@ import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CalendarDays, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { useState } from 'react';
-import { Dimensions, ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Dimensions, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const { width: windowWidth } = Dimensions.get('window');
 
 import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
@@ -20,6 +18,8 @@ import type { ApiEnvelope } from '@/src/types/api';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
+
+const { width: windowWidth } = Dimensions.get('window');
 
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80';
@@ -88,8 +88,9 @@ function getApiErrorCode(error: unknown): string | null {
 }
 
 export function EventDetailScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; returnToHome?: string }>();
   const eventId = params.id ?? '';
+  const shouldReturnToHome = params.returnToHome === '1';
   const queryClient = useQueryClient();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const toast = useToast();
@@ -101,6 +102,28 @@ export function EventDetailScreen() {
   const { data, isPending } = useEventDetail(eventId, {
     refetchIntervalMs: 8000,
   });
+
+  const handleBackNavigation = () => {
+    if (shouldReturnToHome) {
+      router.replace('/(tabs)');
+      return;
+    }
+
+    router.back();
+  };
+
+  useEffect(() => {
+    if (!shouldReturnToHome) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.replace('/(tabs)');
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [shouldReturnToHome]);
 
 
   const joinMutation = useMutation({
@@ -249,7 +272,7 @@ export function EventDetailScreen() {
           <Pressable
             className="absolute left-4 h-10 w-10 items-center justify-center rounded-full bg-black/35"
             style={{ top: insets.top + 8 }}
-            onPress={() => router.back()}>
+            onPress={handleBackNavigation}>
             <ArrowLeft size={18} color="#ffffff" />
           </Pressable>
         </View>

@@ -243,6 +243,18 @@ public sealed class EventRepository : IEventRepository
         return (items, totalCount);
     }
 
+    public Task<bool> HasScheduleConflictAsync(Guid ownerId, DateOnly date, TimeOnly time, Guid? excludeEventId, CancellationToken cancellationToken)
+    {
+        return _db.Events.AnyAsync(
+            x => x.OwnerId == ownerId
+                && x.Date == date
+                && x.Time == time
+                && !x.IsDeleted
+                && x.Status != EventStatus.Cancelled
+                && (!excludeEventId.HasValue || x.Id != excludeEventId.Value),
+            cancellationToken);
+    }
+
     public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByApprovedParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var query = _db.Participations

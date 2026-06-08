@@ -358,6 +358,11 @@ public sealed class EventService : IEventService
             return Result<EventSummaryDto>.Failure(ErrorCodes.Validation, validationError);
         }
 
+        if (await HasOwnerScheduleConflictAsync(userContext.AccountId, request.Date, request.Time, excludeEventId: null, cancellationToken))
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "You already have another event at the same date and time.");
+        }
+
         var normalizedTagIds = NormalizeTagIds(request.PrimaryTagId, request.TagIds);
         var tags = normalizedTagIds.Count == 0
             ? Array.Empty<Tag>()
@@ -479,6 +484,11 @@ public sealed class EventService : IEventService
             && eventEntity.Status != EventStatus.Published)
         {
             return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "Only Draft, PendingApproval, Rejected or Published events can be updated.");
+        }
+
+        if (await HasOwnerScheduleConflictAsync(userContext.AccountId, request.Date, request.Time, eventEntity.Id, cancellationToken))
+        {
+            return Result<EventSummaryDto>.Failure(ErrorCodes.EventInvalidState, "You already have another event at the same date and time.");
         }
 
         eventEntity.Name = request.Name;
@@ -1848,5 +1858,15 @@ public sealed class EventService : IEventService
         }
 
         return null;
+    }
+
+    private Task<bool> HasOwnerScheduleConflictAsync(
+        Guid ownerId,
+        DateOnly date,
+        TimeOnly time,
+        Guid? excludeEventId,
+        CancellationToken cancellationToken)
+    {
+        return _eventRepository.HasScheduleConflictAsync(ownerId, date, time, excludeEventId, cancellationToken);
     }
 }

@@ -400,6 +400,7 @@ const resources = {
                 },
                 createEvent: {
                     description: 'Mobildeki etkinlik olusturma adimlarinin web uyumlu halidir.',
+                    tagHint: 'En az 1, en fazla 5 kategori secin.',
                     locationTitle: 'Konum Bilgileri',
                     fields: {
                         name: 'Etkinlik Basligi',
@@ -456,6 +457,7 @@ const resources = {
                         mapSelectionRequired: 'Konumu haritadan secmelisiniz.',
                         futureDateTime: 'Etkinlik tarihi ve saati gelecekte olmalidir.',
                         imageCount: 'En az 1, en fazla 3 fotograf secmelisiniz.',
+                        tagCount: 'En az 1, en fazla 5 kategori secmelisiniz.',
                         imageType: 'Sadece gorsel dosyasi yukleyebilirsiniz.',
                         imageSize: 'Gorsel boyutu en fazla 10MB olabilir.',
                     },
@@ -905,6 +907,7 @@ const resources = {
                 },
                 createEvent: {
                     description: 'Web adaptation of the mobile create-event flow.',
+                    tagHint: 'Select at least 1 and at most 5 categories.',
                     locationTitle: 'Location Information',
                     fields: {
                         name: 'Event Title',
@@ -961,6 +964,7 @@ const resources = {
                         mapSelectionRequired: 'You must select location on map.',
                         futureDateTime: 'Event date and time must be in the future.',
                         imageCount: 'You must select between 1 and 3 images.',
+                        tagCount: 'You must select between 1 and 5 categories.',
                         imageType: 'Only image files are allowed.',
                         imageSize: 'Image size must be up to 10MB.',
                     },

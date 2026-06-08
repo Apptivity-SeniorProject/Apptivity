@@ -24,6 +24,7 @@ public interface IEventRepository
     Task<Event?> GetByIdWithOwnerAsync(Guid eventId, CancellationToken cancellationToken);
     Task<int> CountByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByOwnerIdAsync(Guid ownerId, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<bool> HasScheduleConflictAsync(Guid ownerId, DateOnly date, TimeOnly time, Guid? excludeEventId, CancellationToken cancellationToken);
     Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByApprovedParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Event?> GetWithParticipantsAsync(Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken);

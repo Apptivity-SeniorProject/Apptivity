@@ -7,6 +7,8 @@ import { getActiveTags } from '../../services/tagService'
 
 const MAX_EVENT_IMAGE_MB = 10
 const MAX_EVENT_IMAGES = 3
+const MIN_EVENT_TAGS = 1
+const MAX_EVENT_TAGS = 5
 const DEFAULT_MAP_CENTER = { latitude: 41.015137, longitude: 28.97953 }
 const LEAFLET_SCRIPT_ID = 'apptivity-leaflet-script'
 const LEAFLET_STYLE_ID = 'apptivity-leaflet-style'
@@ -92,6 +94,7 @@ async function reverseGeocode(latitude, longitude) {
 function OrganizationCreateEventSection() {
     const { t } = useTranslation()
     const [form] = Form.useForm()
+    const selectedPrimaryTagId = Form.useWatch('primaryTagId', form)
     const [messageApi, contextHolder] = message.useMessage()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isTagsLoading, setIsTagsLoading] = useState(false)
@@ -366,6 +369,11 @@ function OrganizationCreateEventSection() {
         const primaryTagId = values.primaryTagId || undefined
         const extraTagIds = Array.isArray(values.tagIds) ? values.tagIds : []
         const tagIds = Array.from(new Set([primaryTagId, ...extraTagIds].filter(Boolean)))
+
+        if (tagIds.length < MIN_EVENT_TAGS || tagIds.length > MAX_EVENT_TAGS) {
+            setErrorText(t('organization.createEvent.validation.tagCount'))
+            return
+        }
 
         const locationData = JSON.stringify({
             city: String(values.city || '').trim(),
@@ -651,12 +659,16 @@ function OrganizationCreateEventSection() {
                                         mode="multiple"
                                         allowClear
                                         loading={isTagsLoading}
+                                        maxCount={selectedPrimaryTagId ? MAX_EVENT_TAGS - 1 : MAX_EVENT_TAGS}
                                         options={tagOptions}
                                         placeholder={t('organization.createEvent.placeholders.tags')}
                                     />
                                 </Form.Item>
                             </Col>
                         </Row>
+                        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+                            {t('organization.createEvent.tagHint')}
+                        </Typography.Text>
                     </div>
 
                     <div

@@ -38,6 +38,15 @@ interface CreateEventMutationResult {
   bannerUploadErrorMessage?: string;
 }
 
+const MIN_EVENT_TAGS = 1;
+const MAX_EVENT_TAGS = 5;
+
+function createInitialScheduledAt() {
+  const now = new Date();
+  now.setHours(now.getHours() + 2, 0, 0, 0);
+  return now;
+}
+
 const DEFAULT_REGION: Region = {
   latitude: 41.015137,
   longitude: 28.97953,
@@ -48,11 +57,7 @@ const DEFAULT_REGION: Region = {
 export function CreateEventScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [scheduledAt, setScheduledAt] = useState(() => {
-    const now = new Date();
-    now.setHours(now.getHours() + 2, 0, 0, 0);
-    return now;
-  });
+  const [scheduledAt, setScheduledAt] = useState(() => createInitialScheduledAt());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -91,9 +96,39 @@ export function CreateEventScreen() {
   const formattedTime = useMemo(() => format(scheduledAt, 'HH:mm'), [scheduledAt]);
 
   const toggleTag = (tagId: string) => {
-    setSelectedTagIds((current) =>
-      current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]
-    );
+    setSelectedTagIds((current) => {
+      if (current.includes(tagId)) {
+        return current.filter((id) => id !== tagId);
+      }
+
+      if (current.length >= MAX_EVENT_TAGS) {
+        toast.error(`En fazla ${MAX_EVENT_TAGS} kategori secebilirsiniz.`);
+        return current;
+      }
+
+      return [...current, tagId];
+    });
+  };
+
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setScheduledAt(createInitialScheduledAt());
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+    setDurationMinutes('120');
+    setCapacity('20');
+    setPrice('0');
+    setCity('');
+    setFullAddress('');
+    setLocationLabel('');
+    setSelectedCoordinate(null);
+    setIsMapModalOpen(false);
+    setMapRegion(DEFAULT_REGION);
+    setMapDraftCoordinate(null);
+    setIsResolvingLocation(false);
+    setSelectedImages([]);
+    setSelectedTagIds([]);
   };
 
   const selectPhotos = async () => {
@@ -282,6 +317,13 @@ export function CreateEventScreen() {
     if (!city.trim()) return { isValid: false, message: 'Sehir zorunludur.' };
     if (!fullAddress.trim()) return { isValid: false, message: 'Acik adres zorunludur.' };
 
+    if (selectedTagIds.length < MIN_EVENT_TAGS || selectedTagIds.length > MAX_EVENT_TAGS) {
+      return {
+        isValid: false,
+        message: `En az ${MIN_EVENT_TAGS}, en fazla ${MAX_EVENT_TAGS} kategori secmelisiniz.`,
+      };
+    }
+
     if (selectedImages.length < 1 || selectedImages.length > 3) {
       return { isValid: false, message: 'En az 1, en fazla 3 fotograf secmelisiniz.' };
     }
@@ -357,7 +399,11 @@ export function CreateEventScreen() {
         toast.success('Etkinlik olusturuldu.');
       }
 
-      router.push(`/event/${eventId}`);
+      resetForm();
+      router.push({
+        pathname: '/event/[id]',
+        params: { id: eventId, returnToHome: '1' },
+      });
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, 'Etkinlik olusturulamadi.'));
@@ -501,7 +547,15 @@ export function CreateEventScreen() {
           />
 
           <View>
-            <Text className="mb-2 text-sm font-medium text-slate-700">Kategoriler (Opsiyonel)</Text>
+            <View className="mb-2 flex-row items-center justify-between">
+              <Text className="text-sm font-medium text-slate-700">Kategoriler</Text>
+              <Text className="text-xs text-slate-500">
+                {selectedTagIds.length}/{MAX_EVENT_TAGS} secildi
+              </Text>
+            </View>
+            <Text className="mb-3 text-xs text-slate-500">
+              En az {MIN_EVENT_TAGS}, en fazla {MAX_EVENT_TAGS} kategori secin.
+            </Text>
             {categories.length ? (
               <CategorySelector
                 categories={categories}
