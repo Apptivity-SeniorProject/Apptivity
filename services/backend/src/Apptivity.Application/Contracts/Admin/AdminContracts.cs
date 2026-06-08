@@ -71,6 +71,8 @@ public sealed record AdminEventsFilterRequest(
 
 public sealed record ReportsFilterRequest(
     ReportStatus? Status,
+    ReportTargetType? TargetType,
+    string? AccountQuery,
     string? OrganizationQuery,
     string? UserQuery,
     string? EventQuery,

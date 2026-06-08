@@ -1200,6 +1200,11 @@ public sealed class AdminRepository : IAdminRepository
             query = query.Where(x => x.Status == filter.Status.Value);
         }
 
+        if (filter.TargetType.HasValue)
+        {
+            query = query.Where(x => x.TargetType == filter.TargetType.Value);
+        }
+
         query = query.OrderByDescending(x => x.CreatedAt);
 
         var projected = query.Select(x => new AdminReportListItem(
@@ -1285,6 +1290,18 @@ public sealed class AdminRepository : IAdminRepository
                 x.RelatedAccountType == AccountType.Individual &&
                 (((x.RelatedUserFullName ?? string.Empty).ToLower().Contains(userQuery)) ||
                  ((x.RelatedUsername ?? string.Empty).ToLower().Contains(userQuery))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.AccountQuery))
+        {
+            var accountQuery = filter.AccountQuery.Trim().ToLower();
+            projected = projected.Where(x =>
+                x.Report.TargetType == ReportTargetType.Account &&
+                (
+                    ((x.RelatedUserFullName ?? string.Empty).ToLower().Contains(accountQuery)) ||
+                    ((x.RelatedOrganizationName ?? string.Empty).ToLower().Contains(accountQuery)) ||
+                    ((x.RelatedUsername ?? string.Empty).ToLower().Contains(accountQuery))
+                ));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.EventQuery))

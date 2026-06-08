@@ -105,6 +105,8 @@ export async function createAdminOrganization(payload) {
 
 export async function getAdminReports({
     status,
+    targetType,
+    accountQuery,
     organizationQuery,
     userQuery,
     eventQuery,
@@ -117,6 +119,14 @@ export async function getAdminReports({
 
     if (status) {
         query.set('status', status)
+    }
+
+    if (targetType) {
+        query.set('targetType', targetType)
+    }
+
+    if (accountQuery?.trim()) {
+        query.set('accountQuery', accountQuery.trim())
     }
 
     if (organizationQuery?.trim()) {
@@ -162,6 +172,12 @@ export async function updateAdminAccountStatus(accountId, statusOrPayload) {
 export async function getEventDetails(eventId) {
     return apiRequest(`/events/${eventId}`, {
         method: 'GET',
+    })
+}
+
+export async function deleteAdminEvent(eventId) {
+    return apiRequest(`/admin/events/${eventId}`, {
+        method: 'DELETE',
     })
 }
 

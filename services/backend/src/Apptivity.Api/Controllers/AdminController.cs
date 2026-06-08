@@ -102,6 +102,8 @@ public sealed class AdminController : ApiControllerBase
     [HttpGet("reports")]
     public async Task<IActionResult> GetReports(
         [FromQuery] ReportStatus? status,
+        [FromQuery] ReportTargetType? targetType,
+        [FromQuery] string? accountQuery,
         [FromQuery] string? organizationQuery,
         [FromQuery] string? userQuery,
         [FromQuery] string? eventQuery,
@@ -109,7 +111,7 @@ public sealed class AdminController : ApiControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var request = new ReportsFilterRequest(status, organizationQuery, userQuery, eventQuery, pageNumber, pageSize);
+        var request = new ReportsFilterRequest(status, targetType, accountQuery, organizationQuery, userQuery, eventQuery, pageNumber, pageSize);
         var result = await _adminService.GetReportsAsync(request, cancellationToken);
         return FromResult(result);
     }
