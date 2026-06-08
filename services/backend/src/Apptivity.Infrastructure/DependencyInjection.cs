@@ -1,4 +1,5 @@
 using Apptivity.Application.Interfaces;
+using Apptivity.Application.Options;
 using Apptivity.Infrastructure.External;
 using Apptivity.Infrastructure.Options;
 using Apptivity.Infrastructure.Persistence;
@@ -17,7 +18,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
         services.Configure<FcmOptions>(configuration.GetSection(FcmOptions.SectionName));
-        services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
+        services.Configure<ImageUploadOptions>(configuration.GetSection(ImageUploadOptions.SectionName));
         services.Configure<GroqOptions>(configuration.GetSection(GroqOptions.SectionName));
         services.Configure<RecommendationFeatureFlags>(configuration.GetSection(RecommendationFeatureFlags.SectionName));
 
@@ -61,7 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         services.AddScoped<IFirebaseOtpVerifier, FirebaseOtpVerifier>();
         services.AddScoped<INotificationService, FirebaseNotificationService>();
-        services.AddScoped<IImageService, CloudinaryImageService>();
+        services.AddScoped<IImageService, LocalImageService>();
         services.AddScoped<ITagPredictionCacheService, TagPredictionCacheService>();
         services.AddSingleton<IRecommendationFeatureFlags>(sp =>
             sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RecommendationFeatureFlags>>().Value);

@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -205,6 +206,16 @@ if (app.Environment.IsProduction())
     app.UseHttpsRedirection();
 }
 app.UseCors("StrictOrigins");
+
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploaded_images");
+Directory.CreateDirectory(uploadsPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/api/uploads"
+});
+
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
@@ -254,9 +265,6 @@ static void ValidateProductionConfiguration(IConfiguration configuration)
     GetRequired(configuration, "ConnectionStrings:PostgreSql");
     GetRequired(configuration, "ConnectionStrings:Redis");
     GetRequired(configuration, "Jwt:SigningKey");
-    GetRequired(configuration, "Cloudinary:CloudName");
-    GetRequired(configuration, "Cloudinary:ApiKey");
-    GetRequired(configuration, "Cloudinary:ApiSecret");
 
     var recommendedV6Enabled = configuration.GetValue<bool>("Recommendations:RecommendedV6Enabled", true);
     var killSwitchEnabled = configuration.GetValue<bool>("Recommendations:KillSwitchEnabled", false);

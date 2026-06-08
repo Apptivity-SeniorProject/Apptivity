@@ -25,4 +25,9 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 COPY --from=build /app/publish .
+
+RUN mkdir -p wwwroot/uploaded_images/profile_photos \
+    && mkdir -p wwwroot/uploaded_images/event_photos \
+    && mkdir -p wwwroot/uploaded_images/report_evidence
+
 ENTRYPOINT ["dotnet", "Apptivity.Api.dll"]

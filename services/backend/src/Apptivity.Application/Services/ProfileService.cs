@@ -169,7 +169,7 @@ public sealed class ProfileService : IProfileService
             return Result<ProfileDto>.Failure(ErrorCodes.ProfileNotFound, "Profile not found.");
         }
 
-        var upload = await _imageService.UploadProfilePhotoAsync(fileStream, fileName, cancellationToken);
+        var upload = await _imageService.UploadProfilePhotoAsync(fileStream, fileName, account.Id, cancellationToken);
         account.ProfilePhoto = upload.Url;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -44,9 +44,6 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:-Apptivity.Api}
       Jwt__Audience: ${JWT_AUDIENCE:-Apptivity.Clients}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-Apptivity_Docker_Secret_Key_Min32Chars_XyZ!2026}
-      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
-      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
-      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
       Fcm__Enabled: ${FCM_ENABLED:-false}
       Fcm__ServerKey: ${FCM_SERVER_KEY:-}
       Groq__ApiKey: ${Groq__ApiKey:-}
@@ -58,6 +55,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - uploaded_images:/app/wwwroot/uploaded_images
 
   web:
     build:
@@ -73,3 +72,4 @@ services:
 
 volumes:
   postgres_data:
+  uploaded_images:
