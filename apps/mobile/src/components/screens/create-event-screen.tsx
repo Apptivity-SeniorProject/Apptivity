@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 
-import { createEvent, uploadEventBanner } from '@/src/api/eventService';
+import { createEvent, uploadEventPhoto } from '@/src/api/eventService';
 import { CategorySelector } from '@/src/components/events/category-selector';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -317,25 +317,28 @@ export function CreateEventScreen() {
       };
 
       const event = await createEvent(payload);
-      const firstImage = selectedImages[0];
 
-      if (!firstImage) {
+      if (selectedImages.length === 0) {
         throw new Error('Fotograf secimi zorunludur.');
       }
 
       try {
-        await uploadEventBanner(event.id, {
-          uri: firstImage.uri,
-          fileName: firstImage.fileName,
-          mimeType: firstImage.mimeType,
-        });
+        await Promise.all(
+          selectedImages.map((image, index) =>
+            uploadEventPhoto(event.id, index + 1, {
+              uri: image.uri,
+              fileName: image.fileName,
+              mimeType: image.mimeType,
+            })
+          )
+        );
         return { eventId: event.id };
       } catch (error) {
         return {
           eventId: event.id,
           bannerUploadErrorMessage: getApiErrorMessage(
             error,
-            'Etkinlik olusturuldu fakat fotograf yuklenemedi.'
+            'Etkinlik olusturuldu fakat bazi fotograflar yuklenemedi.'
           ),
         };
       }

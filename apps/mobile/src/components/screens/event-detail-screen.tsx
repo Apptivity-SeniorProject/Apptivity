@@ -3,9 +3,11 @@ import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CalendarDays, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useState } from 'react';
+import { Dimensions, ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const { width: windowWidth } = Dimensions.get('window');
 
 import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
@@ -224,17 +226,26 @@ export function EventDetailScreen() {
   const isBookmarked = Boolean(data.isBookmarkedByCurrentUser);
 
 
+  const photos = data.imageUrls && data.imageUrls.length > 0 
+    ? data.imageUrls 
+    : [data.bannerImageUrl ?? PLACEHOLDER_IMAGE];
+
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerClassName="pb-10">
-        <View>
-          <Image
-            source={{ uri: data.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
-            style={{ width: '100%', height: 280 }}
-            contentFit="cover"
-            transition={180}
-          />
+        <View style={{ height: 280 }}>
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+            {photos.map((url, index) => (
+              <Image
+                key={`${url}-${index}`}
+                source={{ uri: url }}
+                style={{ width: windowWidth, height: 280 }}
+                contentFit="cover"
+                transition={180}
+              />
+            ))}
+          </ScrollView>
           <Pressable
             className="absolute left-4 h-10 w-10 items-center justify-center rounded-full bg-black/35"
             style={{ top: insets.top + 8 }}

@@ -1,4 +1,5 @@
 import { apiClient } from '@/src/api/apiClient';
+import { API_BASE_URL } from '@/src/constants/env';
 import type { ApiEnvelope } from '@/src/types/api';
 import type {
   ApplyToEventResponseDto,
@@ -21,6 +22,15 @@ import type {
 } from '@/src/types/event';
 
 const DEFAULT_PAGE_SIZE = 10;
+
+export function getFullImageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+  const baseUrl = API_BASE_URL.replace(/\/$/, '');
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+}
 
 function isUuid(value?: string): boolean {
   if (!value) {
@@ -120,7 +130,7 @@ function toEventDateTime(date: string, time: string): Date {
 function mapEventSummary(dto: EventSummaryDto): EventListItem {
   const participantCount = Math.max(0, dto.capacity - dto.remainingParticipationCount);
   const location = parseLocationData(dto.locationData);
-  const bannerImageUrl = dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description);
+  const bannerImageUrl = getFullImageUrl(dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description));
 
   return {
     id: dto.id,
@@ -132,7 +142,7 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
     organizerName: dto.ownerName ?? 'Organizator',
-    organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
+    organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
     bannerImageUrl,
     status: dto.status,
     remainingParticipationCount: dto.remainingParticipationCount,
@@ -140,13 +150,13 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     primaryTagId: dto.primaryTagId,
     tags: dto.tags ?? [],
     participantCount,
-    imageUrls: location.imageUrls,
+    imageUrls: location.imageUrls?.map((url) => getFullImageUrl(url)!).filter(Boolean),
   };
 }
 
 function mapMyParticipation(dto: MyParticipationDto): EventListItem {
   const location = parseLocationData(dto.locationData);
-  const bannerImageUrl = dto.bannerImage ?? location.imageUrls?.[0] ?? undefined;
+  const bannerImageUrl = getFullImageUrl(dto.bannerImage ?? location.imageUrls?.[0]);
 
   return {
     id: dto.eventId,
@@ -158,7 +168,7 @@ function mapMyParticipation(dto: MyParticipationDto): EventListItem {
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
     organizerName: dto.ownerName ?? 'Organizator',
-    organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
+    organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
     bannerImageUrl,
     status: dto.eventStatus,
     remainingParticipationCount: 0,
@@ -166,7 +176,7 @@ function mapMyParticipation(dto: MyParticipationDto): EventListItem {
     tags: [],
     participantCount: 0,
     currentUserParticipationStatus: normalizeParticipationStatus(dto.participationStatus),
-    imageUrls: location.imageUrls,
+    imageUrls: location.imageUrls?.map((url) => getFullImageUrl(url)!).filter(Boolean),
   };
 }
 
@@ -189,8 +199,8 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     isPaid: price > 0,
     organizerName: dto.ownerName ?? 'Organizator',
     organizerType: dto.ownerType !== undefined && dto.ownerType !== null ? String(dto.ownerType) : undefined,
-    organizerProfilePhoto: dto.ownerProfilePhoto ?? undefined,
-    bannerImageUrl: dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description),
+    organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
+    bannerImageUrl: getFullImageUrl(dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description)),
     status: dto.status,
     capacity: dto.capacity,
     remainingParticipationCount: dto.remainingParticipationCount,
@@ -201,7 +211,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     isBookmarkedByCurrentUser: dto.isBookmarkedByCurrentUser ?? false,
     isPast: eventDateTime.getTime() < Date.now(),
     isFull: dto.remainingParticipationCount <= 0,
-    imageUrls: location.imageUrls,
+    imageUrls: location.imageUrls?.map((url) => getFullImageUrl(url)!).filter(Boolean),
   };
 }
 
@@ -338,9 +348,23 @@ export async function getDailyRecommendedNext(request: {
 }
 
 export async function getEventDetail(eventId: string): Promise<EventDetail> {
-  const response = await apiClient.get<ApiEnvelope<EventDetailsDto>>(`/api/events/${eventId}`);
-  const payload = unwrapEnvelope(response.data);
-  return mapEventDetail(payload);
+  const [detailResponse, photosResponse] = await Promise.all([
+    apiClient.get<ApiEnvelope<EventDetailsDto>>(`/api/events/${eventId}`),
+    apiClient.get<ApiEnvelope<{ eventId: string, photos: string[] }>>(`/api/images/events/${eventId}/photos`).catch(() => null)
+  ]);
+
+  const payload = unwrapEnvelope(detailResponse.data);
+  const detail = mapEventDetail(payload);
+
+  const photos = photosResponse?.data?.isSuccess ? photosResponse.data.data?.photos : undefined;
+  if (photos && photos.length > 0) {
+    detail.imageUrls = photos.map((url) => getFullImageUrl(url)!).filter(Boolean);
+    if (!detail.bannerImageUrl) {
+      detail.bannerImageUrl = detail.imageUrls[0];
+    }
+  }
+
+  return detail;
 }
 
 export async function getEventParticipants(eventId: string): Promise<EventParticipantsResponseDto> {
@@ -392,8 +416,9 @@ function normalizeBannerFileMeta(asset: BannerUploadAsset): { fileName: string; 
   };
 }
 
-export async function uploadEventBanner(
+export async function uploadEventPhoto(
   eventId: string,
+  photoIndex: number,
   asset: BannerUploadAsset
 ): Promise<string | undefined> {
   const normalizedUri = asset.uri.trim();
@@ -408,9 +433,10 @@ export async function uploadEventBanner(
     name: normalizedMeta.fileName,
     type: normalizedMeta.mimeType,
   } as never);
+  formData.append('photoIndex', photoIndex.toString());
 
-  const response = await apiClient.post<ApiEnvelope<{ bannerUrl?: string }>>(
-    `/api/images/events/${eventId}/banner`,
+  const response = await apiClient.post<ApiEnvelope<{ photoUrl?: string }>>(
+    `/api/images/events/${eventId}/photos`,
     formData,
     {
       headers: {
@@ -420,7 +446,7 @@ export async function uploadEventBanner(
   );
 
   const payload = unwrapEnvelope(response.data);
-  return payload.bannerUrl;
+  return payload.photoUrl;
 }
 
 export async function applyToEvent(eventId: string): Promise<ParticipationStatus> {
