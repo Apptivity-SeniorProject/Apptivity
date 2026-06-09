@@ -82,13 +82,15 @@ export async function getEventParticipants(eventId) {
 }
 
 export async function updateEventParticipationStatus(eventId, userId, { status, rejectionReason = null }) {
+    const statusCode = status === 'Approved' ? 2 : 3
+
     return apiRequest(`/events/${eventId}/participants/${userId}/status`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            status,
+            status: statusCode,
             rejectionReason,
         }),
     })

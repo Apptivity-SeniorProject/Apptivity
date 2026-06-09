@@ -10,12 +10,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { EventCard } from '@/src/components/events/event-card';
 import { useProfile, useProfileEvents, useProfileStats } from '@/src/hooks/useProfile';
 import type { EventListItem } from '@/src/types/event';
 import type { ProfileEventDto } from '@/src/types/profile';
 import { cn } from '@/src/utils/cn';
+import { colors } from '@/src/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 type ProfileTab = 'organized-events' | 'participated-events';
@@ -129,6 +131,7 @@ export function PublicProfileScreen() {
 
   const rawScore = statsQuery.data?.reputationScore ?? 0;
   const repLevelName = statsQuery.data?.reputationLevel ?? 'Yeni';
+  const ratingValue = Math.max(0, Math.min(5, statsQuery.data?.rating ?? 0));
 
   const activeItems = useMemo<EventListItem[]>(() => {
     const mapped = (profileEventsQuery.data?.items ?? []).map((item) =>
@@ -211,39 +214,62 @@ export function PublicProfileScreen() {
           <Text className="mb-4 text-[14px] leading-5 text-gray-700">{profile.userProfile.bio}</Text>
         ) : null}
 
-        <View className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3">
-          <View className="mb-2.5 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-1.5">
-              <IconSymbol name="star.fill" size={13} color="#5bcc2a" />
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                Itibar
-              </Text>
+        {isIndividualProfile ? (
+          <View className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3">
+            <View className="mb-2.5 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-1.5">
+                <IconSymbol name="star.fill" size={13} color="#5bcc2a" />
+                <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                  Itibar
+                </Text>
+              </View>
+              <View className={`${badgeBg} rounded-full border ${badgeBorder} px-2.5 py-[3px]`}>
+                <Text className={`text-xs font-semibold ${badgeText}`}>{repLevelName}</Text>
+              </View>
             </View>
-            <View className={`${badgeBg} rounded-full border ${badgeBorder} px-2.5 py-[3px]`}>
-              <Text className={`text-xs font-semibold ${badgeText}`}>{repLevelName}</Text>
+
+            <View className="relative mb-1.5 h-[7px] overflow-visible rounded-full border border-gray-200 bg-gray-100">
+              <View className="absolute left-0 top-0 h-full w-1/2 rounded-l-full bg-red-500/10" />
+              <View className="absolute right-0 top-0 h-full w-1/2 rounded-r-full bg-[#77e349]/20" />
+              <View className="absolute left-1/2 -top-[1px] z-10 h-[9px] w-[1.5px] -translate-x-1/2 bg-gray-300" />
+              <View
+                className={`absolute top-0 z-[5] h-full rounded-full ${fillColor}`}
+                style={{ left: `${fillLeftPercent}%`, width: `${fillWidthPercent}%` }}
+              />
+              <View
+                className="absolute top-1/2 z-20 h-3 w-3 rounded-full border-2 border-white bg-[#5bcc2a]"
+                style={{ left: `${thumbLeftPercent}%`, transform: [{ translateX: -6 }, { translateY: -6 }] }}
+              />
+            </View>
+
+            <View className="flex-row justify-between px-[1px]">
+              <Text className="text-[10px] text-red-500/70">olumsuz</Text>
+              <Text className="text-[10px] text-gray-400">notr</Text>
+              <Text className="text-[10px] text-[#5bcc2a]/80">olumlu</Text>
             </View>
           </View>
+        ) : (
+          <View
+            className="rounded-xl px-3.5 py-3"
+            style={{ borderWidth: 1, borderColor: colors.primaryMuted, backgroundColor: colors.primaryLight }}>
 
-          <View className="relative mb-1.5 h-[7px] overflow-visible rounded-full border border-gray-200 bg-gray-100">
-            <View className="absolute left-0 top-0 h-full w-1/2 rounded-l-full bg-red-500/10" />
-            <View className="absolute right-0 top-0 h-full w-1/2 rounded-r-full bg-[#77e349]/20" />
-            <View className="absolute left-1/2 -top-[1px] z-10 h-[9px] w-[1.5px] -translate-x-1/2 bg-gray-300" />
-            <View
-              className={`absolute top-0 z-[5] h-full rounded-full ${fillColor}`}
-              style={{ left: `${fillLeftPercent}%`, width: `${fillWidthPercent}%` }}
-            />
-            <View
-              className="absolute top-1/2 z-20 h-3 w-3 rounded-full border-2 border-white bg-[#5bcc2a]"
-              style={{ left: `${thumbLeftPercent}%`, transform: [{ translateX: -6 }, { translateY: -6 }] }}
-            />
-          </View>
+            <Text className="mb-2 text-[12px] leading-5" style={{ color: colors.primaryDark }}>
+              {statsQuery.data?.totalReviews ?? 0} degerlendirme uzerinden ortalama puan
+            </Text>
 
-          <View className="flex-row justify-between px-[1px]">
-            <Text className="text-[10px] text-red-500/70">olumsuz</Text>
-            <Text className="text-[10px] text-gray-400">notr</Text>
-            <Text className="text-[10px] text-[#5bcc2a]/80">olumlu</Text>
+            <View className="flex-row items-center gap-1">
+              <View className="flex-row items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((starIndex) => {
+                  const delta = ratingValue - (starIndex - 1);
+                  const starName =
+                    delta >= 1 ? 'star' : delta >= 0.5 ? 'star-half' : 'star-outline';
+
+                  return <Ionicons key={starIndex} name={starName} size={20} color={colors.primary} />;
+                })}
+              </View>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       <View className="mt-2 border-b border-gray-200 bg-white px-4 py-3.5">
@@ -255,13 +281,15 @@ export function PublicProfileScreen() {
             </Text>
             <Text className="text-[11px] text-gray-500">{eventCountLabel}</Text>
           </View>
-          <View className="flex-1 items-center rounded-xl border border-gray-200 bg-gray-50 px-2 py-3">
-            <IconSymbol name="star.fill" size={16} color="#77e349" />
-            <Text className="mb-1 mt-1 text-[22px] font-semibold leading-none text-gray-900">
-              {statsQuery.data?.totalReviews ?? 0}
-            </Text>
-            <Text className="text-[11px] text-gray-500">Yorum</Text>
-          </View>
+          {isIndividualProfile ? (
+            <View className="flex-1 items-center rounded-xl border border-gray-200 bg-gray-50 px-2 py-3">
+              <IconSymbol name="star.fill" size={16} color="#77e349" />
+              <Text className="mb-1 mt-1 text-[22px] font-semibold leading-none text-gray-900">
+                {statsQuery.data?.totalReviews ?? 0}
+              </Text>
+              <Text className="text-[11px] text-gray-500">Yorum</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 

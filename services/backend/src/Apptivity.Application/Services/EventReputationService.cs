@@ -88,18 +88,9 @@ public sealed class EventReputationService : IEventReputationService
             }
             else // Organization / Club
             {
-                var clubRating = await _reputationRepository.GetClubRatingByAccountIdAsync(targetAccountId, cancellationToken);
-                if (clubRating is null)
-                {
-                    clubRating = new Domain.Entities.ClubRating { Id = targetAccountId, Rating = 0, RatedCount = 0 };
-                    await _reputationRepository.AddClubRatingAsync(clubRating, cancellationToken);
-                }
-
-                // Apply sequentially for the rolling average
-                foreach (var review in group)
-                {
-                    _calculator.ApplyClubStarRating(clubRating, review.Rating);
-                }
+                // Club star ratings are applied immediately when each review is submitted.
+                // Skip them here so the voting-close worker does not double-apply the same reviews.
+                continue;
             }
         }
 

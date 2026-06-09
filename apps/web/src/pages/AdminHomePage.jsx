@@ -264,7 +264,6 @@ function AdminHomePage() {
                                 <Menu
                                     mode="inline"
                                     inlineCollapsed={isCollapsed}
-                                    defaultOpenKeys={['users', 'organizations', 'reports']}
                                     selectedKeys={[selectedKey]}
                                     items={menuItems}
                                     onClick={({ key }) => {
@@ -349,7 +348,6 @@ function AdminHomePage() {
             >
                 <Menu
                     mode="inline"
-                    defaultOpenKeys={['users', 'organizations', 'reports']}
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => {
