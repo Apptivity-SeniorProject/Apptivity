@@ -322,7 +322,7 @@ public sealed class ProfileService : IProfileService
         var interests = account.InterestTags
             .Where(x => x.IsActive && !x.IsDeleted)
             .OrderBy(x => x.Name)
-            .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
+            .Select(x => new TagDto(x.Id, x.Name))
             .ToArray();
 
         return new ProfileDto(

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Apptivity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260609224213_InitialCreate")]
+    [Migration("20260609235016_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -975,19 +975,11 @@ namespace Apptivity.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ColorCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IconName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -1011,96 +1003,6 @@ namespace Apptivity.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("tags", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("96a9f6b2-40d7-4e15-9f8e-cb7596ed59f1"),
-                            ColorCode = "#10B981",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "football",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Sports",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("40fd6d4c-0f95-49d5-bb6a-7a6419d15231"),
-                            ColorCode = "#3B82F6",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "cpu",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Technology",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("8ba4efa4-9f4a-4a56-8646-644a8e3f079d"),
-                            ColorCode = "#EC4899",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "music-note",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Music",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("2f1769f1-0c31-4915-b9cc-d0cf79d5a5f3"),
-                            ColorCode = "#F59E0B",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "palette",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Art",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("d4e42a0d-6a4d-4d35-84d1-86e4b7e7e122"),
-                            ColorCode = "#0EA5E9",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "book-open",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Education",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("65558f2c-8d3e-4e47-88b5-c2a87d5a0a7f"),
-                            ColorCode = "#8B5CF6",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "gamepad-2",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Gaming",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("29b5f84d-6e7f-4d71-88c8-e0c91e84ae7b"),
-                            ColorCode = "#EF4444",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "heart-pulse",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Health",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("91b95171-08eb-4c09-a511-61ef9e6a2d5d"),
-                            ColorCode = "#14B8A6",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IconName = "briefcase",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Name = "Business",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.User", b =>

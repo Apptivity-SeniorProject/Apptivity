@@ -45,8 +45,6 @@ public sealed class TagService : ITagService
         {
             Id = Guid.NewGuid(),
             Name = normalizedName,
-            IconName = request.IconName?.Trim(),
-            ColorCode = request.ColorCode?.Trim(),
             IsActive = true
         };
 
@@ -76,8 +74,6 @@ public sealed class TagService : ITagService
         }
 
         tag.Name = normalizedName;
-        tag.IconName = request.IconName?.Trim();
-        tag.ColorCode = request.ColorCode?.Trim();
         if (request.IsActive.HasValue)
         {
             tag.IsActive = request.IsActive.Value;
@@ -115,8 +111,6 @@ public sealed class TagService : ITagService
         return new TagListItemDto(
             tag.Id,
             tag.Name,
-            tag.IconName,
-            tag.ColorCode,
             tag.IsActive);
     }
 }
