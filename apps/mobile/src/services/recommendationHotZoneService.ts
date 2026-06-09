@@ -4,8 +4,17 @@ import type { OrderedHotZone } from '@/src/types/event';
 import { getTopLocationGrids } from '@/src/services/locationHistoryStore';
 import { enforceLocationPrivacyOnDeniedPermission } from '@/src/services/locationTrackingService';
 
+let startupCoordinatesPromise: Promise<{
+  latitude: number;
+  longitude: number;
+} | null> | null = null;
+
+function normalizeCoordinate(value: number): number {
+  return Number(value.toFixed(6));
+}
+
 export async function getOrderedHotZonesForRecommendations(): Promise<OrderedHotZone[] | null> {
-  await enforceLocationPrivacyOnDeniedPermission();
+  void enforceLocationPrivacyOnDeniedPermission();
 
   const grids = await getTopLocationGrids(3);
   if (grids.length === 0) {
@@ -30,7 +39,7 @@ export async function getOrderedHotZonesForRecommendations(): Promise<OrderedHot
 }
 
 export async function getOrderedHotZoneKeysForRecommendations(): Promise<string[] | null> {
-  await enforceLocationPrivacyOnDeniedPermission();
+  void enforceLocationPrivacyOnDeniedPermission();
 
   const grids = await getTopLocationGrids(3);
   if (grids.length === 0) {
@@ -44,23 +53,56 @@ export async function getCurrentRecommendationCoordinates(): Promise<{
   latitude: number;
   longitude: number;
 } | null> {
-  await enforceLocationPrivacyOnDeniedPermission();
+  return getStartupHomeCoordinates();
+}
 
-  const permission = await Location.getForegroundPermissionsAsync();
-  if (!permission.granted) {
-    return null;
+export async function getStartupHomeCoordinates(): Promise<{
+  latitude: number;
+  longitude: number;
+} | null> {
+  if (startupCoordinatesPromise) {
+    return startupCoordinatesPromise;
   }
 
-  try {
-    const current = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+  startupCoordinatesPromise = (async () => {
+  void enforceLocationPrivacyOnDeniedPermission();
 
-    return {
-      latitude: Number(current.coords.latitude.toFixed(4)),
-      longitude: Number(current.coords.longitude.toFixed(4)),
-    };
-  } catch {
-    return null;
-  }
+    const currentPermission = await Location.getForegroundPermissionsAsync();
+    const permission = currentPermission.granted
+      ? currentPermission
+      : await Location.requestForegroundPermissionsAsync();
+
+    if (!permission.granted) {
+      return null;
+    }
+
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync({
+        maxAge: 15 * 60 * 1000,
+        requiredAccuracy: 500,
+      });
+
+      if (lastKnown) {
+        return {
+          latitude: normalizeCoordinate(lastKnown.coords.latitude),
+          longitude: normalizeCoordinate(lastKnown.coords.longitude),
+        };
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Low,
+      });
+
+      return {
+        latitude: normalizeCoordinate(current.coords.latitude),
+        longitude: normalizeCoordinate(current.coords.longitude),
+      };
+    } catch {
+      return null;
+    } finally {
+      startupCoordinatesPromise = null;
+    }
+  })();
+
+  return startupCoordinatesPromise;
 }

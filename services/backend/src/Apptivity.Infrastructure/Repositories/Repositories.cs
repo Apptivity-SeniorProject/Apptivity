@@ -567,7 +567,7 @@ public sealed class DailyRecommendationRepository : IDailyRecommendationReposito
     {
         return _db.DailyRecommendationPlans
             .Include(x => x.Tags)
-            .Include(x => x.Cursor)
+            .Include(x => x.ServedEvents)
             .FirstOrDefaultAsync(x => x.UserId == userId && x.DayKey == dayKey, cancellationToken);
     }
 
@@ -582,12 +582,26 @@ public sealed class DailyRecommendationRepository : IDailyRecommendationReposito
     {
         return _db.DailyRecommendationCursors
             .FromSqlInterpolated($"SELECT * FROM user_daily_recommendation_cursor WHERE plan_id = {planId} FOR UPDATE")
-            .AsTracking()
+            .AsNoTracking()
             .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task ResetPlanStateAsync(Guid planId, CancellationToken cancellationToken)
     {
+        foreach (var entry in _db.ChangeTracker.Entries<DailyRecommendationServedEvent>()
+                     .Where(x => x.Entity.PlanId == planId)
+                     .ToArray())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        foreach (var entry in _db.ChangeTracker.Entries<DailyRecommendationPlanTag>()
+                     .Where(x => x.Entity.PlanId == planId)
+                     .ToArray())
+        {
+            entry.State = EntityState.Detached;
+        }
+
         await _db.DailyRecommendationServedEvents
             .Where(x => x.PlanId == planId)
             .ExecuteDeleteAsync(cancellationToken);
@@ -612,6 +626,26 @@ public sealed class DailyRecommendationRepository : IDailyRecommendationReposito
 
         cursor.CurrentTagOrder = 1;
         cursor.IsDepleted = false;
+    }
+
+    public Task UpdateCursorStateAsync(Guid planId, int currentTagOrder, bool isDepleted, CancellationToken cancellationToken)
+    {
+        return _db.DailyRecommendationCursors
+            .Where(x => x.PlanId == planId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.CurrentTagOrder, currentTagOrder)
+                .SetProperty(x => x.IsDepleted, isDepleted), cancellationToken);
+    }
+
+    public Task AddServedEventAsync(Guid planId, Guid eventId, int tagOrder, DateTime servedAtUtc, CancellationToken cancellationToken)
+    {
+        return _db.DailyRecommendationServedEvents.AddAsync(new DailyRecommendationServedEvent
+        {
+            PlanId = planId,
+            EventId = eventId,
+            TagOrder = tagOrder,
+            ServedAtUtc = servedAtUtc
+        }, cancellationToken).AsTask();
     }
 
     public async Task<IReadOnlyCollection<DailyRecommendationServedEvent>> GetRecentServedEventsAsync(
@@ -1467,10 +1501,19 @@ public sealed class RecommendationTransactionManager : IRecommendationTransactio
         return await strategy.ExecuteAsync(async () =>
         {
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-            var result = await action(cancellationToken);
-            await _db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return result;
+            try
+            {
+                var result = await action(cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                _db.ChangeTracker.Clear();
+                throw;
+            }
         });
     }
 }

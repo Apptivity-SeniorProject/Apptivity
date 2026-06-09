@@ -1,4 +1,3 @@
-using Apptivity.Application.Common.Constants;
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Interfaces;
@@ -8,127 +7,272 @@ using Apptivity.Domain.Enums;
 
 namespace Apptivity.Api.Tests;
 
-public sealed class EventServiceSchedulingTests
+public sealed class EventServiceDailyRecommendationTests
 {
     [Fact]
-    public async Task CreateEventAsync_ReturnsFailure_WhenOwnerAlreadyHasEventAtSameDateAndTime()
+    public async Task GetDailyRecommendedNextAsync_FillsMissingSlotsFromHistoryBeforeDeterministicTags()
     {
-        var ownerId = Guid.NewGuid();
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        var profileTagId = Guid.Parse("20000000-0000-0000-0000-000000000010");
+        var historyTagId = Guid.Parse("F0000000-0000-0000-0000-000000000010");
+        var otherTag1Id = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var otherTag2Id = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var otherTag3Id = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var otherTag4Id = Guid.Parse("00000000-0000-0000-0000-000000000004");
+
+        var profileTag = CreateTag(profileTagId, "Profile");
+        var historyTag = CreateTag(historyTagId, "History");
+        var otherTag1 = CreateTag(otherTag1Id, "Art");
+        var otherTag2 = CreateTag(otherTag2Id, "Gaming");
+        var otherTag3 = CreateTag(otherTag3Id, "Travel");
+        var otherTag4 = CreateTag(otherTag4Id, "Music");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "daily-user",
+            Phone = "+905551112233",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
         var eventRepository = new FakeEventRepository
         {
-            HasScheduleConflictResult = true
+            ApprovedHistoryTagNames = new[] { "History" },
+            PublishedEvents = new[]
+            {
+                CreateEvent(accountId, profileTag, 1),
+                CreateEvent(accountId, historyTag, 2),
+                CreateEvent(accountId, otherTag1, 3),
+                CreateEvent(accountId, otherTag2, 4),
+                CreateEvent(accountId, otherTag3, 5),
+                CreateEvent(accountId, otherTag4, 6),
+            }
         };
-        var unitOfWork = new FakeUnitOfWork();
-        var service = CreateService(eventRepository, unitOfWork);
 
-        var request = CreateRequest();
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag, historyTag, otherTag1, otherTag2, otherTag3, otherTag4),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
 
-        var result = await service.CreateEventAsync(
-            request,
-            new UserContext(ownerId, AccountType.Organization),
+        var result = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null),
             CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCodes.EventInvalidState, Assert.Single(result.Errors).Code);
-        Assert.Equal("You already have another event at the same date and time.", result.Errors[0].Message);
-        Assert.False(eventRepository.AddCalled);
-        Assert.Equal(0, unitOfWork.SaveChangesCallCount);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data);
+        Assert.Equal("served", result.Data!.Status);
+
+        var plan = Assert.Single(dailyRecommendationRepository.AddedPlans);
+        var orderedTags = plan.Tags.OrderBy(x => x.TagOrder).ToArray();
+
+        Assert.Equal(5, orderedTags.Length);
+        Assert.Equal(profileTagId, orderedTags[0].TagId);
+        Assert.Equal(DailyRecommendationTagSource.Profile, orderedTags[0].Source);
+        Assert.Equal(historyTagId, orderedTags[1].TagId);
+        Assert.Equal(DailyRecommendationTagSource.History, orderedTags[1].Source);
+        Assert.All(orderedTags.Skip(2), tag => Assert.Equal(DailyRecommendationTagSource.Deterministic, tag.Source));
     }
 
     [Fact]
-    public async Task UpdateEventAsync_ReturnsFailure_WhenOwnerAlreadyHasAnotherEventAtSameDateAndTime()
+    public async Task GetDailyRecommendedNextAsync_AdvancesToNextTagOrder_OnSequentialCalls()
     {
-        var ownerId = Guid.NewGuid();
-        var currentEventId = Guid.NewGuid();
-        var existingEvent = new Event
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        var profileTagId = Guid.Parse("30000000-0000-0000-0000-000000000010");
+        var historyTagId = Guid.Parse("40000000-0000-0000-0000-000000000010");
+
+        var profileTag = CreateTag(profileTagId, "Profile");
+        var historyTag = CreateTag(historyTagId, "History");
+
+        var account = new Account
         {
-            Id = currentEventId,
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "sequential-user",
+            Phone = "+905551112244",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var eventRepository = new FakeEventRepository
+        {
+            ApprovedHistoryTagNames = new[] { "History" },
+            PublishedEvents = new[]
+            {
+                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(accountId, profileTag, 2, "Profile Event 2"),
+                CreateEvent(accountId, historyTag, 3, "History Event 1"),
+            }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag, historyTag),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
+
+        var firstResult = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null),
+            CancellationToken.None);
+
+        var secondResult = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null),
+            CancellationToken.None);
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.True(secondResult.IsSuccess);
+        Assert.Equal("Profile Event 1", firstResult.Data!.Event!.Name);
+        Assert.Equal(1, firstResult.Data.CurrentTagOrder);
+        Assert.Equal(1, firstResult.Data.RemainingTagCount);
+        Assert.Equal("History Event 1", secondResult.Data!.Event!.Name);
+        Assert.Equal(2, secondResult.Data.CurrentTagOrder);
+        Assert.Equal(2, secondResult.Data.RemainingTagCount);
+    }
+
+    [Fact]
+    public async Task GetDailyRecommendedNextAsync_CanServeMoreThanFiveRecommendations_ByCyclingAcrossPlanTags()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+        var profileTagId = Guid.Parse("50000000-0000-0000-0000-000000000010");
+        var historyTagId = Guid.Parse("60000000-0000-0000-0000-000000000010");
+
+        var profileTag = CreateTag(profileTagId, "Profile");
+        var historyTag = CreateTag(historyTagId, "History");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "long-sequence-user",
+            Phone = "+905551112255",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var eventRepository = new FakeEventRepository
+        {
+            ApprovedHistoryTagNames = new[] { "History" },
+            PublishedEvents = new[]
+            {
+                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(accountId, historyTag, 2, "History Event 1"),
+                CreateEvent(accountId, profileTag, 3, "Profile Event 2"),
+                CreateEvent(accountId, historyTag, 4, "History Event 2"),
+                CreateEvent(accountId, profileTag, 5, "Profile Event 3"),
+                CreateEvent(accountId, historyTag, 6, "History Event 3"),
+            }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag, historyTag),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
+
+        var servedNames = new List<string>();
+        for (var i = 0; i < 6; i++)
+        {
+            var result = await service.GetDailyRecommendedNextAsync(
+                new UserContext(accountId, AccountType.Individual),
+                new DailyRecommendedNextRequest(null, null, null),
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("served", result.Data!.Status);
+            servedNames.Add(result.Data.Event!.Name);
+        }
+
+        Assert.Equal(
+            new[]
+            {
+                "Profile Event 1",
+                "History Event 1",
+                "Profile Event 2",
+                "History Event 2",
+                "Profile Event 3",
+                "History Event 3"
+            },
+            servedNames);
+    }
+
+    private static Tag CreateTag(Guid id, string name)
+    {
+        return new Tag
+        {
+            Id = id,
+            Name = name,
+            IsActive = true
+        };
+    }
+
+    private static Event CreateEvent(Guid ownerId, Tag tag, int dayOffset, string? name = null)
+    {
+        return new Event
+        {
+            Id = Guid.NewGuid(),
             OwnerId = ownerId,
-            Name = "Current Event",
-            Description = "Current Event Description",
-            Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)),
-            Time = new TimeOnly(10, 0),
-            DurationMinutes = 120,
+            Owner = new Account
+            {
+                Id = ownerId,
+                Type = AccountType.Organization,
+                Username = $"club-{dayOffset}",
+                Phone = $"+9000000000{dayOffset}"
+            },
+            Name = name ?? $"{tag.Name} Event",
+            Description = $"{tag.Name} description",
+            Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(dayOffset)),
+            Time = new TimeOnly(18, 0),
+            DurationMinutes = 90,
             Capacity = 20,
             RemainingParticipationCount = 20,
             Price = 0,
-            LocationData = "{\"city\":\"Istanbul\",\"fullAddress\":\"Kadikoy\",\"lat\":41.01,\"lng\":29.00}",
-            Status = EventStatus.PendingApproval
+            Status = EventStatus.Published,
+            Tags = new List<Tag> { tag },
+            PrimaryTag = tag,
+            PrimaryTagId = tag.Id,
+            LocationData = "{\"city\":\"Istanbul\"}"
         };
-
-        var eventRepository = new FakeEventRepository
-        {
-            EventById = existingEvent,
-            HasScheduleConflictResult = true
-        };
-        var unitOfWork = new FakeUnitOfWork();
-        var service = CreateService(eventRepository, unitOfWork);
-        var request = new UpdateEventRequest(
-            "Updated Event",
-            "Updated Description",
-            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)),
-            new TimeOnly(12, 0),
-            90,
-            25,
-            "{\"city\":\"Istanbul\",\"fullAddress\":\"Besiktas\",\"lat\":41.04,\"lng\":29.01}");
-
-        var result = await service.UpdateEventAsync(
-            currentEventId,
-            request,
-            new UserContext(ownerId, AccountType.Organization),
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCodes.EventInvalidState, Assert.Single(result.Errors).Code);
-        Assert.Equal("You already have another event at the same date and time.", result.Errors[0].Message);
-        Assert.Equal("Current Event", existingEvent.Name);
-        Assert.Equal(0, unitOfWork.SaveChangesCallCount);
-        Assert.Equal(currentEventId, eventRepository.LastConflictExcludeEventId);
     }
 
-    private static EventService CreateService(FakeEventRepository eventRepository, FakeUnitOfWork unitOfWork)
+    private static EventService CreateService(
+        FakeEventRepository eventRepository,
+        FakeUserRepository userRepository,
+        FakeTagRepository tagRepository,
+        FakeTagPredictorService tagPredictorService,
+        FakeDailyRecommendationRepository dailyRecommendationRepository)
     {
         return new EventService(
             eventRepository,
             new FakeEventBookmarkRepository(),
             new FakeParticipationRepository(),
-            new FakeUserRepository(),
+            userRepository,
             new FakeReviewRepository(),
-            new FakeTagRepository(),
-            new FakeTagPredictorService(),
+            tagRepository,
+            tagPredictorService,
             new FakeTagPredictionCacheService(),
-            new FakeDailyRecommendationRepository(),
+            dailyRecommendationRepository,
             new FakeRecommendationTransactionManager(),
             new FakeRecommendationFeatureFlags(),
             new FakeEventLifecycleService(),
             new FakeNotificationService(),
-            unitOfWork);
-    }
-
-    private static CreateEventRequest CreateRequest()
-    {
-        return new CreateEventRequest(
-            "Weekend Run",
-            "Morning social run event.",
-            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)),
-            new TimeOnly(12, 0),
-            90,
-            20,
-            0,
-            "{\"city\":\"Istanbul\",\"fullAddress\":\"Kadikoy\",\"lat\":41.01,\"lng\":29.00}",
-            null,
-            null);
+            new FakeUnitOfWork());
     }
 
     private sealed class FakeEventRepository : IEventRepository
     {
-        public bool HasScheduleConflictResult { get; set; }
-        public bool AddCalled { get; private set; }
-        public Guid? LastConflictExcludeEventId { get; private set; }
-        public Event? EventById { get; set; }
+        public IReadOnlyCollection<string> ApprovedHistoryTagNames { get; init; } = Array.Empty<string>();
+        public IReadOnlyCollection<Event> PublishedEvents { get; init; } = Array.Empty<Event>();
 
         public Task<Event?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken)
-            => Task.FromResult(EventById);
+            => throw new NotSupportedException();
 
         public Task<Event?> GetByIdWithOwnerAsync(Guid eventId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -140,10 +284,7 @@ public sealed class EventServiceSchedulingTests
             => throw new NotSupportedException();
 
         public Task<bool> HasScheduleConflictAsync(Guid ownerId, DateOnly date, TimeOnly time, Guid? excludeEventId, CancellationToken cancellationToken)
-        {
-            LastConflictExcludeEventId = excludeEventId;
-            return Task.FromResult(HasScheduleConflictResult);
-        }
+            => throw new NotSupportedException();
 
         public Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByApprovedParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -152,7 +293,7 @@ public sealed class EventServiceSchedulingTests
             => throw new NotSupportedException();
 
         public Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(PublishedEvents);
 
         public Task<(IReadOnlyCollection<Event> Items, int TotalCount)> SearchAsync(EventSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -161,19 +302,16 @@ public sealed class EventServiceSchedulingTests
             => throw new NotSupportedException();
 
         public Task<IReadOnlyCollection<string>> GetApprovedHistoryTagNamesAsync(Guid accountId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(ApprovedHistoryTagNames);
 
         public Task<IReadOnlyCollection<Event>> GetSimilarEventsAsync(Guid eventId, Guid primaryTagId, int count, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
         public IQueryable<Event> Query()
-            => Array.Empty<Event>().AsQueryable();
+            => PublishedEvents.AsQueryable();
 
         public Task AddAsync(Event entity, CancellationToken cancellationToken)
-        {
-            AddCalled = true;
-            return Task.CompletedTask;
-        }
+            => throw new NotSupportedException();
 
         public Task<IReadOnlyCollection<Event>> GetCompletedWithExpiredVotingAsync(CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -235,11 +373,18 @@ public sealed class EventServiceSchedulingTests
 
     private sealed class FakeUserRepository : IUserRepository
     {
+        private readonly Account _account;
+
+        public FakeUserRepository(Account account)
+        {
+            _account = account;
+        }
+
         public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
         public Task<Account?> GetAccountByIdWithProfilesAsync(Guid accountId, CancellationToken cancellationToken)
-            => Task.FromResult<Account?>(null);
+            => throw new NotSupportedException();
 
         public Task<(IReadOnlyCollection<Account> Items, int TotalCount)> SearchProfilesAsync(ProfileSearchFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -254,7 +399,7 @@ public sealed class EventServiceSchedulingTests
             => throw new NotSupportedException();
 
         public Task<Account?> GetAccountByIdWithInterestsAsync(Guid accountId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult<Account?>(_account);
 
         public Task<IReadOnlyCollection<Account>> GetExpiredSuspendedAccountsAsync(DateTime nowUtc, CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyCollection<Account>>(Array.Empty<Account>());
@@ -295,11 +440,18 @@ public sealed class EventServiceSchedulingTests
 
     private sealed class FakeTagRepository : ITagRepository
     {
+        private readonly IReadOnlyCollection<Tag> _tags;
+
+        public FakeTagRepository(params Tag[] tags)
+        {
+            _tags = tags;
+        }
+
         public Task<IReadOnlyCollection<Tag>> GetActiveAsync(CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(_tags);
 
         public Task<IReadOnlyCollection<Tag>> GetActiveByIdsAsync(IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken)
-            => Task.FromResult<IReadOnlyCollection<Tag>>(Array.Empty<Tag>());
+            => Task.FromResult<IReadOnlyCollection<Tag>>(_tags.Where(x => tagIds.Contains(x.Id)).ToArray());
 
         public Task<Tag?> GetByIdAsync(Guid tagId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
@@ -316,47 +468,82 @@ public sealed class EventServiceSchedulingTests
 
     private sealed class FakeTagPredictorService : ITagPredictorService
     {
+        private readonly TagPredictionResult? _result;
+
+        public FakeTagPredictorService(TagPredictionResult? result)
+        {
+            _result = result;
+        }
+
         public Task<TagPredictionResult?> PredictAsync(TagPredictionInput input, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(_result);
     }
 
     private sealed class FakeTagPredictionCacheService : ITagPredictionCacheService
     {
         public Task<TagPredictionResult?> GetAsync(Guid accountId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult<TagPredictionResult?>(null);
 
         public Task SetAsync(Guid accountId, TagPredictionResult prediction, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.CompletedTask;
     }
 
     private sealed class FakeDailyRecommendationRepository : IDailyRecommendationRepository
     {
+        public List<DailyRecommendationPlan> AddedPlans { get; } = new();
+        private DailyRecommendationPlan? _storedPlan;
+
         public Task AcquireUserRecommendationLockAsync(Guid userId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.CompletedTask;
 
         public Task<DailyRecommendationPlan?> GetPlanForDayAsync(Guid userId, string dayKey, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(_storedPlan is not null && _storedPlan.UserId == userId && _storedPlan.DayKey == dayKey ? _storedPlan : null);
 
         public Task<DailyRecommendationCursor?> GetCursorForUpdateAsync(Guid planId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult(_storedPlan?.Id == planId ? _storedPlan.Cursor : null);
 
         public Task ResetPlanStateAsync(Guid planId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.CompletedTask;
 
         public Task UpdateCursorStateAsync(Guid planId, int currentTagOrder, bool isDepleted, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+        {
+            if (_storedPlan?.Id == planId && _storedPlan.Cursor is not null)
+            {
+                _storedPlan.Cursor.CurrentTagOrder = currentTagOrder;
+                _storedPlan.Cursor.IsDepleted = isDepleted;
+            }
+
+            return Task.CompletedTask;
+        }
 
         public Task AddServedEventAsync(Guid planId, Guid eventId, int tagOrder, DateTime servedAtUtc, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+        {
+            if (_storedPlan?.Id == planId)
+            {
+                _storedPlan.ServedEvents.Add(new DailyRecommendationServedEvent
+                {
+                    PlanId = planId,
+                    EventId = eventId,
+                    TagOrder = tagOrder,
+                    ServedAtUtc = servedAtUtc
+                });
+            }
+
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyCollection<DailyRecommendationServedEvent>> GetRecentServedEventsAsync(Guid userId, DateTime sinceUtc, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult<IReadOnlyCollection<DailyRecommendationServedEvent>>(Array.Empty<DailyRecommendationServedEvent>());
 
         public Task<string?> GetMostFrequentServedClubCityAsync(Guid userId, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+            => Task.FromResult<string?>(null);
 
         public Task AddPlanAsync(DailyRecommendationPlan plan, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+        {
+            AddedPlans.Add(plan);
+            _storedPlan = plan;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeRecommendationTransactionManager : IRecommendationTransactionManager
@@ -390,12 +577,7 @@ public sealed class EventServiceSchedulingTests
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
-        public int SaveChangesCallCount { get; private set; }
-
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
-        {
-            SaveChangesCallCount++;
-            return Task.FromResult(1);
-        }
+            => Task.FromResult(1);
     }
 }

@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,16 +12,16 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
 
 import { colors, radius, spacing, hitSlop, palette } from '@/src/constants/theme';
-import { useDailyRecommendedNext, useEvents, useRecommendedNearbyEvents } from '@/src/hooks/useEvents';
+import { useEvents, useRecommendedNearbyEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import { useTags } from '@/src/hooks/useTags';
+import { getStartupHomeCoordinates } from '@/src/services/recommendationHotZoneService';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import type { EventListItem } from '@/src/types/event';
 import { parseAuthToken } from '@/src/utils/auth';
 import { useProfileSearch } from '@/src/hooks/useProfile';
+import type { EventListItem } from '@/src/types/event';
 import type { ProfileDto } from '@/src/types/profile';
 import { cn } from '@/src/utils/cn';
 import { formatLocationShort } from '@/src/utils/event-format';
@@ -78,8 +77,6 @@ export default function HomeScreen() {
   const [searchMode, setSearchMode] = useState<SearchMode>('profiles');
   const [isSearchOverlayVisible, setIsSearchOverlayVisible] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([ALL_CATEGORY_ID]);
-  const [isRecommendationModalOpen, setIsRecommendationModalOpen] = useState(false);
-  const [suggestedEvent, setSuggestedEvent] = useState<EventListItem | null>(null);
   const [location, setLocation] = useState<{lat: number; lng: number} | null>(null);
   const [locationResolved, setLocationResolved] = useState(false);
 
@@ -104,7 +101,7 @@ export default function HomeScreen() {
       id: tag.id,
       name: tag.name,
     }));
-    return [{ id: ALL_CATEGORY_ID, name: 'Tümü' }, ...dynamicCategories];
+    return [{ id: ALL_CATEGORY_ID, name: 'Tumu' }, ...dynamicCategories];
   }, [tags]);
 
   useEffect(() => {
@@ -118,15 +115,9 @@ export default function HomeScreen() {
     let isMounted = true;
     (async () => {
       try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (isMounted) setLocationResolved(true);
-          return;
-        }
-
-        let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        if (isMounted) {
-          setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        const coords = await getStartupHomeCoordinates();
+        if (isMounted && coords) {
+          setLocation({ lat: coords.latitude, lng: coords.longitude });
         }
       } catch (e) {
         console.warn('Location error:', e);
@@ -201,35 +192,28 @@ export default function HomeScreen() {
     setSearchInput('');
     setDebouncedSearchTerm('');
   };
-
   const recommendedQuery = useRecommendedNearbyEvents(location?.lat, location?.lng, 8, { enabled: canLoadRecommended && locationResolved });
-  const dailyRecommendationMutation = useDailyRecommendedNext();
 
-  const handleSuggestEventsPress = async () => {
-    if (dailyRecommendationMutation.isPending || isSuggestRequestInFlightRef.current) return;
+  const handleSuggestEventsPress = () => {
+    if (isSuggestRequestInFlightRef.current) return;
     if (!canLoadRecommended) {
       toast.info('Etkinlik önerileri için bireysel hesapla giriş yapmalısın.');
       return;
     }
 
     isSuggestRequestInFlightRef.current = true;
-    try {
-      const result = await dailyRecommendationMutation.mutateAsync();
-      if (result.status === 'served' && result.event) {
-        setSuggestedEvent(result.event);
-        setIsRecommendationModalOpen(true);
-        return;
-      }
-      if (result.status === 'depleted') {
-        toast.info(result.message ?? 'Bugünlük buralardaki tüm pasları tükettin kral!');
-        return;
-      }
-      toast.error(result.message ?? 'Şu anda öneri servisi kullanılamıyor.');
-    } catch {
-      toast.error('Etkinlik önerileri alınamadı.');
-    } finally {
+    router.push({
+      pathname: '/recommendation/loading',
+      params: location
+        ? {
+            latitude: String(location.lat),
+            longitude: String(location.lng),
+          }
+        : undefined,
+    });
+    setTimeout(() => {
       isSuggestRequestInFlightRef.current = false;
-    }
+    }, 400);
   };
 
   const toggleCategory = (category: CategoryOption) => {
@@ -300,12 +284,12 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', marginTop: 6, gap: 5 }}>
             {isFree ? (
               <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ucretsiz</Text>
               </View>
             ) : spotsLeft !== null ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldi</Text>
               </View>
             ) : null}
           </View>
@@ -325,7 +309,7 @@ export default function HomeScreen() {
             borderColor: colors.border, borderRadius: radius.lg, height: 40, paddingHorizontal: 12
           }}>
             <Ionicons name="search" size={18} color={colors.textTertiary} />
-            <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik veya kullanıcı ara...</Text>
+            <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik veya kullanici ara...</Text>
           </Pressable>
           <Pressable style={{
             width: 28, height: 28, borderRadius: radius.md,
@@ -356,11 +340,11 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Senin İçin Section */}
+      {/* Senin Icin Section */}
       {recommendedQuery.data?.items && recommendedQuery.data.items.length > 0 && (
         <View style={{ marginTop: 8, backgroundColor: colors.background, paddingVertical: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Senin İçin</Text>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Senin Icin</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingBottom: 4 }}>
             {recommendedQuery.data.items.map(renderFeatCard)}
@@ -368,10 +352,10 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Genel Akış Header */}
+      {/* Genel Akis Header */}
       <View style={{ marginTop: 8, backgroundColor: colors.background, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Genel Akış</Text>
-        <Text style={{ fontSize: 12, color: colors.textSecondary }}>{events.length} sonuç</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Genel Akis</Text>
+        <Text style={{ fontSize: 12, color: colors.textSecondary }}>{events.length} sonuc</Text>
       </View>
     </View>
   );
@@ -410,13 +394,13 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
               {isFree && (
                 <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ucretsiz</Text>
                 </View>
               )}
               {spotsLeft !== null && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                  <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldi</Text>
                 </View>
               )}
             </View>
@@ -473,30 +457,6 @@ export default function HomeScreen() {
           <Ionicons name="dice-outline" size={24} color="#1a4a05" />
         </Pressable>
       </Animated.View>
-
-      <Modal animationType="slide" transparent visible={isRecommendationModalOpen}>
-        <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setIsRecommendationModalOpen(false)}>
-          <View className="rounded-t-3xl bg-white px-5 py-5">
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-slate-900">Sana Özel Öneri</Text>
-            </View>
-            {suggestedEvent ? (
-              <View className="pb-4">
-                {renderListCard({ item: suggestedEvent })}
-              </View>
-            ) : (
-              <View className="pb-4">
-                <Text className="text-sm text-slate-500">Şu an için bir öneri bulunamadı.</Text>
-              </View>
-            )}
-            <Pressable
-              style={{ backgroundColor: colors.surfaceSecondary, padding: 12, borderRadius: radius.md, alignItems: 'center' }}
-              onPress={() => setIsRecommendationModalOpen(false)}>
-              <Text style={{ fontWeight: '600', color: colors.text }}>Kapat</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
       {isSearchOverlayVisible ? (
         <View className="absolute inset-0 z-50" style={{ backgroundColor: colors.surfaceSecondary }}>
           <SafeAreaView className="flex-1" style={{ backgroundColor: colors.surfaceSecondary }} edges={['top']}>

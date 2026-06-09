@@ -1,5 +1,6 @@
 import {
   type InfiniteData,
+  type QueryClient,
   type QueryKey,
   useInfiniteQuery,
   useMutation,
@@ -45,11 +46,45 @@ interface RealtimeQueryOptions {
 }
 
 const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_HOME_RADIUS_KM = 50;
+
+function getEventsQueryKey(filters: EventFilters, pageSize: number): QueryKey {
+  const tagIdsKey = (filters.tagIds ?? []).slice().sort().join(',');
+
+  return [
+    'events',
+    filters.searchTerm ?? '',
+    filters.city ?? '',
+    filters.tagId ?? '',
+    tagIdsKey,
+    filters.isPaid ?? 'all',
+    filters.matchAllTags ?? false,
+    filters.startDate ?? '',
+    filters.endDate ?? '',
+    filters.userLat ?? '',
+    filters.userLng ?? '',
+    filters.nearbyRadiusKm ?? '',
+    filters.sort ?? '',
+    pageSize,
+  ];
+}
+
+function getNextEventsPageParam(lastPage: PagedResult<EventListItem>) {
+  const loadedCount = lastPage.pageNumber * lastPage.pageSize;
+  if (loadedCount >= lastPage.totalCount) {
+    return undefined;
+  }
+
+  return lastPage.pageNumber + 1;
+}
+
+function getRecommendedNearbyEventsQueryKey(lat?: number, lng?: number, pageSize = 10): QueryKey {
+  return ['recommended-nearby-events', lat, lng, pageSize];
+}
 
 export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
   const pageSize = options?.pageSize ?? filters.pageSize ?? DEFAULT_PAGE_SIZE;
   const enabled = options?.enabled ?? true;
-  const tagIdsKey = (filters.tagIds ?? []).slice().sort().join(',');
 
   const queryResult = useInfiniteQuery<
     PagedResult<EventListItem>,
@@ -58,22 +93,7 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
     QueryKey,
     number
   >({
-    queryKey: [
-      'events',
-      filters.searchTerm ?? '',
-      filters.city ?? '',
-      filters.tagId ?? '',
-      tagIdsKey,
-      filters.isPaid ?? 'all',
-      filters.matchAllTags ?? false,
-      filters.startDate ?? '',
-      filters.endDate ?? '',
-      filters.userLat ?? '',
-      filters.userLng ?? '',
-      filters.nearbyRadiusKm ?? '',
-      filters.sort ?? '',
-      pageSize,
-    ],
+    queryKey: getEventsQueryKey(filters, pageSize),
     queryFn: ({ pageParam }) =>
       getEvents({
         searchTerm: filters.searchTerm,
@@ -92,13 +112,7 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
         pageSize,
       }),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const loadedCount = lastPage.pageNumber * lastPage.pageSize;
-      if (loadedCount >= lastPage.totalCount) {
-        return undefined;
-      }
-      return lastPage.pageNumber + 1;
-    },
+    getNextPageParam: getNextEventsPageParam,
     staleTime: 120000,
     gcTime: 900000,
     enabled,
@@ -138,7 +152,7 @@ export function useRecommendedEvents(pageSize = 10, options?: UseRecommendedEven
 
 export function useRecommendedNearbyEvents(lat?: number, lng?: number, pageSize = 10, options?: UseRecommendedEventsOptions) {
   return useQuery<PagedResult<EventListItem>>({
-    queryKey: ['recommended-nearby-events', lat, lng, pageSize],
+    queryKey: getRecommendedNearbyEventsQueryKey(lat, lng, pageSize),
     queryFn: async () => {
       if (lat === undefined || lng === undefined) return { items: [], totalCount: 0, pageNumber: 1, pageSize };
       return getRecommendedNearbyEvents(lat, lng, 1, pageSize);
@@ -149,20 +163,92 @@ export function useRecommendedNearbyEvents(lat?: number, lng?: number, pageSize 
   });
 }
 
+export type DailyRecommendedNextOverrides = {
+  latitude?: number;
+  longitude?: number;
+  orderedHotZones?: string[] | null;
+};
+
+export async function prefetchInitialHomeQueries(
+  queryClient: QueryClient,
+  options?: {
+    latitude?: number;
+    longitude?: number;
+    includeNearby?: boolean;
+  }
+) {
+  const userLat = options?.latitude;
+  const userLng = options?.longitude;
+  const homeFilters: EventFilters = {
+    pageSize: DEFAULT_PAGE_SIZE,
+    userLat,
+    userLng,
+    nearbyRadiusKm:
+      typeof userLat === 'number' && typeof userLng === 'number' ? DEFAULT_HOME_RADIUS_KM : undefined,
+    sort:
+      typeof userLat === 'number' && typeof userLng === 'number' ? 'nearby' : undefined,
+  };
+
+  const tasks: Promise<unknown>[] = [
+    queryClient.prefetchInfiniteQuery({
+      queryKey: getEventsQueryKey(homeFilters, DEFAULT_PAGE_SIZE),
+      queryFn: ({ pageParam }) =>
+        getEvents({
+          ...homeFilters,
+          pageNumber: pageParam,
+          pageSize: DEFAULT_PAGE_SIZE,
+        }),
+      initialPageParam: 1,
+      getNextPageParam: getNextEventsPageParam,
+      staleTime: 120000,
+      gcTime: 900000,
+    }),
+  ];
+
+  if (
+    options?.includeNearby &&
+    typeof userLat === 'number' &&
+    typeof userLng === 'number'
+  ) {
+    tasks.push(
+      queryClient.prefetchQuery({
+        queryKey: getRecommendedNearbyEventsQueryKey(userLat, userLng, 8),
+        queryFn: () => getRecommendedNearbyEvents(userLat, userLng, 1, 8),
+        staleTime: 120000,
+        gcTime: 900000,
+      })
+    );
+  }
+
+  await Promise.all(tasks);
+}
+
+export async function fetchDailyRecommendedNext(overrides?: DailyRecommendedNextOverrides) {
+  const hasOverrideCoordinates =
+    typeof overrides?.latitude === 'number' && typeof overrides?.longitude === 'number';
+
+  const [coordinates, orderedHotZoneKeys] = await Promise.all([
+    hasOverrideCoordinates
+      ? Promise.resolve({
+          latitude: overrides!.latitude!,
+          longitude: overrides!.longitude!,
+        })
+      : getCurrentRecommendationCoordinates(),
+    overrides?.orderedHotZones !== undefined
+      ? Promise.resolve(overrides.orderedHotZones)
+      : getOrderedHotZoneKeysForRecommendations(),
+  ]);
+
+  return getDailyRecommendedNext({
+    latitude: coordinates?.latitude,
+    longitude: coordinates?.longitude,
+    orderedHotZones: orderedHotZoneKeys,
+  });
+}
+
 export function useDailyRecommendedNext() {
   return useMutation({
-    mutationFn: async () => {
-      const [coordinates, orderedHotZoneKeys] = await Promise.all([
-        getCurrentRecommendationCoordinates(),
-        getOrderedHotZoneKeysForRecommendations(),
-      ]);
-
-      return getDailyRecommendedNext({
-        latitude: coordinates?.latitude,
-        longitude: coordinates?.longitude,
-        orderedHotZones: orderedHotZoneKeys,
-      });
-    },
+    mutationFn: fetchDailyRecommendedNext,
   });
 }
 
