@@ -3,9 +3,9 @@ import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { ActivityIndicator, BackHandler, Dimensions, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, BackHandler, Dimensions, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
@@ -113,7 +113,7 @@ export function EventDetailScreen() {
 
   const { data, isPending, refetch, isRefetching } = useEventDetail(eventId, {});
 
-  const handleBackNavigation = () => {
+  const handleBackNavigation = useCallback(() => {
     if (shouldReturnToHome || isRecommendationFlow) {
       resetRecommendationFlow();
       router.replace('/(tabs)');
@@ -121,7 +121,7 @@ export function EventDetailScreen() {
     }
 
     router.back();
-  };
+  }, [shouldReturnToHome, isRecommendationFlow, resetRecommendationFlow]);
 
   const screenOptions = useMemo(() => ({
     header: () => (

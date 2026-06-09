@@ -11,8 +11,8 @@ public static class DataSeeder
     public static async Task SeedAsync(AppDbContext dbContext, IPasswordHasher passwordHasher, IConfiguration configuration, IWebHostEnvironment environment)
     {
         // Seed admin user from environment
-        var adminEmail = configuration["Admin__Email"];
-        var adminPassword = configuration["Admin__Password"];
+        var adminEmail = configuration["Admin:Email"];
+        var adminPassword = configuration["Admin:Password"];
 
         if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
         {

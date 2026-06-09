@@ -3,10 +3,10 @@ import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
+import { CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TopBar } from '@/src/components/ui/top-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -318,7 +318,7 @@ export function EventParticipantsScreen() {
   const toast = useToast();
   const myAccountId = useAuthStore((state) => state.user?.id);
   const myRole = useAuthStore((state) => state.user?.role);
-  const insets = useSafeAreaInsets();
+
 
   const [activeTab, setActiveTab] = useState<TabKey>('approved');
   const [refreshing, setRefreshing] = useState(false);

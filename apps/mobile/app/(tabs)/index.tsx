@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radius, spacing, hitSlop, palette } from '@/src/constants/theme';
+import { colors, radius, spacing } from '@/src/constants/theme';
 import { useEvents, useRecommendedNearbyEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import { useTags } from '@/src/hooks/useTags';
@@ -23,7 +23,6 @@ import { parseAuthToken } from '@/src/utils/auth';
 import { useProfileSearch } from '@/src/hooks/useProfile';
 import type { EventListItem } from '@/src/types/event';
 import type { ProfileDto } from '@/src/types/profile';
-import { cn } from '@/src/utils/cn';
 import { formatLocationShort } from '@/src/utils/event-format';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { EventRowCard } from '@/src/components/events/event-row-card';
@@ -135,7 +134,6 @@ export default function HomeScreen() {
 
   const {
     events,
-    isPending,
     isRefetching,
     hasNextPage,
     fetchNextPage,

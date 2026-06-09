@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -18,7 +18,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import '../../../global.css';
 
 export function RootNavigator() {
-  const colorScheme = useColorScheme();
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const previousAccessTokenRef = useRef<string | null | undefined>(undefined);

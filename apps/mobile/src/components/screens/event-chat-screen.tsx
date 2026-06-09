@@ -13,7 +13,8 @@ import {
   Text,
   TextInput,
   View,
-  Pressable
+  Pressable,
+  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getEventMessages, mapRawMessage, type RawMessageDto } from '@/src/api/chatService';
@@ -29,7 +30,7 @@ import type { MessageDto } from '@/src/types/chat';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { ChatReportModal } from '@/src/components/reports/chat-report-modal';
 import { AlertCircle } from 'lucide-react-native';
-import { TouchableOpacity } from 'react-native';
+
 
 function formatTimestamp(value: string): string {
   try {

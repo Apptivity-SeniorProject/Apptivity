@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Home } from 'lucide-react-native';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { BackHandler, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,10 +25,10 @@ export default function RecommendationDoneScreen() {
   const returnEventId =
     returnEventIndex >= 0 ? recommendationEventIds[returnEventIndex] : undefined;
 
-  const goHome = () => {
+  const goHome = useCallback(() => {
     resetRecommendationFlow();
     router.replace('/(tabs)');
-  };
+  }, [resetRecommendationFlow]);
 
   const goBackToRecommendation = () => {
     if (!returnEventId) {
@@ -54,7 +54,7 @@ export default function RecommendationDoneScreen() {
     });
 
     return () => subscription.remove();
-  }, [resetRecommendationFlow]);
+  }, [goHome]);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">

@@ -258,6 +258,7 @@ public sealed class EventServiceDailyRecommendationTests
             tagRepository,
             tagPredictorService,
             new FakeTagPredictionCacheService(),
+            null!,
             dailyRecommendationRepository,
             new FakeRecommendationTransactionManager(),
             new FakeRecommendationFeatureFlags(),
@@ -435,6 +436,9 @@ public sealed class EventServiceDailyRecommendationTests
             => throw new NotSupportedException();
 
         public Task<List<Review>> GetReviewsByEventIdAsync(Guid eventId, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task<double?> GetAverageRatingByReviewedAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
     }
 

@@ -21,7 +21,7 @@ import { useMyBookmarks, useMyEvents, useMyParticipations } from '@/src/hooks/us
 import { useMyProfile, useProfileStats } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
 import type { EventListItem } from '@/src/types/event';
-import { getApiErrorMessage } from '@/src/utils/error';
+
 import { cn } from '@/src/utils/cn';
 
 type ProfileTab = 'my-events' | 'my-pending' | 'my-participations' | 'my-bookmarks' | 'my-cancelled';

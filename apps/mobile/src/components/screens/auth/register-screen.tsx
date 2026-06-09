@@ -443,7 +443,6 @@ export function RegisterScreen() {
           className="mt-6 h-[52px] rounded-[14px] items-center justify-center"
           style={{
             backgroundColor: registerMutation.isPending ? '#a3e88a' : undefined,
-            backgroundImage: registerMutation.isPending ? undefined : undefined,
           }}
           disabled={registerMutation.isPending}
           onPress={handleRegister}>

@@ -34,7 +34,6 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.28,
 };
 
-const NEARBY_RADIUS_KM = 30;
 
 function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -52,7 +51,6 @@ export default function MapScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [isLocating, setIsLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -81,8 +79,6 @@ export default function MapScreen() {
         latitude: currentPosition.coords.latitude,
         longitude: currentPosition.coords.longitude,
       };
-
-      setUserLocation(nextLocation);
 
       const nextRegion: Region = {
         ...nextLocation,
