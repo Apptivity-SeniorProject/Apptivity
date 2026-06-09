@@ -29,7 +29,7 @@ export default function ChatReportsSection() {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     
-    const [selectedReportId, setSelectedReportId] = useState(null);
+
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [reportDetail, setReportDetail] = useState(null);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -52,7 +52,7 @@ export default function ChatReportsSection() {
                 setRows([]);
                 setTotalCount(0);
             }
-        } catch (err) {
+        } catch {
             messageApi.error('Raporlar alınamadı.');
             setRows([]);
             setTotalCount(0);
@@ -62,11 +62,11 @@ export default function ChatReportsSection() {
     }, [pageNumber, statusFilter, messageApi]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchReports();
     }, [fetchReports]);
 
     const openDetail = async (reportId) => {
-        setSelectedReportId(reportId);
         setIsDetailOpen(true);
         setIsDetailLoading(true);
         try {
@@ -77,7 +77,7 @@ export default function ChatReportsSection() {
                 messageApi.error(response.errors?.[0]?.message || 'Detaylar alınamadı.');
                 setIsDetailOpen(false);
             }
-        } catch (err) {
+        } catch {
             messageApi.error('Detaylar alınamadı.');
             setIsDetailOpen(false);
         } finally {
