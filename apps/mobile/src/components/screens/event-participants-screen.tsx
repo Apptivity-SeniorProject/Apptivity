@@ -8,7 +8,9 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { theme } from '@/src/constants/theme';
+import { TopBar } from '@/src/components/ui/top-bar';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { hitSlop, theme } from '@/src/constants/theme';
 import { updateEventParticipationStatus } from '@/src/api/eventService';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useSubmitReview } from '@/src/hooks/useReviews';
@@ -408,25 +410,33 @@ export function EventParticipantsScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen 
+        options={{ 
+          header: () => (
+            <TopBar 
+              leftContent={
+                <View className="flex-row items-center gap-2">
+                  <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
+                    <IconSymbol name="chevron.left" size={28} color="#111827" />
+                  </Pressable>
+                  <View className="flex-row items-center gap-2">
+                    <Image 
+                      source={require('@/assets/apptivity/apptivity_logo.svg')} 
+                      style={{ width: 26, height: 26 }} 
+                      contentFit="contain" 
+                    />
+                    <Text className="font-sans-bold text-lg text-primary-600">
+                      Apptivity
+                    </Text>
+                  </View>
+                </View>
+              }
+            />
+          )
+        }} 
+      />
 
-      <View
-        className="flex-row items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3"
-        style={{ paddingTop: insets.top + 8 }}>
-        <Pressable
-          className="h-10 w-10 items-center justify-center rounded-full bg-slate-100"
-          onPress={() => router.back()}>
-          <ArrowLeft size={20} color="#334155" />
-        </Pressable>
-        <View className="flex-1">
-          <Text className="text-lg font-bold text-slate-900" numberOfLines={1}>
-            {isOwner ? 'Katilimci Yonetimi' : 'Katilimcilar'}
-          </Text>
-          <Text className="text-xs text-slate-500" numberOfLines={1}>
-            {eventData.title}
-          </Text>
-        </View>
-      </View>
+
 
       {isOwner ? (
         <View className="flex-row justify-center gap-3 bg-white px-4 pb-3 pt-2">

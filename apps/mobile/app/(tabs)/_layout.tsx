@@ -145,6 +145,14 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="event"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarItemStyle: { display: 'none' }
+        }}
+      />
     </Tabs>
   );
 }

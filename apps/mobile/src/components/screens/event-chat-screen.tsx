@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -13,11 +13,14 @@ import {
   Text,
   TextInput,
   View,
+  Pressable
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getEventMessages, mapRawMessage, type RawMessageDto } from '@/src/api/chatService';
 import { Button } from '@/src/components/ui/button';
+import { TopBar } from '@/src/components/ui/top-bar';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { hitSlop } from '@/src/constants/theme';
 import { useEventDetail } from '@/src/hooks/useEvents';
 import { useSignalR } from '@/src/hooks/useSignalR';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -78,16 +81,15 @@ export function ChatScreen() {
   const [liveMessages, setLiveMessages] = useState<MessageDto[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets();
   const [composerHeight, setComposerHeight] = useState(76);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
-  const eventDetailQuery = useEventDetail(eventId, {
-    refetchIntervalMs: 8000,
-  });
+  const eventDetailQuery = useEventDetail(eventId, {});
   const isOwner = Boolean(
     myAccountId &&
-      eventDetailQuery.data?.ownerId &&
-      myAccountId === eventDetailQuery.data.ownerId
+    eventDetailQuery.data?.ownerId &&
+    myAccountId === eventDetailQuery.data.ownerId
   );
   const isApprovedParticipant = eventDetailQuery.data?.currentUserParticipationStatus === 'Approved';
   const canAccessChat = joinedHint || isOwner || isApprovedParticipant;
@@ -96,7 +98,7 @@ export function ChatScreen() {
     queryKey: ['chat-messages', eventId],
     queryFn: () => getEventMessages(eventId, 1, 50),
     enabled: Boolean(eventId && canAccessChat),
-    staleTime: 30000,
+    refetchInterval: 5000,
   });
 
   const { connectionStatus, leaveEventRoom, stopConnection, sendMessageToRoom } = useSignalR<RawMessageDto>({
@@ -225,20 +227,45 @@ export function ChatScreen() {
     );
   }
 
+  const tabBarHeight = 56 + insets.bottom;
+  const keyboardOffset = Platform.OS === 'android' && keyboardHeight > 0
+    ? Math.max(0, keyboardHeight - tabBarHeight + 15)
+    : 0;
+
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
-      <Stack.Screen 
-        options={{ 
-          title: 'Etkinlik Sohbeti',
-          headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => setIsReportModalVisible(true)}
-              className="mr-2 p-2 rounded-full hover:bg-slate-100"
-            >
-              <AlertCircle size={20} color="#ef4444" />
-            </TouchableOpacity>
+    <View className="flex-1 bg-slate-50">
+      <Stack.Screen
+        options={{
+          header: () => (
+            <TopBar
+              leftContent={
+                <View className="flex-row items-center gap-2">
+                  <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
+                    <IconSymbol name="chevron.left" size={28} color="#111827" />
+                  </Pressable>
+                  <View className="flex-row items-center gap-2">
+                    <Image
+                      source={require('@/assets/apptivity/apptivity_logo.svg')}
+                      style={{ width: 26, height: 26 }}
+                      contentFit="contain"
+                    />
+                    <Text className="font-sans-bold text-lg text-primary-600">
+                      Apptivity
+                    </Text>
+                  </View>
+                </View>
+              }
+              rightContent={
+                <TouchableOpacity
+                  onPress={() => setIsReportModalVisible(true)}
+                  className="mr-2 p-2 rounded-full hover:bg-slate-100"
+                >
+                  <AlertCircle size={20} color="#ef4444" />
+                </TouchableOpacity>
+              }
+            />
           )
-        }} 
+        }}
       />
       <View className="flex-1">
         {connectionError ? (
@@ -321,7 +348,7 @@ export function ChatScreen() {
 
         <View
           className="absolute inset-x-0 flex-row items-end gap-2 border-t border-slate-200 bg-white px-4 pb-4 pt-3"
-          style={{ bottom: Platform.OS === 'android' ? keyboardHeight : 0 }}
+          style={{ bottom: keyboardOffset }}
           onLayout={(event) => {
             setComposerHeight(event.nativeEvent.layout.height);
           }}>
@@ -349,12 +376,12 @@ export function ChatScreen() {
         </View>
       </View>
 
-      <ChatReportModal 
-        visible={isReportModalVisible} 
-        onClose={() => setIsReportModalVisible(false)} 
-        eventId={eventId} 
+      <ChatReportModal
+        visible={isReportModalVisible}
+        onClose={() => setIsReportModalVisible(false)}
+        eventId={eventId}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

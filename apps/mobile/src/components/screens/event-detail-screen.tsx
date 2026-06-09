@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { ActivityIndicator, BackHandler, Dimensions, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Dimensions, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,6 +19,9 @@ import type { ApiEnvelope } from '@/src/types/api';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
+import { TopBar } from '@/src/components/ui/top-bar';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { hitSlop } from '@/src/constants/theme';
 
 const { width: windowWidth } = Dimensions.get('window');
 
@@ -106,11 +109,9 @@ export function EventDetailScreen() {
   const resetRecommendationFlow = useRecommendationFlowStore((state) => state.reset);
   const insets = useSafeAreaInsets();
   const dailyRecommendationMutation = useDailyRecommendedNext();
-  const screenOptions = useMemo(() => ({ headerShown: false }), []);
 
-  const { data, isPending } = useEventDetail(eventId, {
-    refetchIntervalMs: 8000,
-  });
+
+  const { data, isPending, refetch, isRefetching } = useEventDetail(eventId, {});
 
   const handleBackNavigation = () => {
     if (shouldReturnToHome || isRecommendationFlow) {
@@ -121,6 +122,30 @@ export function EventDetailScreen() {
 
     router.back();
   };
+
+  const screenOptions = useMemo(() => ({
+    header: () => (
+      <TopBar 
+        leftContent={
+          <View className="flex-row items-center gap-2">
+            <Pressable onPress={handleBackNavigation} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
+              <IconSymbol name="chevron.left" size={28} color="#111827" />
+            </Pressable>
+            <View className="flex-row items-center gap-2">
+              <Image 
+                source={require('@/assets/apptivity/apptivity_logo.svg')} 
+                style={{ width: 26, height: 26 }} 
+                contentFit="contain" 
+              />
+              <Text className="font-sans-bold text-lg text-primary-600">
+                Apptivity
+              </Text>
+            </View>
+          </View>
+        }
+      />
+    )
+  }), [handleBackNavigation]);
 
   useEffect(() => {
     if (!shouldReturnToHome) {
@@ -372,7 +397,10 @@ export function EventDetailScreen() {
   return (
     <View className="flex-1 bg-slate-50">
       <Stack.Screen options={screenOptions} />
-      <ScrollView contentContainerStyle={{ paddingBottom: isRecommendationFlow ? 132 : 40 }}>
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: isRecommendationFlow ? 132 : 40 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+      >
         <View style={{ height: 280 }}>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
             {photos.map((url, index) => (
@@ -385,12 +413,6 @@ export function EventDetailScreen() {
               />
             ))}
           </ScrollView>
-          <Pressable
-            className="absolute left-4 h-10 w-10 items-center justify-center rounded-full bg-black/35"
-            style={{ top: insets.top + 8 }}
-            onPress={handleBackNavigation}>
-            <ArrowLeft size={18} color="#ffffff" />
-          </Pressable>
         </View>
 
         <View className="gap-5 px-5 pt-5">

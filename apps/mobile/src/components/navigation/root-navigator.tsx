@@ -77,9 +77,6 @@ export function RootNavigator() {
           <Stack>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="event/[id]/index" options={{ headerShown: false }} />
-            <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
-            <Stack.Screen name="event/[id]/participants" options={{ headerShown: false, title: 'Katilimcilar' }} />
             <Stack.Screen name="recommendation/loading" options={{ headerShown: false }} />
             <Stack.Screen name="recommendation/done" options={{ headerShown: false }} />
 
