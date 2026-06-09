@@ -74,6 +74,17 @@ function getInitials(displayName: string): string {
   return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
 }
 
+function getReputationLabel(level: string): string {
+  switch (level) {
+    case 'Pariah': return 'Etkinlik Bozan';
+    case 'Suspicious': return 'Gelmese mi ya ?';
+    case 'Neutral': return 'Normal görünüyor';
+    case 'Trusted': return 'Gelsin kanka';
+    case 'Exemplary': return 'Etkinlik Canavarı';
+    default: return level;
+  }
+}
+
 function mapProfileEventToListItem(event: ProfileEventDto, organizerName: string): EventListItem {
   return {
     id: event.eventId,
@@ -130,7 +141,7 @@ export function PublicProfileScreen() {
   const initials = getInitials(organizerName);
 
   const rawScore = statsQuery.data?.reputationScore ?? 0;
-  const repLevelName = statsQuery.data?.reputationLevel ?? 'Yeni';
+  const repLevelName = getReputationLabel(statsQuery.data?.reputationLevel ?? 'Yeni');
   const ratingValue = Math.max(0, Math.min(5, statsQuery.data?.rating ?? 0));
 
   const activeItems = useMemo<EventListItem[]>(() => {
@@ -242,11 +253,7 @@ export function PublicProfileScreen() {
               />
             </View>
 
-            <View className="flex-row justify-between px-[1px]">
-              <Text className="text-[10px] text-red-500/70">olumsuz</Text>
-              <Text className="text-[10px] text-gray-400">notr</Text>
-              <Text className="text-[10px] text-[#5bcc2a]/80">olumlu</Text>
-            </View>
+
           </View>
         ) : (
           <View
