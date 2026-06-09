@@ -38,6 +38,23 @@ export interface ProfileStatsDto {
   rating?: number | null;
 }
 
+export interface ProfileEventDto {
+  eventId: string;
+  name: string;
+  date: string;
+  time: string;
+  status: string;
+  isPast: boolean;
+}
+
+export interface ProfileSearchParams {
+  query?: string;
+  type?: string;
+  city?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
 export interface UpdateProfilePayload {
   username?: string;
   socialLinks?: string;

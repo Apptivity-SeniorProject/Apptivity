@@ -14,6 +14,14 @@ import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
 function getSelectedAdminMenuKey(pathname) {
+    if (pathname === '/admin/reports' || pathname === '/admin/reports/events') {
+        return 'report-events'
+    }
+
+    if (pathname === '/admin/reports/accounts') {
+        return 'report-accounts'
+    }
+
     if (pathname === '/admin/organizations/create') {
         return 'organization-create'
     }
@@ -36,10 +44,6 @@ function getSelectedAdminMenuKey(pathname) {
 
     if (pathname === '/admin/users/banned') {
         return 'user-banned'
-    }
-
-    if (pathname === '/admin/reports') {
-        return 'reports'
     }
 
     if (pathname === '/admin/tags') {
@@ -114,7 +118,17 @@ function AdminHomePage() {
         {
             key: 'reports',
             icon: <FlagOutlined />,
-            label: t('admin.menu.reports'),
+            label: t('admin.menu.reports.title'),
+            children: [
+                {
+                    key: 'report-events',
+                    label: t('admin.menu.reports.event'),
+                },
+                {
+                    key: 'report-accounts',
+                    label: t('admin.menu.reports.account'),
+                },
+            ],
         },
         {
             key: 'tag-management',
@@ -135,7 +149,8 @@ function AdminHomePage() {
         'organization-create': t('admin.menu.organizations.create'),
         'organization-manage': t('admin.menu.organizations.manage'),
         'organization-banned': t('admin.menu.organizations.banned'),
-        reports: t('admin.menu.reports'),
+        'report-events': t('admin.menu.reports.event'),
+        'report-accounts': t('admin.menu.reports.account'),
         'tag-management': t('admin.menu.tagManagement'),
     }
 
@@ -147,7 +162,8 @@ function AdminHomePage() {
         'organization-create': '/admin/organizations/create',
         'organization-manage': '/admin/organizations/manage',
         'organization-banned': '/admin/organizations/banned',
-        reports: '/admin/reports',
+        'report-events': '/admin/reports/events',
+        'report-accounts': '/admin/reports/accounts',
         'tag-management': '/admin/tags',
     }
 
@@ -237,7 +253,7 @@ function AdminHomePage() {
                                 <Menu
                                     mode="inline"
                                     inlineCollapsed={isCollapsed}
-                                    defaultOpenKeys={['users', 'organizations']}
+                                    defaultOpenKeys={['users', 'organizations', 'reports']}
                                     selectedKeys={[selectedKey]}
                                     items={menuItems}
                                     onClick={({ key }) => {
@@ -296,8 +312,10 @@ function AdminHomePage() {
                             <OrganizationManagementSection />
                         ) : selectedKey === 'organization-banned' ? (
                             <OrganizationManagementSection mode="banned" />
-                        ) : selectedKey === 'reports' ? (
-                            <ReportsSection />
+                        ) : selectedKey === 'report-events' ? (
+                            <ReportsSection mode="event" />
+                        ) : selectedKey === 'report-accounts' ? (
+                            <ReportsSection mode="account" />
                         ) : selectedKey === 'tag-management' ? (
                             <TagManagementSection />
                         ) : (
@@ -318,7 +336,7 @@ function AdminHomePage() {
             >
                 <Menu
                     mode="inline"
-                    defaultOpenKeys={['users', 'organizations']}
+                    defaultOpenKeys={['users', 'organizations', 'reports']}
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => {

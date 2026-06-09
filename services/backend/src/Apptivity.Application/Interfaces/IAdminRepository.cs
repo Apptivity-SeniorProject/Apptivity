@@ -21,6 +21,8 @@ public sealed record AdminAccountListItem(
 
 public sealed record AdminReportFilter(
     ReportStatus? Status,
+    ReportTargetType? TargetType,
+    string? AccountQuery,
     string? OrganizationQuery,
     string? UserQuery,
     string? EventQuery);

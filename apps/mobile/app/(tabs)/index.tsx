@@ -1,3 +1,5 @@
+import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -8,41 +10,96 @@ import {
   ScrollView,
   Text,
   View,
-  Animated,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, radius, spacing, hitSlop } from '@/src/constants/theme';
-import { useDailyRecommendedNext, useEvents, useRecommendedNearbyEvents } from '@/src/hooks/useEvents';
-import { useToast } from '@/src/hooks/useToast';
+import { CategorySelector } from '@/src/components/events/category-selector';
+import { EventCard } from '@/src/components/events/event-card';
+import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
+import { EventRowCard } from '@/src/components/events/event-row-card';
+import { SearchBar } from '@/src/components/events/search-bar';
+import { Button } from '@/src/components/ui/button';
+import { CITY_OPTIONS } from '@/src/constants/events';
+import { colors, palette } from '@/src/constants/theme';
+import { useDailyRecommendedNext, useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
+import { useProfileSearch } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
+import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventListItem } from '@/src/types/event';
+import type { ProfileDto } from '@/src/types/profile';
 import { parseAuthToken } from '@/src/utils/auth';
+import { cn } from '@/src/utils/cn';
 
+type PriceFilter = 'all' | 'free' | 'paid';
 type CategoryOption = { id: string; name: string };
+type SearchMode = 'events' | 'profiles';
+
 const ALL_CATEGORY_ID = 'all';
+
+function normalizeAccountType(type: ProfileDto['type']): 'organization' | 'individual' | 'admin' | 'unknown' {
+  if (typeof type === 'number') {
+    if (type === 2) return 'organization';
+    if (type === 1) return 'individual';
+    if (type === 3) return 'admin';
+    return 'unknown';
+  }
+
+  if (typeof type === 'string') {
+    const normalized = type.trim().toLowerCase();
+    if (normalized === 'organization' || normalized === 'individual' || normalized === 'admin') {
+      return normalized;
+    }
+  }
+
+  return 'unknown';
+}
+
+function getProfileDisplayName(profile: ProfileDto): string {
+  if (normalizeAccountType(profile.type) === 'organization') {
+    return profile.clubProfile?.name?.trim() || profile.username;
+  }
+
+  const fullName = [profile.userProfile?.name, profile.userProfile?.surname]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return fullName || profile.username;
+}
+
+function getProfileSubtitle(profile: ProfileDto): string {
+  if (normalizeAccountType(profile.type) === 'organization') {
+    return profile.clubProfile?.city?.trim() || 'Organizasyon';
+  }
+
+  return profile.userProfile?.bio?.trim() || 'Kullanici';
+}
+
+function getProfileInitials(displayName: string): string {
+  const words = displayName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
 
 export default function HomeScreen() {
   const [searchInput, setSearchInput] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('profiles');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([ALL_CATEGORY_ID]);
+  const [selectedCity, setSelectedCity] = useState<string | undefined>(undefined);
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
+  const [matchAllTags, setMatchAllTags] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isSearchOverlayVisible, setIsSearchOverlayVisible] = useState(false);
   const [isRecommendationModalOpen, setIsRecommendationModalOpen] = useState(false);
   const [suggestedEvent, setSuggestedEvent] = useState<EventListItem | null>(null);
-  const [location, setLocation] = useState<{lat: number; lng: number} | null>(null);
-  const [locationResolved, setLocationResolved] = useState(false);
-
-  const isSuggestRequestInFlightRef = useRef(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const insets = useSafeAreaInsets();
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
-  const toast = useToast();
+  const isSuggestRequestInFlightRef = useRef(false);
 
+  const toast = useToast();
   const { data: tags } = useTags();
   const authToken = useMemo(
     () => (accessToken ? parseAuthToken(accessToken) : null),
@@ -56,43 +113,40 @@ export default function HomeScreen() {
       id: tag.id,
       name: tag.name,
     }));
-    return [{ id: ALL_CATEGORY_ID, name: 'Tümü' }, ...dynamicCategories];
+
+    return [{ id: ALL_CATEGORY_ID, name: 'Tumu' }, ...dynamicCategories];
   }, [tags]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearchTerm(searchInput.trim());
-    }, 350);
+    }, 300);
+
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (isMounted) setLocationResolved(true);
-          return;
-        }
-
-        let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        if (isMounted) {
-          setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-        }
-      } catch (e) {
-        console.warn('Location error:', e);
-      } finally {
-        if (isMounted) setLocationResolved(true);
-      }
-    })();
-    return () => { isMounted = false; };
-  }, []);
+  const isPaid = useMemo(() => {
+    if (priceFilter === 'free') {
+      return false;
+    }
+    if (priceFilter === 'paid') {
+      return true;
+    }
+    return undefined;
+  }, [priceFilter]);
 
   const normalizedTagIds = useMemo(
     () => selectedTagIds.filter((id) => id !== ALL_CATEGORY_ID),
     [selectedTagIds]
   );
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCity) count += 1;
+    if (priceFilter !== 'all') count += 1;
+    if (normalizedTagIds.length > 0) count += 1;
+    return count;
+  }, [normalizedTagIds.length, priceFilter, selectedCity]);
 
   const {
     events,
@@ -102,43 +156,99 @@ export default function HomeScreen() {
     fetchNextPage,
     isFetchingNextPage,
     refresh,
-  } = useEvents({
-    searchTerm: debouncedSearchTerm || undefined,
-    tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : undefined,
-    pageSize: 10,
-    userLat: location?.lat,
-    userLng: location?.lng,
-    nearbyRadiusKm: location ? 50 : undefined,
-    sort: location ? 'nearby' : undefined,
-  }, {
-    enabled: canLoadEvents && locationResolved,
-  });
+  } = useEvents(
+    {
+      city: selectedCity,
+      tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : undefined,
+      isPaid,
+      matchAllTags,
+      pageSize: 10,
+    },
+    {
+      enabled: canLoadEvents,
+    }
+  );
 
-  const recommendedQuery = useRecommendedNearbyEvents(location?.lat, location?.lng, 8, { enabled: canLoadRecommended && locationResolved });
+  const shouldRunSearch = isSearchOverlayVisible && debouncedSearchTerm.length > 0;
+  const shouldRunEventSearch = shouldRunSearch && searchMode === 'events';
+  const shouldRunProfileSearch = shouldRunSearch && searchMode === 'profiles';
+
+  const {
+    events: searchedEvents,
+    isPending: isSearchEventsPending,
+  } = useEvents(
+    {
+      searchTerm: debouncedSearchTerm || undefined,
+      city: selectedCity,
+      tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : undefined,
+      isPaid,
+      matchAllTags,
+      pageSize: 8,
+    },
+    {
+      enabled: canLoadEvents && shouldRunEventSearch,
+    }
+  );
+
+  const profileSearchQuery = useProfileSearch(
+    {
+      query: debouncedSearchTerm,
+      pageNumber: 1,
+      pageSize: 5,
+    },
+    shouldRunProfileSearch
+  );
+
+  const recommendedQuery = useRecommendedEvents(8, { enabled: canLoadRecommended });
   const dailyRecommendationMutation = useDailyRecommendedNext();
+  const profileResults = profileSearchQuery.data?.items ?? [];
+  const hasSearchText = searchInput.trim().length > 0;
+  const searchPlaceholder =
+    searchMode === 'events' ? 'Etkinlik ara...' : 'Kullanici ara...';
+  const isSearchLoading =
+    hasSearchText &&
+    (debouncedSearchTerm !== searchInput.trim() ||
+      (searchMode === 'events' ? isSearchEventsPending : profileSearchQuery.isPending));
+
+  const closeSearchOverlay = () => {
+    setIsSearchOverlayVisible(false);
+    setSearchInput('');
+    setDebouncedSearchTerm('');
+  };
 
   const handleSuggestEventsPress = async () => {
-    if (dailyRecommendationMutation.isPending || isSuggestRequestInFlightRef.current) return;
+    if (dailyRecommendationMutation.isPending || isSuggestRequestInFlightRef.current) {
+      return;
+    }
+
     if (!canLoadRecommended) {
-      toast.info('Etkinlik önerileri için bireysel hesapla giriş yapmalısın.');
+      toast.info('Etkinlik onerileri icin bireysel hesapla giris yapmalisin.');
       return;
     }
 
     isSuggestRequestInFlightRef.current = true;
     try {
       const result = await dailyRecommendationMutation.mutateAsync();
+
       if (result.status === 'served' && result.event) {
         setSuggestedEvent(result.event);
         setIsRecommendationModalOpen(true);
         return;
       }
+
       if (result.status === 'depleted') {
-        toast.info(result.message ?? 'Bugünlük buralardaki tüm pasları tükettin kral!');
+        toast.info(
+          result.message ??
+            'Bugunluk buralardaki tum paslari tukettin kral. Yeni etkinlikler eklendiginde ilk senin haberin olacak!'
+        );
         return;
       }
-      toast.error(result.message ?? 'Şu anda öneri servisi kullanılamıyor.');
+
+      toast.error(
+        result.message ?? 'Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.'
+      );
     } catch {
-      toast.error('Etkinlik önerileri alınamadı.');
+      toast.error('Etkinlik onerileri alinamadi. Lutfen tekrar dene.');
     } finally {
       isSuggestRequestInFlightRef.current = false;
     }
@@ -149,6 +259,7 @@ export default function HomeScreen() {
       setSelectedTagIds([ALL_CATEGORY_ID]);
       return;
     }
+
     setSelectedTagIds((prev) => {
       const base = prev.filter((id) => id !== ALL_CATEGORY_ID);
       const exists = base.includes(category.id);
@@ -157,256 +268,490 @@ export default function HomeScreen() {
     });
   };
 
-  const TAB_BAR_HEIGHT = 56;
-  const FAB_BOTTOM = TAB_BAR_HEIGHT - 30;
-  const PADDING_BOTTOM = TAB_BAR_HEIGHT + insets.bottom + 80;
-
-  const renderFeatCard = (event: EventListItem) => {
-    const isFree = event.price === 0;
-    const spotsLeft = event.maxParticipants > 0 ? event.maxParticipants - event.participantCount : null;
-
-    return (
-      <Pressable
-        key={event.id}
-        onPress={() => router.push(`/event/${event.id}`)}
-        style={{
-          width: 190,
-          backgroundColor: colors.background,
-          borderRadius: radius.lg,
-          borderWidth: 0.5,
-          borderColor: colors.border,
-          overflow: 'hidden',
-        }}>
-        <View style={{ height: 115, backgroundColor: colors.surfaceTertiary, justifyContent: 'center', alignItems: 'center' }}>
-          {(event.bannerImageUrl || event.imageUrls?.[0]) ? (
-            <ExpoImage source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-          ) : (
-            <Ionicons name="image-outline" size={30} color="rgba(255,255,255,0.15)" />
-          )}
-          {event.tags?.[0]?.name && (
-            <View style={{
-              position: 'absolute', top: 8, left: 8,
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              paddingHorizontal: 7, paddingVertical: 2,
-              borderRadius: 5
-            }}>
-              <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', letterSpacing: 0.4 }}>
-                {event.tags[0].name.toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={{ padding: spacing.lg }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 5 }} numberOfLines={1}>
-            {event.title}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-            <Text style={{ fontSize: 11, color: colors.textSecondary }}>{new Date(event.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-            <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>{event.location?.locationLabel || event.location?.city || event.location?.fullAddress || 'Belirtilmemiş'}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', marginTop: 6, gap: 5 }}>
-            {isFree ? (
-              <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
-              </View>
-            ) : spotsLeft !== null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </Pressable>
-    );
+  const resetFilters = () => {
+    setSelectedCity(undefined);
+    setPriceFilter('all');
+    setMatchAllTags(false);
+    setSelectedTagIds([ALL_CATEGORY_ID]);
+    setIsFilterModalOpen(false);
   };
 
   const renderHeader = () => (
-    <View style={{ backgroundColor: colors.background }}>
-      {/* Search Section */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <View style={{
-            flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-            backgroundColor: colors.surfaceSecondary, borderWidth: 0.5,
-            borderColor: colors.border, borderRadius: radius.lg, height: 40, paddingHorizontal: 12
-          }}>
-            <Ionicons name="search" size={18} color={colors.textTertiary} />
-            <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik ara...</Text>
-          </View>
-          <Pressable style={{
-            width: 28, height: 28, borderRadius: radius.md,
-            backgroundColor: colors.background, borderWidth: 0.5, borderColor: colors.border,
-            alignItems: 'center', justifyContent: 'center'
-          }}>
-            <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
-          </Pressable>
+    <View className="gap-4 pb-5">
+      <CategorySelector
+        categories={categories}
+        selectedIds={selectedTagIds}
+        onToggle={toggleCategory}
+      />
+
+      <View className="mt-2 gap-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-lg font-semibold text-slate-900">Senin Icin</Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
-          {categories.map((cat) => {
-            const isActive = selectedTagIds.includes(cat.id);
-            return (
-              <Pressable
-                key={cat.id} onPress={() => toggleCategory(cat)}
-                style={{
-                  paddingHorizontal: 14, paddingVertical: 6, borderRadius: 9999, borderWidth: 0.5,
-                  backgroundColor: isActive ? colors.primary : colors.background,
-                  borderColor: isActive ? colors.primary : colors.border
-                }}>
-                <Text style={{ fontSize: 13, fontWeight: isActive ? '600' : '500', color: isActive ? '#1a4a05' : colors.textSecondary }}>
-                  {cat.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {canLoadRecommended && recommendedQuery.isPending ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <View key={`recommended-skeleton-${index}`} className="w-72">
+                <EventCardSkeleton />
+              </View>
+            ))}
+          </ScrollView>
+        ) : recommendedQuery.data?.items?.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+            {recommendedQuery.data.items.map((event) => (
+              <View key={event.id} className="w-72">
+                <EventCard
+                  compact
+                  event={event}
+                  onPress={(eventId) => router.push(`/event/${eventId}`)}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View className="rounded-2xl border border-slate-200 bg-white p-4">
+            <Text className="text-sm text-slate-500">
+              Sana ozel oneriler yakinda burada gorunecek.
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Senin İçin Section */}
-      {recommendedQuery.data?.items && recommendedQuery.data.items.length > 0 && (
-        <View style={{ marginTop: 8, backgroundColor: colors.background, paddingVertical: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Senin İçin</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingBottom: 4 }}>
-            {recommendedQuery.data.items.map(renderFeatCard)}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Genel Akış Header */}
-      <View style={{ marginTop: 8, backgroundColor: colors.background, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Genel Akış</Text>
-        <Text style={{ fontSize: 12, color: colors.textSecondary }}>{events.length} sonuç</Text>
+      <View className="mt-2 flex-row items-center justify-between">
+        <Text className="text-lg font-semibold text-slate-900">Genel Akis</Text>
+        <Text className="text-sm text-slate-500">{events.length} sonuc</Text>
       </View>
     </View>
   );
 
-  const renderListCard = ({ item: event }: { item: EventListItem }) => {
-    const isFree = event.price === 0;
-    const spotsLeft = event.maxParticipants > 0 ? event.maxParticipants - event.participantCount : null;
-
-    return (
-      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-        <Pressable
-          onPress={() => router.push(`/event/${event.id}`)}
-          style={{
-            flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-            padding: 12, borderRadius: radius.lg, borderWidth: 0.5, borderColor: colors.border,
-            backgroundColor: colors.background
-          }}>
-          <View style={{ width: 72, height: 72, borderRadius: radius.md, backgroundColor: colors.surfaceTertiary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {(event.bannerImageUrl || event.imageUrls?.[0]) ? (
-              <ExpoImage source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-            ) : (
-              <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.2)" />
-            )}
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }} numberOfLines={1}>{event.title}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-              <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-              <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{event.location?.locationLabel || event.location?.city || event.location?.fullAddress || 'Belirtilmemiş'}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-              <Text style={{ fontSize: 12, color: colors.textSecondary }}>{new Date(event.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
-              {isFree && (
-                <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
-                </View>
-              )}
-              {spotsLeft !== null && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                  <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </Pressable>
-      </View>
-    );
-  };
-
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View className="flex-1 bg-slate-50">
+      <StatusBar
+        style="dark"
+        backgroundColor={isSearchOverlayVisible ? colors.surfaceSecondary : colors.background}
+      />
+
+      <View className="px-4 pb-3 pt-6">
+        <SearchBar
+          value={searchInput}
+          onChangeText={setSearchInput}
+          editable={false}
+          placeholder={searchPlaceholder}
+          onPress={() => {
+            if (!isSearchOverlayVisible) {
+              setIsSearchOverlayVisible(true);
+            }
+          }}
+          onFilterPress={() => setIsFilterModalOpen(true)}
+        />
+      </View>
+
       <FlatList
-        contentContainerStyle={{ paddingBottom: PADDING_BOTTOM }}
+        contentContainerClassName="px-4 pb-8"
         data={events}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
-        renderItem={renderListCard}
-        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => (
+          <View className="mb-4">
+            <EventRowCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+          </View>
+        )}
+        ListEmptyComponent={
+          isPending ? (
+            <View className="gap-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <EventCardSkeleton key={`skeleton-${index}`} />
+              ))}
+            </View>
+          ) : (
+            <View className="mt-16 items-center justify-center">
+              <Text className="text-base text-slate-500">Etkinlik bulunamadi</Text>
+            </View>
+          )
+        }
         onEndReachedThreshold={0.5}
         onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
         }}
-        refreshControl={<RefreshControl refreshing={isRefetching || recommendedQuery.isRefetching} onRefresh={async () => {
-          await Promise.all([
-            refresh(),
-            recommendedQuery.refetch()
-          ]);
-        }} />}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className="mt-2">
+              <EventCardSkeleton />
+            </View>
+          ) : null
+        }
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
       />
 
-      <Animated.View style={{
-        position: 'absolute',
-        bottom: FAB_BOTTOM,
-        right: spacing.xl,
-        transform: [{ scale: scaleAnim }],
-      }}>
-        <Pressable
-          onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
-          onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start()}
-          onPress={handleSuggestEventsPress}
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: 24,
-            width: 48,
-            height: 48,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.2,
-            shadowRadius: 12,
-            elevation: 6,
-          }}>
-          <Ionicons name="dice-outline" size={24} color="#1a4a05" />
-        </Pressable>
-      </Animated.View>
+      {isSearchOverlayVisible ? (
+        <View className="absolute inset-0 z-50" style={{ backgroundColor: colors.surfaceSecondary }}>
+          <SafeAreaView className="flex-1" style={{ backgroundColor: colors.surfaceSecondary }} edges={['top']}>
+            <Pressable className="absolute inset-0" onPress={closeSearchOverlay} />
 
-      <Modal animationType="slide" transparent visible={isRecommendationModalOpen}>
-        <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setIsRecommendationModalOpen(false)}>
+            <View className="flex-1 px-4 pb-4 pt-4">
+              <View
+                className="overflow-hidden rounded-[32px] shadow-2xl"
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  shadowColor: palette.black,
+                  shadowOpacity: 0.18,
+                  shadowRadius: 24,
+                  shadowOffset: { width: 0, height: 12 },
+                  elevation: 24,
+                  maxHeight: '78%',
+                }}>
+                <View
+                  className="px-4 pb-4 pt-4"
+                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <View className="mb-3 flex-row items-center justify-between">
+                    <Text
+                      className="text-xs font-semibold uppercase tracking-[1.5px]"
+                      style={{ color: colors.textTertiary }}>
+                      Kesfet
+                    </Text>
+                    <Pressable
+                      className="rounded-full px-4 py-2"
+                      style={{ backgroundColor: colors.surfaceTertiary }}
+                      onPress={closeSearchOverlay}>
+                      <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
+                        Kapat
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <SearchBar
+                    key={isSearchOverlayVisible ? 'search-overlay-open' : 'search-overlay-closed'}
+                    value={searchInput}
+                    onChangeText={setSearchInput}
+                    autoFocus
+                    showFilterButton={false}
+                    placeholder={searchPlaceholder}
+                  />
+
+                  <View className="mt-3 flex-row gap-2">
+                    <Pressable
+                      className="flex-1 rounded-full px-4 py-3"
+                      style={{
+                        borderWidth: 1,
+                        borderColor: searchMode === 'profiles' ? colors.primary : colors.border,
+                        backgroundColor:
+                          searchMode === 'profiles' ? colors.primary : colors.surfaceSecondary,
+                      }}
+                      onPress={() => setSearchMode('profiles')}>
+                      <Text
+                        className="text-center text-sm font-semibold"
+                        style={{
+                          color:
+                            searchMode === 'profiles' ? colors.primaryForeground : colors.textSecondary,
+                        }}>
+                        Kullanici
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      className="flex-1 rounded-full px-4 py-3"
+                      style={{
+                        borderWidth: 1,
+                        borderColor: searchMode === 'events' ? colors.primary : colors.border,
+                        backgroundColor:
+                          searchMode === 'events' ? colors.primary : colors.surfaceSecondary,
+                      }}
+                      onPress={() => setSearchMode('events')}>
+                      <Text
+                        className="text-center text-sm font-semibold"
+                        style={{
+                          color: searchMode === 'events' ? colors.primaryForeground : colors.textSecondary,
+                        }}>
+                        Etkinlik
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View className="px-4 pb-4 pt-4">
+                  {!hasSearchText ? (
+                    <View
+                      className="items-center justify-center rounded-[24px] px-6 py-10"
+                      style={{ backgroundColor: colors.surfaceSecondary }}>
+                      <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                        {searchMode === 'events' ? 'Etkinlik ara' : 'Kullanici ara'}
+                      </Text>
+                      <Text
+                        className="mt-2 text-center text-sm leading-6"
+                        style={{ color: colors.textSecondary }}>
+                        {searchMode === 'events'
+                          ? 'Secilen filtrelere gore etkinlik sonuclari bu panelde listelenir.'
+                          : 'Kullanici sonuclari burada tek bir akista gorunur.'}
+                      </Text>
+                    </View>
+                  ) : isSearchLoading ? (
+                    <View className="gap-3">
+                      <EventCardSkeleton />
+                      <EventCardSkeleton />
+                    </View>
+                  ) : (
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      contentContainerClassName="gap-5 pb-2">
+                      {searchMode === 'profiles' ? (
+                        <View className="gap-3">
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                            Kullanicilar
+                          </Text>
+                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                            {profileResults.length} sonuc
+                          </Text>
+                        </View>
+
+                          {profileResults.length ? (
+                            profileResults.map((profile) => {
+                              const displayName = getProfileDisplayName(profile);
+                              const subtitle = getProfileSubtitle(profile);
+                              const initials = getProfileInitials(displayName);
+
+                              return (
+                                <Pressable
+                                  key={profile.accountId}
+                                  className="flex-row items-center gap-3 rounded-3xl p-4 shadow-sm"
+                                  style={{
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    backgroundColor: colors.surface,
+                                  }}
+                                  onPress={() => {
+                                    closeSearchOverlay();
+                                    router.push(`/profile/${profile.accountId}`);
+                                  }}>
+                                  {profile.profilePhoto ? (
+                                    <Image
+                                      source={{ uri: profile.profilePhoto }}
+                                      style={{ width: 52, height: 52, borderRadius: 999 }}
+                                      contentFit="cover"
+                                      transition={120}
+                                    />
+                                  ) : (
+                                    <View
+                                      className="h-[52px] w-[52px] items-center justify-center rounded-full"
+                                      style={{ backgroundColor: colors.primaryMuted }}>
+                                      <Text className="text-sm font-semibold" style={{ color: colors.primaryDark }}>
+                                        {initials}
+                                      </Text>
+                                    </View>
+                                  )}
+
+                                  <View className="flex-1">
+                                    <Text className="text-base font-semibold" style={{ color: colors.text }} numberOfLines={1}>
+                                      {displayName}
+                                    </Text>
+                                    <Text className="mt-1 text-sm" style={{ color: colors.textSecondary }} numberOfLines={1}>
+                                      @{profile.username}
+                                    </Text>
+                                    <Text className="mt-1 text-xs" style={{ color: colors.textTertiary }} numberOfLines={1}>
+                                      {subtitle}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })
+                          ) : (
+                            <View
+                              className="rounded-2xl p-4"
+                              style={{
+                                borderWidth: 1,
+                                borderStyle: 'dashed',
+                                borderColor: colors.border,
+                                backgroundColor: colors.surfaceSecondary,
+                              }}>
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                Kullanici bulunamadi.
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      ) : (
+                        <View className="gap-3">
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                            Etkinlikler
+                          </Text>
+                          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                            {searchedEvents.length} sonuc
+                          </Text>
+                        </View>
+
+                          {searchedEvents.length ? (
+                            searchedEvents.map((event) => (
+                              <EventRowCard
+                                key={event.id}
+                                event={event}
+                                onPress={(eventId) => {
+                                  closeSearchOverlay();
+                                  router.push(`/event/${eventId}`);
+                                }}
+                              />
+                            ))
+                          ) : (
+                            <View
+                              className="rounded-2xl p-4"
+                              style={{
+                                borderWidth: 1,
+                                borderStyle: 'dashed',
+                                borderColor: colors.border,
+                                backgroundColor: colors.surfaceSecondary,
+                              }}>
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                Etkinlik bulunamadi.
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </ScrollView>
+                  )}
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
+        </View>
+      ) : null}
+
+      <Modal animationType="slide" transparent visible={isFilterModalOpen}>
+        <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setIsFilterModalOpen(false)}>
           <View className="rounded-t-3xl bg-white px-5 py-5">
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-slate-900">Sana Özel Öneri</Text>
+              <Text className="text-lg font-semibold text-slate-900">Gelismis Filtreler</Text>
+              <View className="rounded-full bg-slate-100 px-3 py-1">
+                <Text className="text-xs font-semibold text-slate-700">{activeFilterCount} aktif</Text>
+              </View>
             </View>
-            {suggestedEvent ? (
-              <View className="pb-4">
-                {renderListCard({ item: suggestedEvent })}
-              </View>
-            ) : (
-              <View className="pb-4">
-                <Text className="text-sm text-slate-500">Şu an için bir öneri bulunamadı.</Text>
-              </View>
-            )}
+
+            <Text className="mb-2 text-sm font-medium text-slate-700">Sehir</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pb-4">
+              {CITY_OPTIONS.map((city) => {
+                const isSelected = selectedCity === city;
+                return (
+                  <Pressable
+                    key={city}
+                    className={cn(
+                      'rounded-full border px-4 py-2',
+                      isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+                    )}
+                    onPress={() => setSelectedCity(isSelected ? undefined : city)}>
+                    <Text className={cn('text-sm', isSelected ? 'text-white' : 'text-slate-700')}>
+                      {city}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text className="mb-2 text-sm font-medium text-slate-700">Ucret Durumu</Text>
+            <View className="mb-4 flex-row gap-2">
+              {(['all', 'free', 'paid'] as PriceFilter[]).map((price) => {
+                const isSelected = priceFilter === price;
+                const label = price === 'all' ? 'Tumu' : price === 'free' ? 'Ucretsiz' : 'Ucretli';
+
+                return (
+                  <Pressable
+                    key={price}
+                    className={cn(
+                      'rounded-full border px-4 py-2',
+                      isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+                    )}
+                    onPress={() => setPriceFilter(price)}>
+                    <Text className={cn('text-sm', isSelected ? 'text-white' : 'text-slate-700')}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text className="mb-2 text-sm font-medium text-slate-700">Coklu Etiket Eslesmesi</Text>
             <Pressable
-              style={{ backgroundColor: colors.surfaceSecondary, padding: 12, borderRadius: radius.md, alignItems: 'center' }}
-              onPress={() => setIsRecommendationModalOpen(false)}>
-              <Text style={{ fontWeight: '600', color: colors.text }}>Kapat</Text>
+              className={cn(
+                'mb-5 rounded-xl border px-4 py-3',
+                matchAllTags ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'
+              )}
+              onPress={() => setMatchAllTags((current) => !current)}>
+              <Text className="text-sm text-slate-700">
+                {matchAllTags
+                  ? 'Secilen tum etiketler eslessin'
+                  : 'Secilen etiketlerden herhangi biri eslessin'}
+              </Text>
             </Pressable>
+
+            <View className="flex-row gap-3">
+              <Button
+                className="flex-1"
+                variant="secondary"
+                label="Temizle"
+                onPress={resetFilters}
+              />
+              <Button
+                className="flex-1"
+                label="Uygula"
+                onPress={() => setIsFilterModalOpen(false)}
+              />
+            </View>
           </View>
         </Pressable>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={isRecommendationModalOpen}
+        onRequestClose={() => setIsRecommendationModalOpen(false)}>
+        <Pressable className="flex-1 justify-end bg-black/35" onPress={() => setIsRecommendationModalOpen(false)}>
+          <View className="max-h-[78%] rounded-t-3xl bg-white px-5 py-5">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-slate-900">Sana Ozel Oneri</Text>
+            </View>
+
+            {suggestedEvent ? (
+              <View className="pb-4">
+                <EventRowCard
+                  event={suggestedEvent}
+                  onPress={(eventId) => {
+                    setIsRecommendationModalOpen(false);
+                    router.push(`/event/${eventId}`);
+                  }}
+                />
+              </View>
+            ) : (
+              <View className="pb-4">
+                <Text className="text-sm text-slate-500">Su an icin bir oneri bulunamadi.</Text>
+              </View>
+            )}
+
+            <Button label="Kapat" variant="secondary" onPress={() => setIsRecommendationModalOpen(false)} />
+          </View>
+        </Pressable>
+      </Modal>
+
+      <View className="pointer-events-box-none absolute bottom-24 left-4 right-4 z-40">
+        <View className="pointer-events-box-none flex-row justify-start">
+          <Pressable
+            className={cn(
+              'rounded-full bg-blue-600 px-5 py-3 shadow-sm',
+              (dailyRecommendationMutation.isPending || !canLoadRecommended) && 'bg-blue-400'
+            )}
+            onPress={handleSuggestEventsPress}
+            disabled={dailyRecommendationMutation.isPending || !canLoadRecommended}>
+            <Text className="text-sm font-semibold text-white">
+              {dailyRecommendationMutation.isPending ? 'Oneriler hazirlaniyor...' : 'Bana Etkinlik Oner'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }

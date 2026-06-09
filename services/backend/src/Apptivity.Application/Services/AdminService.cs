@@ -275,7 +275,7 @@ public sealed class AdminService : IAdminService
         };
         paging.Normalize();
 
-        var filter = new AdminReportFilter(request.Status, request.OrganizationQuery, request.UserQuery, request.EventQuery);
+        var filter = new AdminReportFilter(request.Status, request.TargetType, request.AccountQuery, request.OrganizationQuery, request.UserQuery, request.EventQuery);
         var (items, totalCount) = await _adminRepository.GetReportsAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
         var mapped = items
             .Select(x => new AdminReportDto(
