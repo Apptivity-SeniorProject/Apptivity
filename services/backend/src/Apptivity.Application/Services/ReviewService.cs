@@ -9,13 +9,15 @@ namespace Apptivity.Application.Services;
 
 /// <summary>
 /// Orchestrates the post-event review flow:
-/// validates business rules → saves the review → updates reputation/rating → commits via UoW.
+/// validates business rules -> saves the review -> updates reputation/rating -> commits via UoW.
 /// All mutations occur within a single transaction (shared DbContext / UoW).
 /// </summary>
 public sealed class ReviewService : IReviewService
 {
     private readonly IUserRepository _userRepository;
     private readonly IReviewRepository _reviewRepository;
+    private readonly IReputationRepository _reputationRepository;
+    private readonly ReputationCalculator _calculator;
     private readonly IUnitOfWork _unitOfWork;
 
     // These are concrete infrastructure repositories used directly (same pattern as EventsController).
@@ -25,12 +27,16 @@ public sealed class ReviewService : IReviewService
     public ReviewService(
         IUserRepository userRepository,
         IReviewRepository reviewRepository,
+        IReputationRepository reputationRepository,
+        ReputationCalculator calculator,
         IEventRepository eventRepository,
         IParticipationRepository participationRepository,
         IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _reviewRepository = reviewRepository;
+        _reputationRepository = reputationRepository;
+        _calculator = calculator;
         _eventRepository = eventRepository;
         _participationRepository = participationRepository;
         _unitOfWork = unitOfWork;
@@ -41,14 +47,12 @@ public sealed class ReviewService : IReviewService
         SubmitReviewRequest request,
         CancellationToken cancellationToken)
     {
-        // ── Guard: load reviewer account ──────────────────────────────────────────
         var reviewerAccount = await _userRepository.GetAccountByIdAsync(reviewerAccountId, cancellationToken);
         if (reviewerAccount is null)
         {
             return Result<ReviewResponse>.Failure(ErrorCodes.AccountNotFound, "Reviewer account not found.");
         }
 
-        // ── Guard: only Individual users can submit reviews ───────────────────────
         if (reviewerAccount.Type != AccountType.Individual)
         {
             return Result<ReviewResponse>.Failure(
@@ -56,7 +60,6 @@ public sealed class ReviewService : IReviewService
                 "Only individual users can submit reviews.");
         }
 
-        // ── Guard: self-review ────────────────────────────────────────────────────
         if (reviewerAccountId == request.ReviewedAccountId)
         {
             return Result<ReviewResponse>.Failure(
@@ -64,14 +67,12 @@ public sealed class ReviewService : IReviewService
                 "You cannot review yourself.");
         }
 
-        // ── Guard: load reviewed account ──────────────────────────────────────────
         var reviewedAccount = await _userRepository.GetAccountByIdAsync(request.ReviewedAccountId, cancellationToken);
         if (reviewedAccount is null)
         {
             return Result<ReviewResponse>.Failure(ErrorCodes.AccountNotFound, "Reviewed account not found.");
         }
 
-        // ── Guard: target must be Individual or Organization ──────────────────────
         if (reviewedAccount.Type != AccountType.Individual && reviewedAccount.Type != AccountType.Organization)
         {
             return Result<ReviewResponse>.Failure(
@@ -79,7 +80,6 @@ public sealed class ReviewService : IReviewService
                 "The target account type cannot be reviewed.");
         }
 
-        // ── Guard: validate rating scale based on target type ─────────────────────
         if (reviewedAccount.Type == AccountType.Individual)
         {
             if (request.Rating < -2 || request.Rating > 2)
@@ -89,7 +89,7 @@ public sealed class ReviewService : IReviewService
                     "Rating for a user must be between -2 and +2.");
             }
         }
-        else // Organization / Club
+        else
         {
             if (request.Rating < 1 || request.Rating > 5)
             {
@@ -99,7 +99,6 @@ public sealed class ReviewService : IReviewService
             }
         }
 
-        // ── Guard: event must exist and be Completed ──────────────────────────────
         var @event = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
         if (@event is null)
         {
@@ -120,17 +119,16 @@ public sealed class ReviewService : IReviewService
                 "Voting is closed for this event.");
         }
 
-        // ── Guard: verify the reviewer had an Approved participation ─────────────
-        // The reviewer is always an Individual. We check their User.Id.
         if (reviewerAccount.UserProfile is null)
         {
             return Result<ReviewResponse>.Failure(ErrorCodes.ReviewNotParticipant, "Reviewer profile not found.");
         }
 
         var participation = await _participationRepository.GetByUserAndEventAsync(
-            reviewerAccount.UserProfile.Id, request.EventId, cancellationToken);
+            reviewerAccount.UserProfile.Id,
+            request.EventId,
+            cancellationToken);
 
-        // Participation must be Approved — OR the reviewer is the event owner (reviewing their own participant).
         var isEventOwner = @event.OwnerId == reviewerAccountId;
         if (!isEventOwner && (participation is null || participation.Status != ParticipationStatus.Approved))
         {
@@ -139,9 +137,11 @@ public sealed class ReviewService : IReviewService
                 "You must be an approved participant of this event to leave a review.");
         }
 
-        // ── Guard: duplicate check ────────────────────────────────────────────────
         var duplicate = await _reviewRepository.GetDuplicateAsync(
-            reviewerAccountId, request.ReviewedAccountId, request.EventId, cancellationToken);
+            reviewerAccountId,
+            request.ReviewedAccountId,
+            request.EventId,
+            cancellationToken);
 
         if (duplicate is not null)
         {
@@ -150,7 +150,6 @@ public sealed class ReviewService : IReviewService
                 "You have already submitted a review for this account on this event.");
         }
 
-        // ── Save Review ───────────────────────────────────────────────────────────
         var review = new Review
         {
             Id = Guid.NewGuid(),
@@ -163,7 +162,24 @@ public sealed class ReviewService : IReviewService
 
         await _reviewRepository.AddAsync(review, cancellationToken);
 
-        // ── Commit (single transaction) ───────────────────────────────────────────
+        if (reviewedAccount.Type == AccountType.Organization)
+        {
+            var clubRating = await _reputationRepository.GetClubRatingByAccountIdAsync(request.ReviewedAccountId, cancellationToken);
+            if (clubRating is null)
+            {
+                clubRating = new ClubRating
+                {
+                    Id = request.ReviewedAccountId,
+                    Rating = 0,
+                    RatedCount = 0
+                };
+
+                await _reputationRepository.AddClubRatingAsync(clubRating, cancellationToken);
+            }
+
+            _calculator.ApplyClubStarRating(clubRating, request.Rating);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var response = new ReviewResponse(
@@ -210,5 +226,4 @@ public sealed class ReviewService : IReviewService
         return Result<ReviewListResponse>.Success(
             new ReviewListResponse(responses, total, pageNumber, pageSize));
     }
-
 }

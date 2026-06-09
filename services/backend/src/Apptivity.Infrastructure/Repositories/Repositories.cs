@@ -1088,6 +1088,16 @@ public sealed class ReviewRepository : IReviewRepository
         return _db.Reviews.CountAsync(x => x.ReviewedId == accountId, cancellationToken);
     }
 
+    public async Task<double?> GetAverageRatingByReviewedAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        var ratings = _db.Reviews
+            .AsNoTracking()
+            .Where(x => x.ReviewedId == accountId)
+            .Select(x => (double?)x.Rating);
+
+        return await ratings.AverageAsync(cancellationToken);
+    }
+
     public Task<int> CountReviewsForUserInEventAsync(Guid reviewedUserId, Guid eventId, CancellationToken cancellationToken)
     {
         return _db.Reviews.CountAsync(

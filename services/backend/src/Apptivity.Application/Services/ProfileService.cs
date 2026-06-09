@@ -85,6 +85,9 @@ public sealed class ProfileService : IProfileService
 
         var reputation = account.UserProfile?.Reputation;
         var reputationLevel = reputation?.Level.ToString();
+        var organizationRating = account.Type == AccountType.Organization
+            ? await _reviewRepository.GetAverageRatingByReviewedAccountIdAsync(accountId, cancellationToken)
+            : account.ClubProfile?.ClubRating?.Rating;
 
         var stats = new ProfileStatsDto(
             account.Id,
@@ -92,7 +95,7 @@ public sealed class ProfileService : IProfileService
             totalReviews,
             reputation?.ReputationPoint,
             reputationLevel,
-            account.ClubProfile?.ClubRating?.Rating);
+            organizationRating);
 
         return Result<ProfileStatsDto>.Success(stats);
     }
