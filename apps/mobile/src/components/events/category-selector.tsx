@@ -23,11 +23,11 @@ export function CategorySelector({ categories, selectedIds, onToggle }: Category
             <TouchableOpacity
               key={category.id}
               className={cn(
-                'rounded-full border px-4 py-2',
-                isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-white'
+                'rounded-full border-[1.5px] px-4 py-2',
+                isSelected ? 'border-primary bg-primary-50' : 'border-surface-tertiary bg-surface-secondary'
               )}
               onPress={() => onToggle(category)}>
-              <Text className={cn('text-sm font-medium', isSelected ? 'text-white' : 'text-slate-700')}>
+              <Text className={cn('text-sm font-sans-semibold', isSelected ? 'text-primary-800' : 'text-gray-500')}>
                 {category.name}
               </Text>
             </TouchableOpacity>

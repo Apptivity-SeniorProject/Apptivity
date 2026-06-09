@@ -25,6 +25,7 @@ import { parseAuthToken } from '@/src/utils/auth';
 import { useProfileSearch } from '@/src/hooks/useProfile';
 import type { ProfileDto } from '@/src/types/profile';
 import { cn } from '@/src/utils/cn';
+import { formatLocationShort } from '@/src/utils/event-format';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { EventRowCard } from '@/src/components/events/event-row-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
@@ -251,6 +252,7 @@ export default function HomeScreen() {
   const renderFeatCard = (event: EventListItem) => {
     const isFree = event.price === 0;
     const spotsLeft = event.capacity > 0 ? event.capacity - event.participantCount : null;
+    const locationText = formatLocationShort(event.location);
 
     return (
       <Pressable
@@ -293,7 +295,7 @@ export default function HomeScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-            <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>{event.location?.locationLabel || event.location?.city || event.location?.fullAddress || 'Belirtilmemiş'}</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>{locationText}</Text>
           </View>
           <View style={{ flexDirection: 'row', marginTop: 6, gap: 5 }}>
             {isFree ? (
@@ -377,6 +379,7 @@ export default function HomeScreen() {
   const renderListCard = ({ item: event }: { item: EventListItem }) => {
     const isFree = event.price === 0;
     const spotsLeft = event.capacity > 0 ? event.capacity - event.participantCount : null;
+    const locationText = formatLocationShort(event.location);
 
     return (
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
@@ -398,7 +401,7 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }} numberOfLines={1}>{event.title}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
               <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-              <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{event.location?.locationLabel || event.location?.city || event.location?.fullAddress || 'Belirtilmemiş'}</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{locationText}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />

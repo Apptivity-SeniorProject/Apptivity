@@ -14,10 +14,12 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
+import { Calendar, Clock, MapPin, ImagePlus } from 'lucide-react-native';
 
 import { createEvent, uploadEventPhoto } from '@/src/api/eventService';
 import { CategorySelector } from '@/src/components/events/category-selector';
@@ -64,9 +66,9 @@ export function CreateEventScreen() {
   const [durationMinutes, setDurationMinutes] = useState('120');
   const [capacity, setCapacity] = useState('20');
   const [price, setPrice] = useState('0');
-  const [city, setCity] = useState('');
-  const [fullAddress, setFullAddress] = useState('');
-  const [locationLabel, setLocationLabel] = useState('');
+  const [locationDescription, setLocationDescription] = useState('');
+  const [resolvedCity, setResolvedCity] = useState('');
+  const [resolvedAddress, setResolvedAddress] = useState('');
   const [selectedCoordinate, setSelectedCoordinate] = useState<{
     latitude: number;
     longitude: number;
@@ -119,9 +121,9 @@ export function CreateEventScreen() {
     setDurationMinutes('120');
     setCapacity('20');
     setPrice('0');
-    setCity('');
-    setFullAddress('');
-    setLocationLabel('');
+    setLocationDescription('');
+    setResolvedCity('');
+    setResolvedAddress('');
     setSelectedCoordinate(null);
     setIsMapModalOpen(false);
     setMapRegion(DEFAULT_REGION);
@@ -259,28 +261,16 @@ export function CreateEventScreen() {
         return;
       }
 
-      if (!city.trim()) {
-        const derivedCity = geo.city ?? geo.subregion ?? geo.region;
-        if (derivedCity) {
-          setCity(derivedCity);
-        }
+      const derivedCity = geo.city ?? geo.subregion ?? geo.region;
+      if (derivedCity) {
+        setResolvedCity(derivedCity);
       }
 
-      if (!fullAddress.trim()) {
-        const address = [geo.street, geo.name, geo.district, geo.subregion, geo.city]
-          .filter((part): part is string => Boolean(part))
-          .join(', ');
-
-        if (address) {
-          setFullAddress(address);
-        }
-      }
-
-      if (!locationLabel.trim()) {
-        const label = geo.name ?? geo.street ?? geo.city;
-        if (label) {
-          setLocationLabel(label);
-        }
+      const address = [geo.street, geo.name, geo.district, geo.subregion, geo.city]
+        .filter((part): part is string => Boolean(part))
+        .join(', ');
+      if (address) {
+        setResolvedAddress(address);
       }
     } catch {
       // Reverse geocode basarisiz olsa da koordinat secimi gecerli.
@@ -314,8 +304,7 @@ export function CreateEventScreen() {
       return { isValid: false, message: 'Konumu harita uzerinden secmelisiniz.' };
     }
 
-    if (!city.trim()) return { isValid: false, message: 'Sehir zorunludur.' };
-    if (!fullAddress.trim()) return { isValid: false, message: 'Acik adres zorunludur.' };
+
 
     if (selectedTagIds.length < MIN_EVENT_TAGS || selectedTagIds.length > MAX_EVENT_TAGS) {
       return {
@@ -338,9 +327,9 @@ export function CreateEventScreen() {
       }
 
       const locationData = JSON.stringify({
-        city: city.trim(),
-        fullAddress: fullAddress.trim(),
-        locationLabel: locationLabel.trim() || fullAddress.trim(),
+        city: resolvedCity.trim(),
+        fullAddress: resolvedAddress.trim(),
+        locationLabel: locationDescription.trim() || resolvedAddress.trim(),
         lat: selectedCoordinate.latitude,
         lng: selectedCoordinate.longitude,
       });
@@ -423,44 +412,61 @@ export function CreateEventScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <ScrollView contentContainerClassName="px-4 pb-16 pt-6">
-        <Text className="text-2xl font-bold text-slate-900">Yeni Etkinlik</Text>
-        <Text className="mt-1 text-sm text-slate-500">
-          Tarih ve saat secimi takvimden yapilir, konum haritadan isaretlenir.
+        <Text className="text-xl font-sans-bold text-gray-900 tracking-tight">Yeni Etkinlik</Text>
+        <Text className="mt-0.5 text-xs text-gray-400 font-sans">
+          Tarih ve saat seçimi takvimden yapılır, konum haritadan işaretlenir.
         </Text>
 
-        <View className="mt-6 gap-4">
-          <Input
-            label="Etkinlik Basligi"
-            value={name}
-            onChangeText={setName}
-            placeholder="Ornek: Hafta Sonu Kampi"
-          />
+        <View className="mt-6 gap-5">
+          {/* Temel Bilgiler Section */}
+          <View>
+            <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400 mb-2">
+              Temel Bilgiler
+            </Text>
+            <View className="gap-2.5">
+              <Input
+                value={name}
+                onChangeText={setName}
+                placeholder="Etkinlik başlığı"
+                className="border-[1.5px] border-surface-tertiary rounded-button bg-surface-secondary text-base text-gray-900"
+              />
+              <Input
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Açıklama — etkinliğin detaylarını girin..."
+                multiline
+                numberOfLines={4}
+                className="border-[1.5px] border-surface-tertiary rounded-button bg-surface-secondary min-h-24 py-3 text-base text-gray-900"
+              />
+            </View>
+          </View>
 
-          <Input
-            label="Aciklama"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Etkinligin detaylarini girin"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            className="h-28 py-3"
-          />
+          {/* Zaman Section */}
+          <View>
+            <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400 mb-2">
+              Zaman
+            </Text>
+            <View className="flex-row gap-2.5">
+              <Pressable
+                className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-3"
+                onPress={() => setShowDatePicker(true)}>
+                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Tarih</Text>
+                <View className="flex-row items-center gap-1.5">
+                  <Calendar size={16} color="#77e349" />
+                  <Text className="text-base font-bold text-gray-900">{formattedDate}</Text>
+                </View>
+              </Pressable>
 
-          <View className="flex-row gap-3">
-            <Pressable
-              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3"
-              onPress={() => setShowDatePicker(true)}>
-              <Text className="mb-1 text-xs font-medium text-slate-500">Tarih</Text>
-              <Text className="text-base font-semibold text-slate-900">{formattedDate}</Text>
-            </Pressable>
-
-            <Pressable
-              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3"
-              onPress={() => setShowTimePicker(true)}>
-              <Text className="mb-1 text-xs font-medium text-slate-500">Saat</Text>
-              <Text className="text-base font-semibold text-slate-900">{formattedTime}</Text>
-            </Pressable>
+              <Pressable
+                className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-3"
+                onPress={() => setShowTimePicker(true)}>
+                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Saat</Text>
+                <View className="flex-row items-center gap-1.5">
+                  <Clock size={16} color="#77e349" />
+                  <Text className="text-base font-bold text-gray-900">{formattedTime}</Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
 
           {showDatePicker ? (
@@ -481,81 +487,109 @@ export function CreateEventScreen() {
             />
           ) : null}
 
-          <View className="flex-row gap-3">
-            <Input
-              label="Sure (Dakika)"
-              value={durationMinutes}
-              onChangeText={setDurationMinutes}
-              keyboardType="numeric"
-              containerClassName="flex-1"
-            />
-            <Input
-              label="Kontenjan"
-              value={capacity}
-              onChangeText={setCapacity}
-              keyboardType="numeric"
-              containerClassName="flex-1"
-            />
-          </View>
-
-          <Input
-            label="Ucret"
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="decimal-pad"
-            placeholder="0"
-          />
-
-          <View className="rounded-2xl border border-slate-200 bg-white p-3">
-            <View className="flex-row items-center justify-between">
-              <View>
-                <Text className="text-sm font-medium text-slate-700">Harita Konumu</Text>
-                <Text className="mt-1 text-xs text-slate-500">
-                  {selectedCoordinate
-                    ? `${selectedCoordinate.latitude.toFixed(6)}, ${selectedCoordinate.longitude.toFixed(6)}`
-                    : 'Henüz secilmedi'}
-                </Text>
+          {/* Kapasite Section */}
+          <View>
+            <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400 mb-2">
+              Kapasite
+            </Text>
+            <View className="flex-row gap-2.5">
+              <View className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-2">
+                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Süre (dk)</Text>
+                <TextInput
+                  className="p-0 font-sans-bold text-base text-gray-900"
+                  value={durationMinutes}
+                  onChangeText={setDurationMinutes}
+                  keyboardType="numeric"
+                />
               </View>
-              <Button
-                label={selectedCoordinate ? 'Konumu Guncelle' : 'Haritadan Sec'}
-                variant="secondary"
-                className="h-10 px-4"
-                onPress={openMapPicker}
-              />
+
+              <View className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-2">
+                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Kontenjan</Text>
+                <TextInput
+                  className="p-0 font-sans-bold text-base text-gray-900"
+                  value={capacity}
+                  onChangeText={setCapacity}
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
           </View>
 
-          <Input
-            label="Sehir"
-            value={city}
-            onChangeText={setCity}
-            placeholder="Istanbul"
-          />
-
-          <Input
-            label="Acik Adres"
-            value={fullAddress}
-            onChangeText={setFullAddress}
-            placeholder="Mahalle, cadde, bina no"
-          />
-
-          <Input
-            label="Konum Etiketi (Opsiyonel)"
-            value={locationLabel}
-            onChangeText={setLocationLabel}
-            placeholder="Ornek: Kadikoy Iskele"
-          />
-
+          {/* Ücret Section */}
           <View>
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-sm font-medium text-slate-700">Kategoriler</Text>
-              <Text className="text-xs text-slate-500">
-                {selectedTagIds.length}/{MAX_EVENT_TAGS} secildi
+            <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400 mb-2">
+              Ücret
+            </Text>
+            <View className="flex-row items-center justify-between rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-3">
+              <View className="flex-row items-center gap-1.5 flex-1">
+                <Text className="font-sans-semibold text-base text-gray-400">₺</Text>
+                <TextInput
+                  className="p-0 font-sans-bold text-base text-gray-900 flex-1"
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                />
+              </View>
+              {!price || Number(price) === 0 ? (
+                <View className="rounded-full bg-primary-50 px-2.5 py-1">
+                  <Text className="text-caption font-sans-bold text-primary-700">Ücretsiz</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Konum Section */}
+          <View>
+            <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400 mb-2">
+              Konum
+            </Text>
+            <View className="rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary p-3.5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-2.5 flex-1">
+                  <View className="w-8 h-8 rounded-button bg-primary-50 items-center justify-center">
+                    <MapPin size={16} color="#44a31e" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-sans-bold text-sm text-gray-900">Harita Konumu</Text>
+                    <Text className="text-xs text-gray-400 mt-0.5">
+                      {selectedCoordinate
+                        ? resolvedAddress || `${selectedCoordinate.latitude.toFixed(6)}, ${selectedCoordinate.longitude.toFixed(6)}`
+                        : 'Henüz seçilmedi'}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  className="bg-primary px-3 py-2 rounded-button"
+                  onPress={openMapPicker}>
+                  <Text className="font-sans-bold text-xs text-primary-950">
+                    {selectedCoordinate ? 'Konumu Güncelle' : 'Haritadan Seç'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {selectedCoordinate ? (
+                <TextInput
+                  className="mt-3 bg-white border-[1.5px] border-gray-200 rounded-button px-3 py-2.5 font-sans text-sm text-gray-900"
+                  value={locationDescription}
+                  onChangeText={setLocationDescription}
+                  placeholder="Konum açıklaması (ör. Binanın arkası, 3. kat)"
+                  placeholderTextColor="#C4C9D1"
+                />
+              ) : null}
+            </View>
+          </View>
+
+          {/* Kategoriler Section */}
+          <View>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400">
+                Kategoriler
+              </Text>
+              <Text className="text-xs text-gray-400 font-sans">
+                {selectedTagIds.length} / {MAX_EVENT_TAGS} seçildi
               </Text>
             </View>
-            <Text className="mb-3 text-xs text-slate-500">
-              En az {MIN_EVENT_TAGS}, en fazla {MAX_EVENT_TAGS} kategori secin.
-            </Text>
             {categories.length ? (
               <CategorySelector
                 categories={categories}
@@ -563,24 +597,35 @@ export function CreateEventScreen() {
                 onToggle={(category) => toggleTag(category.id)}
               />
             ) : (
-              <View className="rounded-2xl border border-slate-200 bg-white p-3">
-                <Text className="text-sm text-slate-500">Kategori listesi yukleniyor.</Text>
+              <View className="rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary p-3.5">
+                <Text className="text-sm text-gray-500 font-sans">Kategori listesi yükleniyor...</Text>
               </View>
             )}
           </View>
 
-          <View className="gap-3">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-medium text-slate-700">Fotograflar</Text>
-              <Text className="text-xs text-slate-500">{selectedImages.length}/3 secildi</Text>
+          {/* Fotoğraflar Section */}
+          <View>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-caption font-sans-bold uppercase tracking-widest text-gray-400">
+                Fotoğraflar
+              </Text>
+              <Text className="text-xs text-gray-400 font-sans">
+                {selectedImages.length} / 3 seçildi
+              </Text>
             </View>
 
-            <Button label="Galeriden Fotograf Sec" variant="secondary" onPress={selectPhotos} />
+            <Pressable
+              className="border-dashed border-2 border-gray-200 bg-[#FAFAFA] rounded-card py-6 items-center justify-center gap-1.5"
+              onPress={selectPhotos}>
+              <ImagePlus size={24} color="#C4C9D1" />
+              <Text className="text-sm font-sans-medium text-gray-400">Galeriden fotoğraf seç</Text>
+              <Text className="text-caption text-gray-300 font-sans">PNG, JPG — maks. 3 fotoğraf</Text>
+            </Pressable>
 
             {selectedImages.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 mt-3">
                 {selectedImages.map((asset, index) => (
-                  <View key={`${asset.assetId ?? asset.uri}-${index}`} className="relative">
+                  <View key={`${asset.assetId ?? asset.uri}-${index}`} className="relative rounded-button overflow-hidden">
                     <Image
                       source={{ uri: asset.uri }}
                       style={{ width: 110, height: 110 }}
@@ -598,15 +643,22 @@ export function CreateEventScreen() {
             ) : null}
           </View>
 
-          <Button label="Etkinligi Olustur" isLoading={createMutation.isPending} onPress={onSubmit} />
+          {/* Submit Button */}
+          <Button
+            label="Etkinliği Oluştur"
+            isLoading={createMutation.isPending}
+            onPress={onSubmit}
+            className="bg-primary rounded-button h-14 mt-4"
+            textClassName="text-primary-950 font-sans-extrabold"
+          />
         </View>
       </ScrollView>
 
       <Modal visible={isMapModalOpen} transparent animationType="slide" onRequestClose={() => setIsMapModalOpen(false)}>
         <View className="flex-1 justify-end bg-black/35">
           <View className="rounded-t-3xl bg-white px-4 pb-5 pt-4">
-            <Text className="text-lg font-semibold text-slate-900">Haritadan Konum Sec</Text>
-            <Text className="mt-1 text-sm text-slate-500">Haritada istedigin noktaya dokunup pin birak.</Text>
+            <Text className="text-lg font-semibold text-slate-900">Haritadan Konum Seç</Text>
+            <Text className="mt-1 text-sm text-slate-500">Haritada istediğin noktaya dokunup pin bırak.</Text>
 
             <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" style={{ height: 320 }}>
               <MapView
@@ -628,12 +680,17 @@ export function CreateEventScreen() {
 
             <View className="mt-3 flex-row gap-3">
               <Button
-                label="Iptal"
+                label="İptal"
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 border-[1.5px] border-surface-tertiary bg-surface-secondary rounded-button"
                 onPress={() => setIsMapModalOpen(false)}
               />
-              <Button label="Konumu Kaydet" className="flex-1" onPress={confirmMapSelection} />
+              <Button
+                label="Konumu Kaydet"
+                className="flex-1 bg-primary rounded-button"
+                textClassName="text-primary-950 font-sans-bold"
+                onPress={confirmMapSelection}
+              />
             </View>
           </View>
         </View>

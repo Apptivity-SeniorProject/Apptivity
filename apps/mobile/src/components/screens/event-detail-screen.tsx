@@ -228,13 +228,22 @@ export function EventDetailScreen() {
   if (!data) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-        <Text className="text-base text-slate-500">Etkinlik detayi yuklenemedi.</Text>
+        <Text className="text-base text-slate-500">Etkinlik detayı yuklenemedi.</Text>
       </View>
     );
   }
 
   const locationText =
     data.location.fullAddress ?? data.location.locationLabel ?? data.location.city ?? 'Lokasyon belirtilmedi';
+  const locationLabel = data.location.locationLabel?.trim();
+  const fullAddress = data.location.fullAddress?.trim();
+  const city = data.location.city?.trim();
+  const normalizedLocationLabel = locationLabel?.toLocaleLowerCase('tr-TR');
+  const hasCustomLocationDetail = Boolean(
+    locationLabel &&
+    normalizedLocationLabel !== fullAddress?.toLocaleLowerCase('tr-TR') &&
+    normalizedLocationLabel !== city?.toLocaleLowerCase('tr-TR')
+  );
 
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
   const isOwner = Boolean(myAccountId && data.ownerId && myAccountId === data.ownerId);
@@ -249,8 +258,8 @@ export function EventDetailScreen() {
   const isBookmarked = Boolean(data.isBookmarkedByCurrentUser);
 
 
-  const photos = data.imageUrls && data.imageUrls.length > 0 
-    ? data.imageUrls 
+  const photos = data.imageUrls && data.imageUrls.length > 0
+    ? data.imageUrls
     : [data.bannerImageUrl ?? PLACEHOLDER_IMAGE];
 
   return (
@@ -361,6 +370,13 @@ export function EventDetailScreen() {
             </View>
           </View>
 
+          {hasCustomLocationDetail ? (
+            <View className="rounded-2xl border border-slate-200 bg-white p-4">
+              <Text className="text-base font-semibold text-slate-900">Konum Detayı</Text>
+              <Text className="mt-2 text-sm leading-6 text-slate-700">{locationLabel}</Text>
+            </View>
+          ) : null}
+
           <View className="rounded-2xl border border-slate-200 bg-white p-4">
             <Text className="text-base font-semibold text-slate-900">Fiyat</Text>
             <Text className="mt-2 text-lg font-bold text-blue-700">
@@ -374,7 +390,7 @@ export function EventDetailScreen() {
           </View>
 
           <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-base font-semibold text-slate-900">Organizator</Text>
+            <Text className="text-base font-semibold text-slate-900">Sahibi</Text>
             <Text className="mt-2 text-sm text-slate-700">{data.organizerName}</Text>
             {data.organizerType ? (
               <Text className="mt-1 text-xs uppercase text-slate-500">{data.organizerType}</Text>

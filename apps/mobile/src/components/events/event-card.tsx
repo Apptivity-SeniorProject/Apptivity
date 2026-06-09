@@ -3,7 +3,7 @@ import { CalendarDays, MapPin } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import type { EventListItem } from '@/src/types/event';
-import { formatEventDate } from '@/src/utils/event-format';
+import { formatEventDate, formatLocationShort } from '@/src/utils/event-format';
 
 interface EventCardProps {
   event: EventListItem;
@@ -15,8 +15,7 @@ const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80';
 
 export function EventCard({ event, onPress }: EventCardProps) {
-  const locationText =
-    event.location.locationLabel ?? event.location.city ?? event.location.fullAddress ?? 'Lokasyon belirtilmedi';
+  const locationText = formatLocationShort(event.location);
   const primaryTag = event.tags[0]?.name ?? 'ETKİNLİK';
 
   return (

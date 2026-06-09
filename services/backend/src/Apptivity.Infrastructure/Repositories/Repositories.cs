@@ -269,22 +269,37 @@ public sealed class EventRepository : IEventRepository
     {
         var query = _db.Events
             .AsNoTracking()
+            .Where(x => !x.IsDeleted && _db.Participations.Any(p => p.EventId == x.Id && p.UserId == accountId && p.Status == ParticipationStatus.Approved));
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var eventIds = await query
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Time)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (eventIds.Count == 0)
+        {
+            return (Array.Empty<Event>(), totalCount);
+        }
+
+        var items = await _db.Events
+            .AsNoTracking()
             .Include(x => x.Tags)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.UserProfile)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.ClubProfile)
-            .Where(x => !x.IsDeleted && _db.Participations.Any(p => p.EventId == x.Id && p.UserId == accountId && p.Status == ParticipationStatus.Approved));
-
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(x => x.Date)
-            .ThenByDescending(x => x.Time)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+            .Where(x => eventIds.Contains(x.Id))
             .ToListAsync(cancellationToken);
 
-        return (items, totalCount);
+        var orderedItems = eventIds
+            .Join(items, id => id, item => item.Id, (_, item) => item)
+            .ToArray();
+
+        return (orderedItems, totalCount);
     }
 
     public async Task<IReadOnlyCollection<Event>> GetPublishedAndOngoingAsync(CancellationToken cancellationToken)

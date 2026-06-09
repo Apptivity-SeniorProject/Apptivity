@@ -3,7 +3,7 @@ import { Heart, MapPin, Users } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import type { EventListItem } from '@/src/types/event';
-import { formatEventPrice } from '@/src/utils/event-format';
+import { formatEventPrice, formatLocationShort } from '@/src/utils/event-format';
 
 interface EventRowCardProps {
   event: EventListItem;
@@ -16,18 +16,6 @@ interface EventRowCardProps {
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80';
 
-function resolveLocation(event: EventListItem): string {
-  const city = event.location.city?.trim();
-  const label = event.location.locationLabel?.trim();
-  const fullAddress = event.location.fullAddress?.trim();
-
-  if (city && label) {
-    return `${city} / ${label}`;
-  }
-
-  return city ?? label ?? fullAddress ?? 'Konum belirtilmedi';
-}
-
 export function EventRowCard({
   event,
   onPress,
@@ -35,7 +23,7 @@ export function EventRowCard({
   isBookmarkPending = false,
   onBookmarkPress,
 }: EventRowCardProps) {
-  const location = resolveLocation(event);
+  const location = formatLocationShort(event.location);
   const remainingCount = Math.max(0, event.remainingParticipationCount ?? 0);
   const priceText = event.isPaid ? formatEventPrice(event.price, true) : 'Ucretsiz';
 
