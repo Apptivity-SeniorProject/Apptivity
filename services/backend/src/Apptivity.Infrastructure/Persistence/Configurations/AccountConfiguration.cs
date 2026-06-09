@@ -1,5 +1,4 @@
 using Apptivity.Domain.Entities;
-using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -48,6 +47,5 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
                     join.HasKey("account_id", "tag_id");
                 });
 
-        builder.HasData(ManualTestSeed.Accounts);
     }
 }

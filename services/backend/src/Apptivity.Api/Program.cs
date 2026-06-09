@@ -4,6 +4,7 @@ using Apptivity.Api.Hubs;
 using Apptivity.Api.Middlewares;
 using Apptivity.Api.Options;
 using Apptivity.Api.Security;
+using Apptivity.Api;
 using Apptivity.Application;
 using Apptivity.Application.Common.Models;
 using Apptivity.Application.Interfaces;
@@ -203,6 +204,9 @@ if (autoMigrateOnStartup && !isTestingEnvironment)
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
+
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    await DataSeeder.SeedAsync(dbContext, passwordHasher, app.Configuration, app.Environment);
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();

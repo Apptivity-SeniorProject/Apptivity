@@ -1,5 +1,4 @@
 using Apptivity.Domain.Entities;
-using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -25,6 +24,5 @@ public sealed class ClubRatingConfiguration : IEntityTypeConfiguration<ClubRatin
             .HasForeignKey<ClubRating>(x => x.Id)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasData(ManualTestSeed.ClubRatings);
     }
 }
