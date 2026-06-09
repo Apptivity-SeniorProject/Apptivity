@@ -665,6 +665,22 @@ public sealed class EventService : IEventService
         return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
     }
 
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetEventsByOwnerIdAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _eventRepository.GetByOwnerIdAsync(accountId, pageNumber, pageSize, cancellationToken);
+        var mapped = items.Select(MapEventSummary).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
+    }
+
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetEventsByParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _eventRepository.GetByApprovedParticipantAsync(accountId, pageNumber, pageSize, cancellationToken);
+        var mapped = items.Select(MapEventSummary).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, pageNumber, pageSize));
+    }
+
     public async Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken)
     {
         var eventEntity = await _eventRepository.GetByIdAsync(eventId, cancellationToken);

@@ -195,6 +195,8 @@ public interface IEventService
     Task<Result<EventSummaryDto>> UpdateEventStatusAsync(Guid eventId, UpdateEventStatusRequest request, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<EventSummaryDto>> CancelEventAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetMyCreatedEventsAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
+    Task<Result<PagedResult<EventSummaryDto>>> GetEventsByOwnerIdAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<Result<PagedResult<EventSummaryDto>>> GetEventsByParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Result<IEnumerable<EventSummaryDto>>> GetSimilarEventsAsync(Guid eventId, int count, CancellationToken cancellationToken);
     Task<Result> ToggleBookmarkAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);

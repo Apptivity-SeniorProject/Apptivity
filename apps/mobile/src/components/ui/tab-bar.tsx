@@ -163,7 +163,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         const { options } = descriptors[route.key];
 
         // Expo Router'da href: null olan sekmeleri (örn. notifications) gizle
-        if ((options as any).href === null || route.name === 'notifications') {
+        if ((options as any).href === null || route.name === 'notifications' || route.name === 'user/[id]') {
           return null;
         }
 

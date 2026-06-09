@@ -14,6 +14,8 @@ import {
   getMyBookmarks,
   getMyEvents,
   getMyParticipations,
+  getProfileOrganizedEvents,
+  getProfileParticipatedEvents,
   getRecommendedEvents,
   getRecommendedNearbyEvents,
   getDailyRecommendedNext,
@@ -190,6 +192,26 @@ export function useMyEvents(pageSize = 10) {
   return useQuery<PagedResult<EventListItem>>({
     queryKey: ['my-events', pageSize],
     queryFn: () => getMyEvents(1, pageSize),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+}
+
+export function useProfileOrganizedEvents(accountId?: string, pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['profile-organized-events', accountId, pageSize],
+    queryFn: () => getProfileOrganizedEvents(accountId!, 1, pageSize),
+    enabled: Boolean(accountId),
+    staleTime: 120000,
+    gcTime: 900000,
+  });
+}
+
+export function useProfileParticipatedEvents(accountId?: string, pageSize = 10) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['profile-participated-events', accountId, pageSize],
+    queryFn: () => getProfileParticipatedEvents(accountId!, 1, pageSize),
+    enabled: Boolean(accountId),
     staleTime: 120000,
     gcTime: 900000,
   });

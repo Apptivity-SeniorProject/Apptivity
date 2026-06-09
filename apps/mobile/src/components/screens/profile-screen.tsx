@@ -208,6 +208,12 @@ export function ProfileScreen() {
           </Pressable>
         </View>
 
+        {profile?.userProfile?.bio ? (
+          <Text className="text-[14px] text-gray-700 mb-4 leading-5">
+            {profile.userProfile.bio}
+          </Text>
+        ) : null}
+
         {/* İtibar Widget */}
         <View className="bg-gray-50 rounded-xl px-3.5 py-3 border border-gray-200">
           <View className="flex-row items-center justify-between mb-2.5">

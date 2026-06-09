@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { Alert, Pressable } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -114,6 +115,33 @@ export default function TabLayout() {
           title: 'Profil',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
           header: () => <TopBar rightContent={profileRightContent} />,
+        }}
+      />
+      <Tabs.Screen
+        name="user/[id]"
+        options={{
+          href: null,
+          header: () => (
+            <TopBar 
+              leftContent={
+                <View className="flex-row items-center gap-2">
+                  <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
+                    <IconSymbol name="chevron.left" size={28} color="#111827" />
+                  </Pressable>
+                  <View className="flex-row items-center gap-2">
+                    <Image 
+                      source={require('@/assets/apptivity/apptivity_logo.svg')} 
+                      style={{ width: 26, height: 26 }} 
+                      contentFit="contain" 
+                    />
+                    <Text className="font-sans-bold text-lg text-primary-600">
+                      Apptivity
+                    </Text>
+                  </View>
+                </View>
+              }
+            />
+          ),
         }}
       />
     </Tabs>

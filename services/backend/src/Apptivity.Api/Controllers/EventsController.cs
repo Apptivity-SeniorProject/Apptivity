@@ -101,6 +101,30 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpGet("profile/{accountId:guid}/organized")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProfileOrganizedEvents(
+        Guid accountId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _eventService.GetEventsByOwnerIdAsync(accountId, pageNumber, pageSize, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("profile/{accountId:guid}/participated")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProfileParticipatedEvents(
+        Guid accountId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _eventService.GetEventsByParticipantAsync(accountId, pageNumber, pageSize, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("{id:guid}/similar")]
     [AllowAnonymous]
     public async Task<IActionResult> GetSimilarEvents(Guid id, [FromQuery] int count = 5, CancellationToken cancellationToken = default)

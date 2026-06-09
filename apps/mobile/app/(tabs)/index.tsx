@@ -188,7 +188,9 @@ export default function HomeScreen() {
     shouldRunProfileSearch
   );
 
-  const profileResults = profileSearchQuery.data?.items ?? [];
+  const profileResults = (profileSearchQuery.data?.items ?? []).filter(
+    (profile) => normalizeAccountType(profile.type) !== 'admin'
+  );
   const hasSearchText = searchInput.trim().length > 0;
   const searchPlaceholder = searchMode === 'events' ? 'Etkinlik ara...' : 'Kullanici ara...';
   const isSearchLoading = hasSearchText && (debouncedSearchTerm !== searchInput.trim() || (searchMode === 'events' ? isSearchEventsPending : profileSearchQuery.isPending));
@@ -632,7 +634,7 @@ export default function HomeScreen() {
                                   }}
                                   onPress={() => {
                                     closeSearchOverlay();
-                                    router.push(`/profile/${profile.accountId}` as any);
+                                    router.push(`/(tabs)/user/${profile.accountId}` as any);
                                   }}>
                                   {profile.profilePhoto ? (
                                     <ExpoImage

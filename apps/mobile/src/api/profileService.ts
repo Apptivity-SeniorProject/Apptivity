@@ -29,12 +29,20 @@ export async function getMyProfile(): Promise<ProfileDto> {
 
 export async function getProfileById(accountId: string): Promise<ProfileDto> {
   const response = await apiClient.get<ApiEnvelope<ProfileDto>>(`/api/profiles/${accountId}`);
-  return unwrapEnvelope(response.data);
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    profilePhoto: getFullImageUrl(payload.profilePhoto) ?? payload.profilePhoto,
+  };
 }
 
 export async function updateMyProfile(payload: UpdateProfilePayload): Promise<ProfileDto> {
   const response = await apiClient.put<ApiEnvelope<ProfileDto>>('/api/profiles/me', payload);
-  return unwrapEnvelope(response.data);
+  const data = unwrapEnvelope(response.data);
+  return {
+    ...data,
+    profilePhoto: getFullImageUrl(data.profilePhoto) ?? data.profilePhoto,
+  };
 }
 
 export async function getProfileStats(accountId: string): Promise<ProfileStatsDto> {
@@ -69,7 +77,14 @@ export async function searchProfiles(params: ProfileSearchParams): Promise<Paged
       pageSize: params.pageSize ?? 20,
     },
   });
-  return unwrapEnvelope(response.data);
+  const data = unwrapEnvelope(response.data);
+  return {
+    ...data,
+    items: data.items.map((profile) => ({
+      ...profile,
+      profilePhoto: getFullImageUrl(profile.profilePhoto) ?? profile.profilePhoto,
+    })),
+  };
 }
 
 export async function setMyInterests(tagIds: string[]): Promise<ProfileDto> {

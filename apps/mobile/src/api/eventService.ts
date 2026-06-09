@@ -534,6 +534,42 @@ export async function getMyEvents(pageNumber = 1, pageSize = 10): Promise<PagedR
   };
 }
 
+export async function getProfileOrganizedEvents(
+  accountId: string,
+  pageNumber = 1,
+  pageSize = 10
+): Promise<PagedResult<EventListItem>> {
+  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>(
+    `/api/events/profile/${accountId}/organized`,
+    {
+      params: { pageNumber, pageSize },
+    }
+  );
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map(mapEventSummary),
+  };
+}
+
+export async function getProfileParticipatedEvents(
+  accountId: string,
+  pageNumber = 1,
+  pageSize = 10
+): Promise<PagedResult<EventListItem>> {
+  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>(
+    `/api/events/profile/${accountId}/participated`,
+    {
+      params: { pageNumber, pageSize },
+    }
+  );
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map(mapEventSummary),
+  };
+}
+
 export async function getMyBookmarks(
   pageNumber = 1,
   pageSize = 10

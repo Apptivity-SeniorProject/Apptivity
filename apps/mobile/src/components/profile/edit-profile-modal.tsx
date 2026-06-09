@@ -33,6 +33,7 @@ export function EditProfileModal({
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
   const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function EditProfileModal({
       setName(profile.userProfile?.name ?? '');
       setSurname(profile.userProfile?.surname ?? '');
       setUsername(profile.username ?? '');
+      setBio(profile.userProfile?.bio ?? '');
       setSelectedTagIds(profile.interests?.map((i) => i.id) ?? []);
     }
   }, [visible, profile]);
@@ -87,11 +89,12 @@ export function EditProfileModal({
 
   const handleSave = async () => {
     try {
-      if (name !== profile?.userProfile?.name || surname !== profile?.userProfile?.surname || username !== profile?.username) {
+      if (name !== profile?.userProfile?.name || surname !== profile?.userProfile?.surname || username !== profile?.username || bio !== profile?.userProfile?.bio) {
         await updateProfileMutation.mutateAsync({
           name: name.trim(),
           surname: surname.trim(),
           username: username.trim(),
+          bio: bio.trim(),
         });
       }
       
@@ -177,6 +180,17 @@ export function EditProfileModal({
                       placeholder="Soyadınız"
                     />
                   </View>
+                </View>
+                <View>
+                  <Text className="text-xs font-medium text-slate-500 mb-1">Hakkında</Text>
+                  <TextInput
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 min-h-[80px]"
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="Kendinizden bahsedin..."
+                    multiline
+                    textAlignVertical="top"
+                  />
                 </View>
               </View>
 

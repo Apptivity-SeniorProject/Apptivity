@@ -52,7 +52,7 @@ export function RootNavigator() {
             <Stack.Screen name="event/[id]/index" options={{ headerShown: true, title: 'Etkinlik' }} />
             <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
             <Stack.Screen name="event/[id]/participants" options={{ headerShown: false, title: 'Katilimcilar' }} />
-            <Stack.Screen name="profile/[id]" options={{ headerShown: true, title: 'Profil' }} />
+
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <ToastHost />

@@ -267,15 +267,14 @@ public sealed class EventRepository : IEventRepository
 
     public async Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetByApprovedParticipantAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
-        var query = _db.Participations
+        var query = _db.Events
             .AsNoTracking()
-            .Where(x => x.UserId == accountId && x.Status == ParticipationStatus.Approved && !x.Event.IsDeleted)
-            .Select(x => x.Event)
             .Include(x => x.Tags)
             .Include(x => x.Owner)
                 .ThenInclude(o => o.UserProfile)
             .Include(x => x.Owner)
-                .ThenInclude(o => o.ClubProfile);
+                .ThenInclude(o => o.ClubProfile)
+            .Where(x => !x.IsDeleted && _db.Participations.Any(p => p.EventId == x.Id && p.UserId == accountId && p.Status == ParticipationStatus.Approved));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
