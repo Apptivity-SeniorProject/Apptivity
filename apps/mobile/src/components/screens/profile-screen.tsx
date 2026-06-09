@@ -67,6 +67,17 @@ function getInitials(displayName: string): string {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
+function getReputationLabel(level: string): string {
+  switch (level) {
+    case 'Pariah': return 'Etkinlik Bozan';
+    case 'Suspicious': return 'Gelmese mi ya ?';
+    case 'Neutral': return 'Normal görünüyor';
+    case 'Trusted': return 'Gelsin kanka';
+    case 'Exemplary': return 'Etkinlik Canavarı';
+    default: return level;
+  }
+}
+
 function getEmptyStateText(tab: ProfileTab): string {
   if (tab === 'my-events') return 'Henüz oluşturduğun etkinlik yok.';
   if (tab === 'my-pending') return 'Onay bekleyen etkinliğin yok.';
@@ -97,7 +108,7 @@ export function ProfileScreen() {
   const initials = getInitials(displayName || profile?.username || 'U');
 
   const rawScore = statsQuery.data?.reputationScore ?? 0;
-  const repLevelName = statsQuery.data?.reputationLevel ?? 'Yeni'; 
+  const repLevelName = getReputationLabel(statsQuery.data?.reputationLevel ?? 'Yeni');
 
   const cancelledItems = useMemo<EventListItem[]>(() => {
     const source = [
@@ -250,11 +261,7 @@ export function ProfileScreen() {
             />
           </View>
           
-          <View className="flex-row justify-between px-[1px]">
-            <Text className="text-[10px] text-red-500/70">olumsuz</Text>
-            <Text className="text-[10px] text-gray-400">nötr</Text>
-            <Text className="text-[10px] text-[#5bcc2a]/80">olumlu</Text>
-          </View>
+
         </View>
       </View>
 

@@ -1082,6 +1082,7 @@ public sealed class EventService : IEventService
             }
 
             var cursor = await _dailyRecommendationRepository.GetCursorForUpdateAsync(plan.Id, txToken) ?? plan.Cursor;
+            var isNewCursor = false;
             if (cursor is null)
             {
                 cursor = new DailyRecommendationCursor
@@ -1091,9 +1092,13 @@ public sealed class EventService : IEventService
                     IsDepleted = false
                 };
                 plan.Cursor = cursor;
+                isNewCursor = true;
             }
 
-            if (cursor.IsDepleted)
+            var currentTagOrder = cursor.CurrentTagOrder;
+            var isCursorDepleted = cursor.IsDepleted;
+
+            if (isCursorDepleted)
             {
                 return new DailyRecommendedNextResponse(
                     null,
@@ -1107,7 +1112,7 @@ public sealed class EventService : IEventService
             var totalTagCount = plan.Tags.Count;
             if (totalTagCount == 0)
             {
-                cursor.IsDepleted = true;
+                await SetCursorStateAsync(plan.Id, totalTagCount, true, cursor, isNewCursor, txToken);
                 return new DailyRecommendedNextResponse(
                     null,
                     "unavailable",
@@ -1117,9 +1122,7 @@ public sealed class EventService : IEventService
                     GetDebugLlmTagIds(plan));
             }
 
-            var fatigueSinceUtc = nowUtc.AddHours(-72);
-            var recentServed = await _dailyRecommendationRepository.GetRecentServedEventsAsync(userContext.AccountId, fatigueSinceUtc, txToken);
-            var excludedEventIds = recentServed
+            var excludedEventIds = plan.ServedEvents
                 .Select(x => x.EventId)
                 .ToHashSet();
 
@@ -1129,10 +1132,10 @@ public sealed class EventService : IEventService
                 ? null
                 : await _dailyRecommendationRepository.GetMostFrequentServedClubCityAsync(userContext.AccountId, txToken);
 
-            var startOrder = Math.Clamp(cursor.CurrentTagOrder, 1, totalTagCount);
-            for (var tagOrder = startOrder; tagOrder <= totalTagCount; tagOrder++)
+            var startOrder = Math.Clamp(currentTagOrder, 1, totalTagCount);
+            for (var attempt = 0; attempt < totalTagCount; attempt++)
             {
-                cursor.CurrentTagOrder = tagOrder;
+                var tagOrder = ((startOrder - 1 + attempt) % totalTagCount) + 1;
 
                 var planTag = plan.Tags.FirstOrDefault(x => x.TagOrder == tagOrder);
                 if (planTag is null)
@@ -1154,17 +1157,17 @@ public sealed class EventService : IEventService
                     continue;
                 }
 
-                plan.ServedEvents.Add(new DailyRecommendationServedEvent
-                {
-                    PlanId = plan.Id,
-                    EventId = selectedEvent.Id,
-                    TagOrder = tagOrder,
-                    ServedAtUtc = nowUtc
-                });
+                await _dailyRecommendationRepository.AddServedEventAsync(
+                    plan.Id,
+                    selectedEvent.Id,
+                    tagOrder,
+                    nowUtc,
+                    txToken);
 
-                cursor.IsDepleted = false;
+                var nextTagOrder = (tagOrder % totalTagCount) + 1;
+                await SetCursorStateAsync(plan.Id, nextTagOrder, false, cursor, isNewCursor, txToken);
 
-                var remainingTagCount = Math.Max(0, totalTagCount - tagOrder + 1);
+                var remainingTagCount = totalTagCount - nextTagOrder + 1;
                 return new DailyRecommendedNextResponse(
                     MapEventSummary(selectedEvent),
                     "served",
@@ -1174,8 +1177,7 @@ public sealed class EventService : IEventService
                     GetDebugLlmTagIds(plan));
             }
 
-            cursor.IsDepleted = true;
-            cursor.CurrentTagOrder = totalTagCount;
+            await SetCursorStateAsync(plan.Id, totalTagCount, true, cursor, isNewCursor, txToken);
 
             return new DailyRecommendedNextResponse(
                 null,
@@ -1195,8 +1197,30 @@ public sealed class EventService : IEventService
         {
             response = await ExecuteFlowAsync(cancellationToken);
         }
+        catch (Exception ex) when (string.Equals(ex.GetType().Name, "DbUpdateConcurrencyException", StringComparison.Ordinal))
+        {
+            response = await ExecuteFlowAsync(cancellationToken);
+        }
 
         return Result<DailyRecommendedNextResponse>.Success(response);
+    }
+
+    private async Task SetCursorStateAsync(
+        Guid planId,
+        int currentTagOrder,
+        bool isDepleted,
+        DailyRecommendationCursor cursor,
+        bool isNewCursor,
+        CancellationToken cancellationToken)
+    {
+        if (isNewCursor)
+        {
+            cursor.CurrentTagOrder = currentTagOrder;
+            cursor.IsDepleted = isDepleted;
+            return;
+        }
+
+        await _dailyRecommendationRepository.UpdateCursorStateAsync(planId, currentTagOrder, isDepleted, cancellationToken);
     }
 
     private async Task<DailyPlanBuildResult> BuildDailyPlanAsync(
@@ -1229,6 +1253,7 @@ public sealed class EventService : IEventService
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var approvedHistoryTagIds = MapTagNamesToIds(activeTagById.Values, approvedHistoryTagNames);
 
         var hasSignals = interestTagNames.Length > 0 || approvedHistoryTagNames.Length > 0;
         var allowedTags = activeTagById.Values
@@ -1276,6 +1301,20 @@ public sealed class EventService : IEventService
             }
 
             selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Profile));
+            if (selected.Count == 5)
+            {
+                break;
+            }
+        }
+
+        foreach (var tagId in approvedHistoryTagIds)
+        {
+            if (selected.Any(x => x.TagId == tagId))
+            {
+                continue;
+            }
+
+            selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.History));
             if (selected.Count == 5)
             {
                 break;
@@ -1336,6 +1375,27 @@ public sealed class EventService : IEventService
         return new DailyPlanBuildResult(plan);
     }
 
+    private static IReadOnlyCollection<Guid> MapTagNamesToIds(
+        IEnumerable<Tag> activeTags,
+        IReadOnlyCollection<string> tagNames)
+    {
+        if (tagNames.Count == 0)
+        {
+            return Array.Empty<Guid>();
+        }
+
+        var tagIdByName = activeTags
+            .Where(x => x.IsActive && !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Name))
+            .GroupBy(x => x.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+
+        return tagNames
+            .Select(name => tagIdByName.GetValueOrDefault(name))
+            .Where(tagId => tagId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+    }
+
     private static void ApplyDailyPlanSnapshot(
         DailyRecommendationPlan targetPlan,
         DailyRecommendationPlan sourcePlan,
@@ -1344,6 +1404,7 @@ public sealed class EventService : IEventService
         targetPlan.GeneratedAtUtc = nowUtc;
         targetPlan.LlmGenerated = sourcePlan.LlmGenerated;
 
+        targetPlan.ServedEvents.Clear();
         targetPlan.Tags.Clear();
         foreach (var tag in sourcePlan.Tags.OrderBy(x => x.TagOrder))
         {

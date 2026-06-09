@@ -4,5 +4,6 @@ public enum DailyRecommendationTagSource
 {
     Llm = 1,
     Profile = 2,
-    Deterministic = 3
+    Deterministic = 3,
+    History = 4
 }

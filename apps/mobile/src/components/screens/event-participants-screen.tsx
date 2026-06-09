@@ -95,15 +95,15 @@ function getReputationDisplay(level: string | null | undefined) {
 
   switch (level) {
     case 'Pariah':
-      return { label: 'Cok Kotu', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
+      return { label: 'Etkinlik Bozan', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
     case 'Suspicious':
-      return { label: 'Kotu', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
+      return { label: 'Gelmese mi ya ?', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
     case 'Neutral':
-      return { label: 'Normal', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+      return { label: 'Normal görünüyor', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
     case 'Trusted':
-      return { label: 'Guvenilir', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
+      return { label: 'Gelsin kanka', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
     case 'Exemplary':
-      return { label: 'Mukemmel', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
+      return { label: 'Etkinlik Canavarı', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
     default:
       return { label: level, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
   }
@@ -234,26 +234,31 @@ function ParticipantCard({
   return (
     <View className="mb-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
       <View className="flex-row items-center">
-        <Image
-          source={{ uri: avatarUri }}
-          style={{ width: 44, height: 44, borderRadius: 22 }}
-          contentFit="cover"
-          transition={120}
-        />
-        <View className="ml-3 flex-1">
-          <Text className="flex-shrink text-sm font-semibold text-slate-900">{participant.displayName}</Text>
-          {participant.username ? (
-            <Text className="text-xs text-slate-500">@{participant.username}</Text>
-          ) : null}
-          {!isOwner ? null : (
-            <View className="mt-1 flex-row items-center gap-1">
-              {getStatusIcon(participant.status)}
-              <Text className={`text-xs font-medium ${getStatusColor(participant.status)}`}>
-                {getStatusLabel(participant.status)}
-              </Text>
-            </View>
-          )}
-        </View>
+        <Pressable
+          className="flex-row items-center flex-1"
+          onPress={() => router.push(`/user/${participant.accountId}`)}
+        >
+          <Image
+            source={{ uri: avatarUri }}
+            style={{ width: 44, height: 44, borderRadius: 22 }}
+            contentFit="cover"
+            transition={120}
+          />
+          <View className="ml-3 flex-1">
+            <Text className="flex-shrink text-sm font-semibold text-slate-900">{participant.displayName}</Text>
+            {participant.username ? (
+              <Text className="text-xs text-slate-500">@{participant.username}</Text>
+            ) : null}
+            {!isOwner ? null : (
+              <View className="mt-1 flex-row items-center gap-1">
+                {getStatusIcon(participant.status)}
+                <Text className={`text-xs font-medium ${getStatusColor(participant.status)}`}>
+                  {getStatusLabel(participant.status)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Pressable>
 
         {!canVote && !participant.isVoted && repDisplay ? (
           <View className={`mr-3 rounded border px-2 py-1 ${repDisplay.bg} ${repDisplay.border}`}>

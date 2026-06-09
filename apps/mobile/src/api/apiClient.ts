@@ -155,12 +155,19 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
+    // If user already logged out, silently drop stale 401s from in-flight requests
+    const { accessToken: currentToken, refreshToken: currentRefresh } = useAuthStore.getState();
+    if (error.response?.status === 401 && !currentToken && !currentRefresh) {
+      return Promise.reject(error);
+    }
+
     if (ENABLE_API_LOGS) {
       console.error(
         `[API Error] ${error.response?.status || 'Network Error'} ${error.config?.url}`,
         error.response?.data || error.message
       );
     }
+
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
     if (!originalRequest) {
