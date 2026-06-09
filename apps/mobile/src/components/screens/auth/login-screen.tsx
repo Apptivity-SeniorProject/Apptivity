@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { Redirect, router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Keyboard, Modal, Pressable, Text, View } from 'react-native';
+import { FlatList, Image, Keyboard, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
@@ -93,63 +94,91 @@ export function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 pt-16">
-        <Pressable hitSlop={hitSlop.md} onPress={() => router.replace('/(auth)/landing')}>
-          <Text className="font-sans-medium text-sm text-gray-500">{'<'} Geri</Text>
-        </Pressable>
+      {/* ── Sol Üst: Geri Dön ── */}
+      <Pressable
+        className="flex-row items-center gap-1 px-5 pt-3"
+        hitSlop={hitSlop.md}
+        onPress={() => router.replace('/(auth)/landing')}>
+        <Ionicons name="chevron-back" size={18} color="#44a31e" />
+        <Text className="font-sans-medium text-sm text-primary-600">Geri Dön</Text>
+      </Pressable>
 
-        <Text className="mt-4 font-sans-bold text-3xl text-gray-900">Giriş Yap</Text>
-        <Text className="mt-2 font-sans text-base text-gray-500">
-          Telefon numaran ve şifrenle giriş yap.
-        </Text>
-
-        <View className="mt-10 flex-row gap-3">
-          <Pressable
-            className="h-12 items-center justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
-            hitSlop={hitSlop.sm}
-            onPress={() => setIsCountryModalOpen(true)}>
-            <Text className="font-sans-semibold text-base text-gray-900">{countryCode}</Text>
-          </Pressable>
-
-          <Input
-            keyboardType="phone-pad"
-            placeholder="Telefon numaranız"
-            value={phoneInput}
-            onChangeText={setPhoneInput}
-            containerClassName="flex-1"
-          />
+      {/* ── Ortalanmış İçerik ── */}
+      <View className="flex-1 justify-center px-8">
+        {/* ── Logo & Başlık ── */}
+        <View className="items-center">
+          <View className="mb-3 h-20 w-20 items-center justify-center rounded-3xl bg-primary-50">
+            <Image
+              source={require('@/assets/apptivity/apptivity_logo.png')}
+              style={{ width: 52, height: 52 }}
+              resizeMode="contain"
+            />
+          </View>
+          <Text
+            style={{ fontSize: 26, lineHeight: 34, letterSpacing: -0.4 }}
+            className="font-sans-extrabold text-gray-900"
+          >
+            Giriş Yap
+          </Text>
+          <Text className="mt-1 font-sans text-sm text-gray-500">
+            Telefon numaran ve şifrenle giriş yap.
+          </Text>
         </View>
 
-        <Input
-          label="Şifre"
-          placeholder="Şifrenizi girin"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          containerClassName="mt-4"
-          error={inputError}
-        />
+        {/* ── Form Alanları ── */}
+        <View className="mt-8 w-full">
+          <Text className="mb-1.5 font-sans-medium text-xs text-gray-800">Telefon Numarası</Text>
+          <View className="mb-3.5 flex-row gap-2">
+            <Pressable
+              className="h-12 flex-row items-center justify-center gap-1 rounded-card border border-gray-200 bg-surface-secondary px-3.5"
+              hitSlop={hitSlop.sm}
+              onPress={() => setIsCountryModalOpen(true)}>
+              <Ionicons name="flag-outline" size={14} color="#44a31e" />
+              <Text className="font-sans-medium text-sm text-gray-900">{countryCode}</Text>
+            </Pressable>
 
-        <Pressable
-          className="mt-3 self-end"
-          hitSlop={hitSlop.sm}
-          onPress={() => router.push('/(auth)/password-reset')}>
-          <Text className="font-sans-medium text-sm text-primary-600">Şifremi Unuttum</Text>
-        </Pressable>
+            <Input
+              keyboardType="phone-pad"
+              placeholder="Telefon numaranız"
+              value={phoneInput}
+              onChangeText={setPhoneInput}
+              containerClassName="flex-1"
+            />
+          </View>
 
-        <Button
-          className="mt-8"
-          label="Giriş Yap"
-          size="lg"
-          isLoading={loginMutation.isPending}
-          onPress={handleLogin}
-        />
+          {/* ── Şifre ── */}
+          <Input
+            label="Şifre"
+            placeholder="Şifrenizi girin"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            error={inputError}
+          />
 
-        <View className="mt-6 flex-row items-center justify-center gap-1">
-          <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
-          <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/register')}>
-            <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
+          <Pressable
+            className="mb-7 mt-2 self-end"
+            hitSlop={hitSlop.sm}
+            onPress={() => router.push('/(auth)/password-reset')}>
+            <Text className="font-sans-medium text-xs text-primary-600">Şifremi Unuttum</Text>
           </Pressable>
+
+          {/* ── Giriş Butonu ── */}
+          <Button
+            label="Giriş Yap"
+            size="lg"
+            className="rounded-full"
+            isLoading={loginMutation.isPending}
+            onPress={handleLogin}
+          />
+
+          {/* ── Kayıt Ol ── */}
+          <View className="mt-4 flex-row items-center justify-center gap-1">
+            <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
+            <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/register')}>
+              <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 

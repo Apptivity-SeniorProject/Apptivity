@@ -15,7 +15,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-primary',
+  primary: 'bg-primary-500',
   secondary: 'bg-gray-100 border border-gray-200',
   outline: 'border border-primary bg-transparent',
   ghost: 'bg-transparent',
