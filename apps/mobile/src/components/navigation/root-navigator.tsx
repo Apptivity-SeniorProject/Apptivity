@@ -45,11 +45,11 @@ export function RootNavigator() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={DefaultTheme}>
           <Stack>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="event/[id]/index" options={{ headerShown: true, title: 'Etkinlik' }} />
+            <Stack.Screen name="event/[id]/index" options={{ headerShown: false }} />
             <Stack.Screen name="event/[id]/chat" options={{ headerShown: true, title: 'Sohbet' }} />
             <Stack.Screen name="event/[id]/participants" options={{ headerShown: false, title: 'Katilimcilar' }} />
 

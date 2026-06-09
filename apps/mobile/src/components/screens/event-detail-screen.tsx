@@ -263,7 +263,7 @@ export function EventDetailScreen() {
     : [data.bannerImageUrl ?? PLACEHOLDER_IMAGE];
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50">
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerClassName="pb-10">
         <View style={{ height: 280 }}>
@@ -461,6 +461,6 @@ export function EventDetailScreen() {
           targetType={1}
         />
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }

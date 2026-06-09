@@ -402,7 +402,7 @@ export function EventParticipantsScreen() {
   const activeTabConfig = OWNER_TABS.find((t) => t.key === activeTab)!;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50">
       <Stack.Screen options={{ headerShown: false }} />
 
       <View
@@ -544,6 +544,6 @@ export function EventParticipantsScreen() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

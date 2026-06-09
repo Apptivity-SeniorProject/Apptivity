@@ -327,13 +327,6 @@ export default function HomeScreen() {
             <Ionicons name="search" size={18} color={colors.textTertiary} />
             <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik veya kullanıcı ara...</Text>
           </Pressable>
-          <Pressable style={{
-            width: 28, height: 28, borderRadius: radius.md,
-            backgroundColor: colors.background, borderWidth: 0.5, borderColor: colors.border,
-            alignItems: 'center', justifyContent: 'center'
-          }}>
-            <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
-          </Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
