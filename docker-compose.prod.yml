@@ -55,6 +55,10 @@ services:
       Fcm__ServerKey: ${FCM_SERVER_KEY:-}
       Admin__Email: ${Admin__Email:-}
       Admin__Password: ${Admin__Password:-}
+      Groq__ApiKey: ${Groq__ApiKey:-}
+      Groq__BaseUrl: ${Groq__BaseUrl:-https://api.groq.com/openai/v1}
+      Groq__Model: ${Groq__Model:-openai/gpt-oss-20b}
+      Groq__TimeoutMs: ${Groq__TimeoutMs:-120}
     networks:
       - apptivity-net
     depends_on:
