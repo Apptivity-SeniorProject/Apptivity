@@ -4,7 +4,7 @@
     "slug": "apptivity",
     "version": "0.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/apptivity/apptivity_logo_monochrome.png",
     "scheme": "apptivity",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -25,9 +25,9 @@
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/apptivity/apptivity_logo_monochrome.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/apptivity/apptivity_logo_monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -42,7 +42,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/apptivity/apptivity_logo_monochrome.png"
     },
     "plugins": [
       "expo-router",

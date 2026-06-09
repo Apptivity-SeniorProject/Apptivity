@@ -8,6 +8,10 @@ export interface EventFilters {
   startDate?: string;
   endDate?: string;
   pageSize?: number;
+  userLat?: number;
+  userLng?: number;
+  nearbyRadiusKm?: number;
+  sort?: 'nearby' | 'recent' | string;
 }
 
 export interface CreateEventPayload {
@@ -34,6 +38,10 @@ export interface EventListRequest {
   endDate?: string;
   pageNumber: number;
   pageSize: number;
+  userLat?: number;
+  userLng?: number;
+  nearbyRadiusKm?: number;
+  sort?: string;
 }
 
 export interface EventTag {

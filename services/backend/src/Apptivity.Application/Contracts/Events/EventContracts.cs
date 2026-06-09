@@ -200,6 +200,7 @@ public interface IEventService
     Task<Result<PagedResult<EventSummaryDto>>> GetMyBookmarksAsync(int pageNumber, int pageSize, UserContext userContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(UserContext userContext, RecommendedEventsRequest request, CancellationToken cancellationToken);
+    Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedNearbyAsync(UserContext userContext, decimal lat, decimal lng, int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<Result<DailyRecommendedNextResponse>> GetDailyRecommendedNextAsync(UserContext userContext, DailyRecommendedNextRequest request, CancellationToken cancellationToken);
 }
 

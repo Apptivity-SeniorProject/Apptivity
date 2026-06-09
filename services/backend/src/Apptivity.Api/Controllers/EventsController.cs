@@ -244,6 +244,28 @@ public sealed class EventsController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpGet("nearby")]
+    [Authorize(Roles = "Individual")]
+    public async Task<IActionResult> GetRecommendedNearby(
+        [FromQuery] decimal lat,
+        [FromQuery] decimal lng,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return Unauthorized(ApiEnvelope<object?>.Failure(new[]
+            {
+                new ErrorDetail("AUTH_401", "Unauthorized.")
+            }));
+        }
+
+        var result = await _eventService.GetRecommendedNearbyAsync(context, lat, lng, pageNumber, pageSize, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpPost("recommended")]
     [Authorize(Roles = "Individual")]
     public async Task<IActionResult> GetRecommendedV6(

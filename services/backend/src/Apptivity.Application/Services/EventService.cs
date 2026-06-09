@@ -748,6 +748,55 @@ public sealed class EventService : IEventService
         return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
+    public async Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedNearbyAsync(UserContext userContext, decimal lat, decimal lng, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        if (userContext.AccountType != AccountType.Individual)
+        {
+            return Result<PagedResult<EventSummaryDto>>.Failure(ErrorCodes.EventUnauthorized, "Recommendations are available for individual accounts.");
+        }
+
+        var account = await _userRepository.GetAccountByIdWithInterestsAsync(userContext.AccountId, cancellationToken);
+        if (account is null)
+        {
+            return Result<PagedResult<EventSummaryDto>>.Failure(ErrorCodes.AccountNotFound, "Account not found.");
+        }
+
+        var tagIds = account.InterestTags
+            .Where(x => x.IsActive && !x.IsDeleted)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToList();
+
+        var paging = new PagedRequest
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+        paging.Normalize();
+
+        var filter = new EventSearchFilter(
+            SearchTerm: null,
+            LocationCity: null,
+            PrimaryTagId: null,
+            TagIds: tagIds,
+            MatchAllTags: false,
+            StartDate: null,
+            EndDate: null,
+            IsPaid: null,
+            UserLat: lat,
+            UserLng: lng,
+            NearbyRadiusKm: 50,
+            Sort: "nearby",
+            RequesterAccountId: userContext.AccountId,
+            IsRequesterAdmin: userContext.AccountType == AccountType.Admin
+        );
+
+        var (items, totalCount) = await _eventRepository.SearchAsync(filter, paging.PageNumber, paging.PageSize, cancellationToken);
+        var mapped = items.Select(MapEventSummary).ToArray();
+
+        return Result<PagedResult<EventSummaryDto>>.Success(new PagedResult<EventSummaryDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
     public async Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(
         UserContext userContext,
         RecommendedEventsRequest request,

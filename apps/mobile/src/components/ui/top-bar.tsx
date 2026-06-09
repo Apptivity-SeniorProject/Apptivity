@@ -1,3 +1,6 @@
+import { Image } from 'expo-image';
+
+
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,9 +30,16 @@ export function TopBar({ leftContent, rightContent, hideNotification }: TopBarPr
         {/* ── Sol — Apptivity ── */}
         <View className="items-start">
           {leftContent ?? (
-            <Text className="font-sans-bold text-lg text-primary-600">
-              Apptivity
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Image 
+                source={require('@/assets/apptivity/apptivity_logo.svg')} 
+                style={{ width: 26, height: 26 }} 
+                contentFit="contain" 
+              />
+              <Text className="font-sans-bold text-lg text-primary-600">
+                Apptivity
+              </Text>
+            </View>
           )}
         </View>
 

@@ -15,6 +15,7 @@ import {
   getMyEvents,
   getMyParticipations,
   getRecommendedEvents,
+  getRecommendedNearbyEvents,
   getDailyRecommendedNext,
   toggleEventBookmark,
 } from '@/src/api/eventService';
@@ -65,6 +66,10 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
       filters.matchAllTags ?? false,
       filters.startDate ?? '',
       filters.endDate ?? '',
+      filters.userLat ?? '',
+      filters.userLng ?? '',
+      filters.nearbyRadiusKm ?? '',
+      filters.sort ?? '',
       pageSize,
     ],
     queryFn: ({ pageParam }) =>
@@ -77,6 +82,10 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
         matchAllTags: filters.matchAllTags,
         startDate: filters.startDate,
         endDate: filters.endDate,
+        userLat: filters.userLat,
+        userLng: filters.userLng,
+        nearbyRadiusKm: filters.nearbyRadiusKm,
+        sort: filters.sort,
         pageNumber: pageParam,
         pageSize,
       }),
@@ -122,6 +131,19 @@ export function useRecommendedEvents(pageSize = 10, options?: UseRecommendedEven
     staleTime: 120000,
     gcTime: 900000,
     enabled: options?.enabled ?? true,
+  });
+}
+
+export function useRecommendedNearbyEvents(lat?: number, lng?: number, pageSize = 10, options?: UseRecommendedEventsOptions) {
+  return useQuery<PagedResult<EventListItem>>({
+    queryKey: ['recommended-nearby-events', lat, lng, pageSize],
+    queryFn: async () => {
+      if (lat === undefined || lng === undefined) return { items: [], totalCount: 0, pageNumber: 1, pageSize };
+      return getRecommendedNearbyEvents(lat, lng, 1, pageSize);
+    },
+    staleTime: 120000,
+    gcTime: 900000,
+    enabled: (options?.enabled ?? true) && lat !== undefined && lng !== undefined,
   });
 }
 

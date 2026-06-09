@@ -390,12 +390,49 @@ public sealed class EventRepository : IEventRepository
                 : query.Where(x => x.Price <= 0);
         }
 
+        if (filter.UserLat.HasValue && filter.UserLng.HasValue && filter.NearbyRadiusKm.HasValue)
+        {
+            var lat = filter.UserLat.Value;
+            var lng = filter.UserLng.Value;
+            var radiusKm = (decimal)filter.NearbyRadiusKm.Value;
+            
+            var latDegrees = radiusKm / 111.32m;
+            var lngDegrees = radiusKm / (111.32m * (decimal)Math.Max(0.1, Math.Abs(Math.Cos((double)lat * Math.PI / 180.0))));
+            
+            var minLat = lat - latDegrees;
+            var maxLat = lat + latDegrees;
+            var minLng = lng - lngDegrees;
+            var maxLng = lng + lngDegrees;
+
+            query = query.Where(x => 
+                x.LocationLat != null && 
+                x.LocationLng != null &&
+                x.LocationLat >= minLat && x.LocationLat <= maxLat &&
+                x.LocationLng >= minLng && x.LocationLng <= maxLng);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
 
+        if (filter.Sort == "nearby" && filter.UserLat.HasValue && filter.UserLng.HasValue)
+        {
+            var lat = filter.UserLat.Value;
+            var lng = filter.UserLng.Value;
+            var cosLat = (decimal)Math.Cos((double)lat * Math.PI / 180.0);
+            
+            query = query.OrderBy(x => 
+                (x.LocationLat - lat) * (x.LocationLat - lat) + 
+                ((x.LocationLng - lng) * cosLat) * ((x.LocationLng - lng) * cosLat)
+            );
+        }
+        else
+        {
+            query = query
+                .OrderByDescending(x => x.IsFeatured)
+                .ThenBy(x => x.Date)
+                .ThenBy(x => x.Time);
+        }
+
         var items = await query
-            .OrderByDescending(x => x.IsFeatured)
-            .ThenBy(x => x.Date)
-            .ThenBy(x => x.Time)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

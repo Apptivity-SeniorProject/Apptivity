@@ -260,6 +260,16 @@ function buildEventQueryParams(
   if (request.endDate) {
     queryParams.endDate = request.endDate;
   }
+  if (request.userLat !== undefined && request.userLng !== undefined) {
+    queryParams.userLat = request.userLat;
+    queryParams.userLng = request.userLng;
+  }
+  if (request.nearbyRadiusKm !== undefined) {
+    queryParams.nearbyRadiusKm = request.nearbyRadiusKm;
+  }
+  if (request.sort) {
+    queryParams.sort = request.sort;
+  }
 
   return queryParams;
 }
@@ -308,6 +318,23 @@ export async function getRecommendedEvents(
       pageSize,
     },
   );
+
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map(mapEventSummary),
+  };
+}
+
+export async function getRecommendedNearbyEvents(
+  lat: number,
+  lng: number,
+  pageNumber = 1,
+  pageSize = 10
+): Promise<PagedResult<EventListItem>> {
+  const response = await apiClient.get<ApiEnvelope<PagedResult<EventSummaryDto>>>('/api/events/nearby', {
+    params: { lat, lng, pageNumber, pageSize },
+  });
 
   const payload = unwrapEnvelope(response.data);
   return {

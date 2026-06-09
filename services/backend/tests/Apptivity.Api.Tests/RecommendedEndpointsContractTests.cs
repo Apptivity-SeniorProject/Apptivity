@@ -184,6 +184,10 @@ public sealed class RecommendedEndpointsContractTests : IClassFixture<WebApplica
             => Task.FromResult(Result<PagedResult<EventSummaryDto>>.Success(
                 new PagedResult<EventSummaryDto>(Array.Empty<EventSummaryDto>(), 0, pageNumber, pageSize)));
 
+        public Task<Result<PagedResult<EventSummaryDto>>> GetRecommendedNearbyAsync(UserContext userContext, decimal lat, decimal lng, int pageNumber, int pageSize, CancellationToken cancellationToken)
+            => Task.FromResult(Result<PagedResult<EventSummaryDto>>.Success(
+                new PagedResult<EventSummaryDto>(Array.Empty<EventSummaryDto>(), 0, pageNumber, pageSize)));
+
         public Task<Result<PagedResult<RecommendedEventSummaryDto>>> GetRecommendedV6Async(UserContext userContext, RecommendedEventsRequest request, CancellationToken cancellationToken)
             => Task.FromResult(Result<PagedResult<RecommendedEventSummaryDto>>.Success(
                 new PagedResult<RecommendedEventSummaryDto>(Array.Empty<RecommendedEventSummaryDto>(), 0, request.PageNumber, request.PageSize)));
