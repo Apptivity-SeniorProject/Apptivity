@@ -5,7 +5,6 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Button } from '@/src/components/ui/button';
 import { useEventDetail } from '@/src/hooks/useEvents';
 import {
   useMarkAllNotificationsAsRead,
@@ -126,10 +125,16 @@ export function NotificationsScreen() {
             <Pressable 
               disabled={unreadCount === 0 || markAllAsReadMutation.isPending}
               className={`h-10 w-10 items-center justify-center rounded-xl border ${
-                unreadCount === 0 ? 'bg-slate-100 border-slate-200 opacity-50' : 'bg-white border-slate-200'
+                unreadCount === 0
+                  ? 'bg-slate-200 border-slate-300 opacity-50'
+                  : 'bg-primary-50 border-primary-200'
               }`}
               onPress={handleMarkAllAsRead}>
-              <IconSymbol name="checkmark.done" size={20} color={unreadCount === 0 ? "#94a3b8" : "#357c1c"} />
+              <IconSymbol
+                name="checkmark.circle.fill"
+                size={20}
+                color={unreadCount === 0 ? '#94a3b8' : '#357c1c'}
+              />
             </Pressable>
           </View>
         }

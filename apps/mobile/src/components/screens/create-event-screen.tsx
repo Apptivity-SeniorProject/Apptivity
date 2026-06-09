@@ -450,20 +450,20 @@ export function CreateEventScreen() {
               <Pressable
                 className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-3"
                 onPress={() => setShowDatePicker(true)}>
-                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Tarih</Text>
+                <Text className="text-caption font-sans text-gray-400 mb-1">Tarih</Text>
                 <View className="flex-row items-center gap-1.5">
                   <Calendar size={16} color="#77e349" />
-                  <Text className="text-base font-bold text-gray-900">{formattedDate}</Text>
+                  <Text className="text-base font-sans text-gray-900">{formattedDate}</Text>
                 </View>
               </Pressable>
 
               <Pressable
                 className="flex-1 rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary px-3.5 py-3"
                 onPress={() => setShowTimePicker(true)}>
-                <Text className="text-caption font-sans-semibold text-gray-400 mb-1">Saat</Text>
+                <Text className="text-caption font-sans text-gray-400 mb-1">Saat</Text>
                 <View className="flex-row items-center gap-1.5">
                   <Clock size={16} color="#77e349" />
-                  <Text className="text-base font-bold text-gray-900">{formattedTime}</Text>
+                  <Text className="text-base font-sans text-gray-900">{formattedTime}</Text>
                 </View>
               </Pressable>
             </View>

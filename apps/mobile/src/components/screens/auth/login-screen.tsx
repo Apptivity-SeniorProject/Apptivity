@@ -1,9 +1,20 @@
 import { useMutation } from '@tanstack/react-query';
-import { Redirect, router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Image, Keyboard, Modal, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Redirect, router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
@@ -36,8 +47,10 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [inputError, setInputError] = useState('');
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -47,6 +60,20 @@ export function LoginScreen() {
     () => normalizePhone(countryCode, phoneInput),
     [countryCode, phoneInput]
   );
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: ({ identifier, pass }: { identifier: string; pass: string }) =>
@@ -94,93 +121,104 @@ export function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* ── Sol Üst: Geri Dön ── */}
-      <Pressable
-        className="flex-row items-center gap-1 px-5 pt-3"
-        hitSlop={hitSlop.md}
-        onPress={() => router.replace('/(auth)/landing')}>
-        <Ionicons name="chevron-back" size={18} color="#44a31e" />
-        <Text className="font-sans-medium text-sm text-primary-600">Geri Dön</Text>
-      </Pressable>
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}>
+        <Pressable
+          className="absolute left-8 top-3 z-10 flex-row items-center gap-1"
+          hitSlop={hitSlop.md}
+          onPress={() => router.replace('/(auth)/landing')}>
+          <Ionicons name="chevron-back" size={18} color="#44a31e" />
+          <Text className="font-sans-medium text-sm text-primary-600">Geri Dön</Text>
+        </Pressable>
 
-      {/* ── Ortalanmış İçerik ── */}
-      <View className="flex-1 justify-center px-8">
-        {/* ── Logo & Başlık ── */}
-        <View className="items-center">
-          <View className="mb-3 h-20 w-20 items-center justify-center rounded-3xl bg-primary-50">
-            <Image
-              source={require('@/assets/apptivity/apptivity_logo.png')}
-              style={{ width: 52, height: 52 }}
-              resizeMode="contain"
-            />
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="flex-grow px-8"
+          contentContainerStyle={{
+            justifyContent: isKeyboardVisible ? 'flex-start' : 'center',
+            paddingTop: isKeyboardVisible ? 48 : 0,
+            paddingBottom: 24 + insets.bottom,
+          }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View className="flex-1 justify-center">
+            <View className="items-center">
+              <View className="mb-3 h-20 w-20 items-center justify-center rounded-3xl bg-primary-50">
+                <Image
+                  source={require('@/assets/apptivity/apptivity_logo.png')}
+                  style={{ width: 52, height: 52 }}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text
+                style={{ fontSize: 26, lineHeight: 34, letterSpacing: -0.4 }}
+                className="font-sans-extrabold text-gray-900">
+                Giriş Yap
+              </Text>
+              <Text className="mt-1 font-sans text-sm text-gray-500">
+                Telefon numaran ve şifrenle giriş yap.
+              </Text>
+            </View>
+
+            <View className="mt-8 w-full">
+              <Text className="mb-1.5 font-sans-medium text-xs text-gray-800">
+                Telefon Numarası
+              </Text>
+              <View className="mb-3.5 flex-row gap-2">
+                <Pressable
+                  className="h-12 flex-row items-center justify-center gap-1 rounded-card border border-gray-200 bg-surface-secondary px-3.5"
+                  hitSlop={hitSlop.sm}
+                  onPress={() => setIsCountryModalOpen(true)}>
+                  <Ionicons name="flag-outline" size={14} color="#44a31e" />
+                  <Text className="font-sans-medium text-sm text-gray-900">{countryCode}</Text>
+                </Pressable>
+
+                <Input
+                  keyboardType="phone-pad"
+                  placeholder="Telefon numaranız"
+                  value={phoneInput}
+                  onChangeText={setPhoneInput}
+                  containerClassName="flex-1"
+                />
+              </View>
+
+              <Input
+                label="Şifre"
+                placeholder="Şifrenizi girin"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                error={inputError}
+              />
+
+              <Pressable
+                className="mb-7 mt-2 self-end"
+                hitSlop={hitSlop.sm}
+                onPress={() => router.push('/(auth)/password-reset')}>
+                <Text className="font-sans-medium text-xs text-primary-600">Şifremi Unuttum</Text>
+              </Pressable>
+
+              <Button
+                label="Giriş Yap"
+                size="lg"
+                className="rounded-full"
+                isLoading={loginMutation.isPending}
+                onPress={handleLogin}
+              />
+
+              <View className="mt-4 flex-row items-center justify-center gap-1">
+                <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
+                <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/register')}>
+                  <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
-          <Text
-            style={{ fontSize: 26, lineHeight: 34, letterSpacing: -0.4 }}
-            className="font-sans-extrabold text-gray-900"
-          >
-            Giriş Yap
-          </Text>
-          <Text className="mt-1 font-sans text-sm text-gray-500">
-            Telefon numaran ve şifrenle giriş yap.
-          </Text>
-        </View>
-
-        {/* ── Form Alanları ── */}
-        <View className="mt-8 w-full">
-          <Text className="mb-1.5 font-sans-medium text-xs text-gray-800">Telefon Numarası</Text>
-          <View className="mb-3.5 flex-row gap-2">
-            <Pressable
-              className="h-12 flex-row items-center justify-center gap-1 rounded-card border border-gray-200 bg-surface-secondary px-3.5"
-              hitSlop={hitSlop.sm}
-              onPress={() => setIsCountryModalOpen(true)}>
-              <Ionicons name="flag-outline" size={14} color="#44a31e" />
-              <Text className="font-sans-medium text-sm text-gray-900">{countryCode}</Text>
-            </Pressable>
-
-            <Input
-              keyboardType="phone-pad"
-              placeholder="Telefon numaranız"
-              value={phoneInput}
-              onChangeText={setPhoneInput}
-              containerClassName="flex-1"
-            />
-          </View>
-
-          {/* ── Şifre ── */}
-          <Input
-            label="Şifre"
-            placeholder="Şifrenizi girin"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            error={inputError}
-          />
-
-          <Pressable
-            className="mb-7 mt-2 self-end"
-            hitSlop={hitSlop.sm}
-            onPress={() => router.push('/(auth)/password-reset')}>
-            <Text className="font-sans-medium text-xs text-primary-600">Şifremi Unuttum</Text>
-          </Pressable>
-
-          {/* ── Giriş Butonu ── */}
-          <Button
-            label="Giriş Yap"
-            size="lg"
-            className="rounded-full"
-            isLoading={loginMutation.isPending}
-            onPress={handleLogin}
-          />
-
-          {/* ── Kayıt Ol ── */}
-          <View className="mt-4 flex-row items-center justify-center gap-1">
-            <Text className="font-sans text-sm text-gray-500">Hesabın yok mu?</Text>
-            <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/register')}>
-              <Text className="font-sans-semibold text-sm text-primary-600">Kayıt Ol</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal animationType="slide" transparent visible={isCountryModalOpen}>
         <Pressable

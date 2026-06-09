@@ -10,6 +10,25 @@ import type { NotificationDto } from '@/src/types/notification';
 
 const NOTIFICATIONS_QUERY_KEY = ['notifications'];
 
+function updateNotificationPages(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updater: (notification: NotificationDto) => NotificationDto
+) {
+  queryClient.setQueriesData<PagedResult<NotificationDto>>(
+    { queryKey: NOTIFICATIONS_QUERY_KEY },
+    (current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        items: current.items.map(updater),
+      };
+    }
+  );
+}
+
 export function useNotifications(pageSize = 30) {
   return useQuery<PagedResult<NotificationDto>>({
     queryKey: [...NOTIFICATIONS_QUERY_KEY, pageSize],
@@ -24,7 +43,10 @@ export function useMarkNotificationAsRead() {
 
   return useMutation({
     mutationFn: (notificationId: string) => markNotificationAsRead(notificationId),
-    onSuccess: () => {
+    onSuccess: (updatedNotification) => {
+      updateNotificationPages(queryClient, (notification) =>
+        notification.id === updatedNotification.id ? updatedNotification : notification
+      );
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
     },
   });
@@ -36,6 +58,10 @@ export function useMarkAllNotificationsAsRead() {
   return useMutation({
     mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
+      updateNotificationPages(queryClient, (notification) => ({
+        ...notification,
+        isRead: true,
+      }));
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
     },
   });
