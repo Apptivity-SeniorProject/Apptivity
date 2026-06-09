@@ -10,7 +10,9 @@ import {
   ScrollView,
   Text,
   View,
+  Animated,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategorySelector } from '@/src/components/events/category-selector';
@@ -21,7 +23,7 @@ import { SearchBar } from '@/src/components/events/search-bar';
 import { Button } from '@/src/components/ui/button';
 import { CITY_OPTIONS } from '@/src/constants/events';
 import { colors, palette } from '@/src/constants/theme';
-import { useDailyRecommendedNext, useEvents, useRecommendedEvents } from '@/src/hooks/useEvents';
+import { useDailyRecommendedNext, useEvents, useRecommendedNearbyEvents } from '@/src/hooks/useEvents';
 import { useProfileSearch } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
 import { useToast } from '@/src/hooks/useToast';
@@ -95,6 +97,8 @@ export default function HomeScreen() {
   const [isSearchOverlayVisible, setIsSearchOverlayVisible] = useState(false);
   const [isRecommendationModalOpen, setIsRecommendationModalOpen] = useState(false);
   const [suggestedEvent, setSuggestedEvent] = useState<EventListItem | null>(null);
+  const [location, setLocation] = useState<{lat: number; lng: number} | null>(null);
+  const [locationResolved, setLocationResolved] = useState(false);
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const isSuggestRequestInFlightRef = useRef(false);
@@ -124,6 +128,29 @@ export default function HomeScreen() {
 
     return () => clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isMounted) setLocationResolved(true);
+          return;
+        }
+
+        let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (isMounted) {
+          setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        }
+      } catch (e) {
+        console.warn('Location error:', e);
+      } finally {
+        if (isMounted) setLocationResolved(true);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
 
   const isPaid = useMemo(() => {
     if (priceFilter === 'free') {
@@ -163,9 +190,13 @@ export default function HomeScreen() {
       isPaid,
       matchAllTags,
       pageSize: 10,
+      userLat: location?.lat,
+      userLng: location?.lng,
+      nearbyRadiusKm: location ? 50 : undefined,
+      sort: location ? 'nearby' : undefined,
     },
     {
-      enabled: canLoadEvents,
+      enabled: canLoadEvents && locationResolved,
     }
   );
 
@@ -184,9 +215,13 @@ export default function HomeScreen() {
       isPaid,
       matchAllTags,
       pageSize: 8,
+      userLat: location?.lat,
+      userLng: location?.lng,
+      nearbyRadiusKm: location ? 50 : undefined,
+      sort: location ? 'nearby' : undefined,
     },
     {
-      enabled: canLoadEvents && shouldRunEventSearch,
+      enabled: canLoadEvents && locationResolved && shouldRunEventSearch,
     }
   );
 
@@ -199,7 +234,7 @@ export default function HomeScreen() {
     shouldRunProfileSearch
   );
 
-  const recommendedQuery = useRecommendedEvents(8, { enabled: canLoadRecommended });
+  const recommendedQuery = useRecommendedNearbyEvents(location?.lat, location?.lng, 8, { enabled: canLoadRecommended && locationResolved });
   const dailyRecommendationMutation = useDailyRecommendedNext();
   const profileResults = profileSearchQuery.data?.items ?? [];
   const hasSearchText = searchInput.trim().length > 0;
@@ -284,39 +319,35 @@ export default function HomeScreen() {
         onToggle={toggleCategory}
       />
 
-      <View className="mt-2 gap-3">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-lg font-semibold text-slate-900">Senin Icin</Text>
-        </View>
-
-        {canLoadRecommended && recommendedQuery.isPending ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
-            {Array.from({ length: 2 }).map((_, index) => (
-              <View key={`recommended-skeleton-${index}`} className="w-72">
-                <EventCardSkeleton />
-              </View>
-            ))}
-          </ScrollView>
-        ) : recommendedQuery.data?.items?.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
-            {recommendedQuery.data.items.map((event) => (
-              <View key={event.id} className="w-72">
-                <EventCard
-                  compact
-                  event={event}
-                  onPress={(eventId) => router.push(`/event/${eventId}`)}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-sm text-slate-500">
-              Sana ozel oneriler yakinda burada gorunecek.
-            </Text>
+      {canLoadRecommended && (recommendedQuery.isPending || (recommendedQuery.data?.items && recommendedQuery.data.items.length > 0)) && (
+        <View className="mt-2 gap-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-lg font-semibold text-slate-900">Senin Icin</Text>
           </View>
-        )}
-      </View>
+
+          {recommendedQuery.isPending ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <View key={`recommended-skeleton-${index}`} className="w-72">
+                  <EventCardSkeleton />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+              {recommendedQuery.data?.items?.map((event) => (
+                <View key={event.id} className="w-72">
+                  <EventCard
+                    compact
+                    event={event}
+                    onPress={(eventId) => router.push(`/event/${eventId}`)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
 
       <View className="mt-2 flex-row items-center justify-between">
         <Text className="text-lg font-semibold text-slate-900">Genel Akis</Text>
@@ -384,7 +415,12 @@ export default function HomeScreen() {
             </View>
           ) : null
         }
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={isRefetching || recommendedQuery.isRefetching} onRefresh={async () => {
+          await Promise.all([
+            refresh(),
+            recommendedQuery.refetch()
+          ]);
+        }} />}
       />
 
       {isSearchOverlayVisible ? (
