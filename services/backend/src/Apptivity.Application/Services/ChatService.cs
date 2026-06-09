@@ -54,6 +54,15 @@ public sealed class ChatService : IChatService
                 "Only event owner or approved participants can access event chat.");
         }
 
+        if (eventEntity.Status == EventStatus.Cancelled || eventEntity.Status == EventStatus.Completed)
+        {
+            await _chatRepository.PurgeEventChatAsync(eventId, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result<PagedResult<ChatMessageDto>>.Failure(
+                ErrorCodes.EventInvalidState,
+                "Event chat is no longer available.");
+        }
+
         if (await _chatRepository.IsEventChatExpiredAsync(eventId, DateTime.UtcNow, cancellationToken))
         {
             await _chatRepository.PurgeEventChatAsync(eventId, cancellationToken);

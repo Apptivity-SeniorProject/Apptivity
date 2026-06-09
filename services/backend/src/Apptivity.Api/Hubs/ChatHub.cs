@@ -157,6 +157,19 @@ public sealed class ChatHub : Hub
 
     private async Task EnsureChatIsActiveAsync(Guid eventId)
     {
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, Context.ConnectionAborted);
+        if (eventEntity is null)
+        {
+            throw new HubException("Event not found.");
+        }
+
+        if (eventEntity.Status == EventStatus.Cancelled || eventEntity.Status == EventStatus.Completed)
+        {
+            await _chatRepository.PurgeEventChatAsync(eventId, Context.ConnectionAborted);
+            await _unitOfWork.SaveChangesAsync(Context.ConnectionAborted);
+            throw new HubException("Event chat is no longer available.");
+        }
+
         if (!await _chatRepository.IsEventChatExpiredAsync(eventId, DateTime.UtcNow, Context.ConnectionAborted))
         {
             return;

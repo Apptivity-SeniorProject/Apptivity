@@ -25,6 +25,7 @@ public sealed class EventService : IEventService
     private readonly ITagRepository _tagRepository;
     private readonly ITagPredictorService _tagPredictorService;
     private readonly ITagPredictionCacheService _tagPredictionCacheService;
+    private readonly IChatRepository _chatRepository;
     private readonly IDailyRecommendationRepository _dailyRecommendationRepository;
     private readonly IRecommendationTransactionManager _recommendationTransactionManager;
     private readonly IRecommendationFeatureFlags _recommendationFeatureFlags;
@@ -41,6 +42,7 @@ public sealed class EventService : IEventService
         ITagRepository tagRepository,
         ITagPredictorService tagPredictorService,
         ITagPredictionCacheService tagPredictionCacheService,
+        IChatRepository chatRepository,
         IDailyRecommendationRepository dailyRecommendationRepository,
         IRecommendationTransactionManager recommendationTransactionManager,
         IRecommendationFeatureFlags recommendationFeatureFlags,
@@ -56,6 +58,7 @@ public sealed class EventService : IEventService
         _tagRepository = tagRepository;
         _tagPredictorService = tagPredictorService;
         _tagPredictionCacheService = tagPredictionCacheService;
+        _chatRepository = chatRepository;
         _dailyRecommendationRepository = dailyRecommendationRepository;
         _recommendationTransactionManager = recommendationTransactionManager;
         _recommendationFeatureFlags = recommendationFeatureFlags;
@@ -654,6 +657,7 @@ public sealed class EventService : IEventService
         }
 
         eventEntity.Status = EventStatus.Cancelled;
+        await _chatRepository.PurgeEventChatAsync(eventId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var participantIds = await _participationRepository.GetApprovedParticipantAccountIdsAsync(eventId, cancellationToken);
