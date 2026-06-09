@@ -39,7 +39,7 @@ public sealed class ImagesController : ApiControllerBase
 
     [HttpPost("profile-photo")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(10_000_000)]
+    [RequestSizeLimit(12_000_000)]
     public async Task<IActionResult> UploadProfilePhoto([FromForm] ProfilePhotoUploadRequest request, CancellationToken cancellationToken)
     {
         var file = request.File;
@@ -97,7 +97,7 @@ public sealed class ImagesController : ApiControllerBase
 
     [HttpPost("events/{eventId:guid}/photos")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(10_000_000)]
+    [RequestSizeLimit(12_000_000)]
     public async Task<IActionResult> UploadEventPhoto(Guid eventId, [FromForm] EventPhotoUploadRequest request, CancellationToken cancellationToken)
     {
         var file = request.File;
@@ -244,7 +244,7 @@ public sealed class ImagesController : ApiControllerBase
 
     [HttpPost("reports/evidence")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(10_000_000)]
+    [RequestSizeLimit(12_000_000)]
     public async Task<IActionResult> UploadReportEvidence([FromForm] ReportEvidenceUploadRequest request, CancellationToken cancellationToken)
     {
         var file = request.File;
