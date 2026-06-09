@@ -11,6 +11,7 @@ interface EventRowCardProps {
   isBookmarked?: boolean;
   isBookmarkPending?: boolean;
   onBookmarkPress?: (eventId: string) => void;
+  isHighlighted?: boolean;
 }
 
 const PLACEHOLDER_IMAGE =
@@ -22,6 +23,7 @@ export function EventRowCard({
   isBookmarked = false,
   isBookmarkPending = false,
   onBookmarkPress,
+  isHighlighted = false,
 }: EventRowCardProps) {
   const location = formatLocationShort(event.location);
   const remainingCount = Math.max(0, event.remainingParticipationCount ?? 0);
@@ -29,7 +31,9 @@ export function EventRowCard({
 
   return (
     <Pressable
-      className="flex-row items-center gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm"
+      className={`flex-row items-center gap-3 rounded-3xl bg-white p-3 shadow-sm ${
+        isHighlighted ? 'border-2 border-[#77e349] bg-[#f0fce8]' : 'border border-slate-200'
+      }`}
       onPress={() => onPress(event.id)}>
       <Image
         source={{ uri: event.bannerImageUrl ?? PLACEHOLDER_IMAGE }}

@@ -94,10 +94,14 @@ public sealed class FirebaseNotificationService : INotificationService
                 var payload = new
                 {
                     to = fcmToken,
+                    priority = "high",
+                    content_available = true,
                     notification = new
                     {
                         title = request.Title,
-                        body = request.Body
+                        body = request.Body,
+                        sound = "default",
+                        badge = 1
                     },
                     data = request.Data ?? new Dictionary<string, string>()
                 };

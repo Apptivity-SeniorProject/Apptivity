@@ -17,9 +17,12 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 
-import { EventCard } from '@/src/components/events/event-card';
+import { Calendar as CalendarIcon } from 'lucide-react-native';
+import { EventRowCard } from '@/src/components/events/event-row-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
 import { useEvents } from '@/src/hooks/useEvents';
+
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'];
 
@@ -66,88 +69,105 @@ export default function CalendarScreen() {
       <FlatList
         data={selectedDayEvents}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="px-4 pb-8 pt-6"
+        contentContainerClassName="pb-8"
         ListHeaderComponent={
           <View>
-            <View className="mb-5 flex-row items-center justify-between">
-              <Pressable
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
-                onPress={() => {
-                  const prevMonth = subMonths(currentMonth, 1);
-                  setCurrentMonth(prevMonth);
-                  setSelectedDate(startOfMonth(prevMonth));
-                }}>
-                <Text className="text-sm font-semibold text-slate-700">{'<'}</Text>
-              </Pressable>
+            <View className="bg-white px-4 pb-3 pt-4 border-b border-slate-200">
+              <View className="mb-4 flex-row items-center justify-between">
+                <Pressable
+                  className="h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50"
+                  onPress={() => {
+                    const prevMonth = subMonths(currentMonth, 1);
+                    setCurrentMonth(prevMonth);
+                    setSelectedDate(startOfMonth(prevMonth));
+                  }}>
+                  <IconSymbol name="chevron.left" size={20} color="#64748b" />
+                </Pressable>
 
-              <Text className="text-lg font-semibold text-slate-900">
-                {format(currentMonth, 'LLLL yyyy', { locale: tr })}
-              </Text>
+                <Text className="text-[17px] font-bold text-slate-900">
+                  {format(currentMonth, 'LLLL yyyy', { locale: tr })}
+                </Text>
 
-              <Pressable
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
-                onPress={() => {
-                  const nextMonth = addMonths(currentMonth, 1);
-                  setCurrentMonth(nextMonth);
-                  setSelectedDate(startOfMonth(nextMonth));
-                }}>
-                <Text className="text-sm font-semibold text-slate-700">{'>'}</Text>
-              </Pressable>
-            </View>
-
-            <View className="rounded-2xl border border-slate-200 bg-white px-3 pb-3 pt-4">
-              <View className="mb-2 flex-row">
-                {WEEKDAY_LABELS.map((label) => (
-                  <View key={label} className="w-[14.285%] items-center">
-                    <Text className="text-xs font-medium text-slate-500">{label}</Text>
-                  </View>
-                ))}
+                <Pressable
+                  className="h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50"
+                  onPress={() => {
+                    const nextMonth = addMonths(currentMonth, 1);
+                    setCurrentMonth(nextMonth);
+                    setSelectedDate(startOfMonth(nextMonth));
+                  }}>
+                  <IconSymbol name="chevron.right" size={20} color="#64748b" />
+                </Pressable>
               </View>
 
-              <View className="flex-row flex-wrap">
+              <View className="mb-1.5 flex-row">
+                {WEEKDAY_LABELS.map((label, index) => {
+                  const isWeekend = index === 5 || index === 6;
+                  return (
+                    <View key={label} className="w-[14.285%] items-center">
+                      <Text 
+                        className={`text-[11px] font-semibold tracking-wide uppercase ${isWeekend ? 'text-red-500/80' : 'text-slate-500'}`}>
+                        {label}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View className="flex-row flex-wrap gap-y-1">
                 {monthDays.map((day) => {
                   const isCurrentMonth = isSameMonth(day, currentMonth);
                   const isSelected = isSameDay(day, selectedDate);
+                  const isToday = isSameDay(day, new Date());
                   const hasEvent = eventDateSet.has(format(day, 'yyyy-MM-dd'));
+
+                  let dayCircleClass = 'h-[34px] w-[34px] items-center justify-center rounded-[10px]';
+                  let textClass = 'text-[14px] font-medium';
+
+                  if (isSelected && isToday) {
+                    dayCircleClass += ' bg-[#f0fce8] border-[1.5px] border-[#77e349]';
+                    textClass += ' text-[#357c1c] font-bold';
+                  } else if (isToday) {
+                    dayCircleClass += ' bg-[#77e349]';
+                    textClass += ' text-[#1a4a05] font-bold';
+                  } else if (isSelected) {
+                    dayCircleClass += ' bg-[#f0fce8] border-[1.5px] border-[#77e349]';
+                    textClass += ' text-[#357c1c] font-semibold';
+                  } else if (isCurrentMonth) {
+                    textClass += ' text-slate-800';
+                  } else {
+                    textClass += ' text-slate-300';
+                  }
 
                   return (
                     <Pressable
                       key={day.toISOString()}
-                      className="mb-2 h-11 w-[14.285%] items-center justify-center"
+                      className="h-12 w-[14.285%] items-center justify-center relative"
                       onPress={() => setSelectedDate(day)}>
-                      <View
-                        className={
-                          isSelected
-                            ? 'h-8 w-8 items-center justify-center rounded-full bg-emerald-600'
-                            : 'h-8 w-8 items-center justify-center rounded-full'
-                        }>
-                        <Text
-                          className={
-                            isSelected
-                              ? 'text-sm font-semibold text-white'
-                              : isCurrentMonth
-                                ? 'text-sm text-slate-800'
-                                : 'text-sm text-slate-300'
-                          }>
+                      <View className={dayCircleClass}>
+                        <Text className={textClass}>
                           {format(day, 'd')}
                         </Text>
                       </View>
-                      {hasEvent ? <View className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" /> : null}
+                      <View className={`mt-0.5 h-[5px] w-[5px] rounded-full ${hasEvent ? 'bg-[#77e349]' : 'bg-transparent'}`} />
                     </Pressable>
                   );
                 })}
               </View>
             </View>
 
-            <View className="mb-4 mt-6 flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-slate-900">
+            <View className="flex-row items-center justify-between px-4 py-3.5 bg-white mt-2">
+              <Text className="text-[15px] font-semibold text-slate-900">
                 {format(selectedDate, 'd MMMM', { locale: tr })}
               </Text>
-              <Text className="text-sm font-medium text-slate-500">{selectedDayCount} etkinlik</Text>
+              <View className={`px-2.5 py-1 rounded-full border ${selectedDayCount > 0 ? 'bg-[#f0fce8] border-[#bbf09e]' : 'bg-slate-50 border-slate-200'}`}>
+                <Text className={`text-xs font-semibold ${selectedDayCount > 0 ? 'text-[#357c1c]' : 'text-slate-500'}`}>
+                  {selectedDayCount} etkinlik
+                </Text>
+              </View>
             </View>
 
             {isPending ? (
-              <View className="mb-4 gap-4">
+              <View className="px-4 gap-3 bg-white pb-3">
                 <EventCardSkeleton />
                 <EventCardSkeleton />
               </View>
@@ -155,14 +175,18 @@ export default function CalendarScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View className="mb-4">
-            <EventCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+          <View className="px-4 mb-2 bg-white pb-1">
+            <EventRowCard event={item} onPress={(eventId) => router.push(`/event/${eventId}`)} />
           </View>
         )}
         ListEmptyComponent={
           isPending ? null : (
-            <View className="mt-8 items-center">
-              <Text className="text-base text-slate-500">Bu gun icin etkinlik bulunamadi.</Text>
+            <View className="mt-2 items-center justify-center bg-white py-10 px-4">
+              <View className="h-14 w-14 rounded-2xl bg-slate-50 border border-slate-100 items-center justify-center mb-3">
+                <CalendarIcon size={26} color="#94a3b8" />
+              </View>
+              <Text className="text-[14px] font-semibold text-slate-800 mb-1">Etkinlik Yok</Text>
+              <Text className="text-xs text-slate-500 text-center">Bu gün için planlanmış herhangi bir etkinlik bulunamadı.</Text>
             </View>
           )
         }

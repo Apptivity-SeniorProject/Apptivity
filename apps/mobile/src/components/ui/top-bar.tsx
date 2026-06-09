@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 
-
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useNotifications } from '@/src/hooks/useNotifications';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { hitSlop } from '@/src/constants/theme';
@@ -19,6 +20,12 @@ interface TopBarProps {
 
 export function TopBar({ leftContent, rightContent, hideNotification }: TopBarProps) {
   const insets = useSafeAreaInsets();
+  
+  // Sadece TopBar gösteriliyorsa ve gizlenmemişse çağırıyoruz
+  const notificationsQuery = useNotifications(50);
+  const unreadCount = !hideNotification 
+    ? (notificationsQuery.data?.items ?? []).filter((item) => !item.isRead).length 
+    : 0;
 
   return (
     <View
@@ -49,9 +56,17 @@ export function TopBar({ leftContent, rightContent, hideNotification }: TopBarPr
             <>
               {!hideNotification && (
                 <Pressable
+                  className="relative"
                   hitSlop={hitSlop.md}
                   onPress={() => router.push('/(tabs)/notifications')}>
                   <IconSymbol size={22} name="bell.fill" color="#6B7280" />
+                  {unreadCount > 0 && (
+                    <View className="absolute -right-2 -top-1.5 h-4 min-w-[16px] items-center justify-center rounded-full bg-[#EF4444] px-1 border border-white">
+                      <Text className="text-[9px] font-bold text-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
                 </Pressable>
               )}
             </>

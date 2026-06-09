@@ -15,6 +15,7 @@ public sealed class ChatHub : Hub
     private readonly IParticipationRepository _participationRepository;
     private readonly IChatRepository _chatRepository;
     private readonly INotificationService _notificationService;
+    private readonly INotificationRepository _notificationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public ChatHub(
@@ -23,6 +24,7 @@ public sealed class ChatHub : Hub
         IParticipationRepository participationRepository,
         IChatRepository chatRepository,
         INotificationService notificationService,
+        INotificationRepository notificationRepository,
         IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
@@ -30,6 +32,7 @@ public sealed class ChatHub : Hub
         _participationRepository = participationRepository;
         _chatRepository = chatRepository;
         _notificationService = notificationService;
+        _notificationRepository = notificationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -105,19 +108,29 @@ public sealed class ChatHub : Hub
 
         if (targetAccounts.Length > 0)
         {
-            var notifications = targetAccounts
-                .Select(targetAccountId => new PushNotificationRequest(
-                    targetAccountId,
-                    "New Message",
-                    "A new message has been posted in your event chat.",
-                    new Dictionary<string, string>
-                    {
-                        ["eventId"] = eventId.ToString(),
-                        ["messageId"] = message.Id.ToString()
-                    }))
-                .ToArray();
+            var notifications = new List<PushNotificationRequest>();
+            foreach (var targetAccountId in targetAccounts)
+            {
+                var hasUnread = await _notificationRepository.HasUnreadChatNotificationAsync(targetAccountId, eventId, Context.ConnectionAborted);
+                if (!hasUnread)
+                {
+                    notifications.Add(new PushNotificationRequest(
+                        targetAccountId,
+                        "Yeni Mesaj",
+                        $"{senderName}: {message.Content}",
+                        new Dictionary<string, string>
+                        {
+                            ["eventId"] = eventId.ToString(),
+                            ["messageId"] = message.Id.ToString(),
+                            ["relatedEntityId"] = eventId.ToString()
+                        }));
+                }
+            }
 
-            await _notificationService.SendToAccountsAsync(notifications, Context.ConnectionAborted);
+            if (notifications.Count > 0)
+            {
+                await _notificationService.SendToAccountsAsync(notifications, Context.ConnectionAborted);
+            }
         }
     }
 

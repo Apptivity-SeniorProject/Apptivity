@@ -498,26 +498,18 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
       {isSearchOverlayVisible ? (
-        <View className="absolute inset-0 z-50" style={{ backgroundColor: colors.surfaceSecondary }}>
-          <SafeAreaView className="flex-1" style={{ backgroundColor: colors.surfaceSecondary }} edges={['top']}>
+        <View className="absolute inset-0 z-50" style={{ backgroundColor: colors.background }}>
+          <View className="flex-1" style={{ backgroundColor: colors.background }}>
             <Pressable className="absolute inset-0" onPress={closeSearchOverlay} />
 
-            <View className="flex-1 px-4 pb-4 pt-4">
+            <View className="flex-1">
               <View
-                className="overflow-hidden rounded-[32px] shadow-2xl"
+                className="flex-1"
                 style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  shadowColor: palette.black,
-                  shadowOpacity: 0.18,
-                  shadowRadius: 24,
-                  shadowOffset: { width: 0, height: 12 },
-                  elevation: 24,
-                  maxHeight: '78%',
+                  backgroundColor: colors.background,
                 }}>
                 <View
-                  className="px-4 pb-4 pt-4"
+                  className="px-4 pb-4 pt-2"
                   style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
                   <View className="mb-3 flex-row items-center justify-between">
                     <Text
@@ -728,7 +720,7 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
-          </SafeAreaView>
+          </View>
         </View>
       ) : null}
     </View>

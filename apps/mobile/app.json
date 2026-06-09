@@ -23,6 +23,10 @@
     "android": {
       "package": "com.apptivity.mobile",
       "usesCleartextTraffic": true,
+      "notification": {
+        "icon": "./assets/apptivity/apptivity_logo_monochrome.png",
+        "color": "#77e349"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/apptivity/apptivity_logo_monochrome.png",

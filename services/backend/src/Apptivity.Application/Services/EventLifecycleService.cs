@@ -38,6 +38,7 @@ public sealed class EventLifecycleService : IEventLifecycleService
         var candidates = await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken);
 
         var changedToOngoing = new List<(Guid EventId, string Name)>();
+        var changedToCompleted = new List<(Guid EventId, string Name)>();
         var hasChanges = false;
 
         foreach (var eventEntity in candidates)
@@ -57,6 +58,7 @@ public sealed class EventLifecycleService : IEventLifecycleService
                 // Set the automatic voting-close deadline: 24 hours after the event ended.
                 eventEntity.VotingClosesAt = endUtc.AddHours(24);
                 hasChanges = true;
+                changedToCompleted.Add((eventEntity.Id, eventEntity.Name));
             }
         }
 
@@ -81,12 +83,37 @@ public sealed class EventLifecycleService : IEventLifecycleService
             var notifications = approvedAccounts
                 .Select(accountId => new PushNotificationRequest(
                     accountId,
-                    "Event Started",
-                    $"'{changed.Name}' is now ongoing.",
+                    "Etkinlik Başladı",
+                    $"'{changed.Name}' etkinliği şu an başladı. İyi eğlenceler!",
                     new Dictionary<string, string>
                     {
                         ["eventId"] = changed.EventId.ToString(),
-                        ["status"] = EventStatus.Ongoing.ToString()
+                        ["status"] = EventStatus.Ongoing.ToString(),
+                        ["relatedEntityId"] = changed.EventId.ToString()
+                    }))
+                .ToArray();
+
+            await _notificationService.SendToAccountsAsync(notifications, cancellationToken);
+        }
+
+        foreach (var changed in changedToCompleted)
+        {
+            var approvedAccounts = await _participationRepository.GetApprovedParticipantAccountIdsAsync(changed.EventId, cancellationToken);
+            if (approvedAccounts.Count == 0)
+            {
+                continue;
+            }
+
+            var notifications = approvedAccounts
+                .Select(accountId => new PushNotificationRequest(
+                    accountId,
+                    "Oylama Başladı",
+                    $"'{changed.Name}' etkinliği sona erdi. Katılımcıları ve etkinliği değerlendirebilirsin!",
+                    new Dictionary<string, string>
+                    {
+                        ["eventId"] = changed.EventId.ToString(),
+                        ["status"] = EventStatus.Completed.ToString(),
+                        ["relatedEntityId"] = changed.EventId.ToString()
                     }))
                 .ToArray();
 

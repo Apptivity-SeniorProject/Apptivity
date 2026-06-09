@@ -1475,8 +1475,21 @@ public sealed class NotificationRepository : INotificationRepository
     public async Task<IReadOnlyCollection<Notification>> GetUnreadByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
     {
         return await _db.Notifications
+            .AsNoTracking()
             .Where(x => x.AccountId == accountId && !x.IsRead)
+            .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> HasUnreadChatNotificationAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken)
+    {
+        return await _db.Notifications
+            .AsNoTracking()
+            .AnyAsync(x => x.AccountId == accountId && 
+                           !x.IsRead && 
+                           x.RelatedEntityId == eventId && 
+                           x.Title == "Yeni Mesaj", 
+                      cancellationToken);
     }
 
     public async Task AddRangeAsync(IReadOnlyCollection<Notification> notifications, CancellationToken cancellationToken)

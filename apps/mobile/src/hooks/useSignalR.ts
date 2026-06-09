@@ -163,7 +163,7 @@ export function useSignalR<TMessage = unknown>({
           transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling,
         })
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.Warning)
+        .configureLogging(LogLevel.None)
         .build();
 
       connection.onreconnecting(() => {

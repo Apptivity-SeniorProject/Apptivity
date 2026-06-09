@@ -13,6 +13,7 @@ import MapView, { Callout, Marker, type Region } from 'react-native-maps';
 
 
 import { EventRowCard } from '@/src/components/events/event-row-card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
@@ -52,7 +53,9 @@ export default function MapScreen() {
   const [isLocating, setIsLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const toast = useToast();
 
   const { events, isPending } = useEvents({ pageSize: 100 });
@@ -106,28 +109,33 @@ export default function MapScreen() {
     });
   }, [events]);
 
-  const nearbyEvents = useMemo(() => {
-    if (!userLocation) {
-      return [];
-    }
-
+  const visibleEvents = useMemo(() => {
     return mappableEvents.filter((event) => {
       const eventLat = event.location.lat as number;
       const eventLng = event.location.lng as number;
-      const distance = haversineDistanceKm(
-        userLocation.latitude,
-        userLocation.longitude,
-        eventLat,
-        eventLng
+      
+      // Calculate boundaries of the current region with a small buffer
+      const latBuffer = region.latitudeDelta * 0.5;
+      const lngBuffer = region.longitudeDelta * 0.5;
+      
+      const minLat = region.latitude - region.latitudeDelta / 2 - latBuffer;
+      const maxLat = region.latitude + region.latitudeDelta / 2 + latBuffer;
+      const minLng = region.longitude - region.longitudeDelta / 2 - lngBuffer;
+      const maxLng = region.longitude + region.longitudeDelta / 2 + lngBuffer;
+      
+      return (
+        eventLat >= minLat &&
+        eventLat <= maxLat &&
+        eventLng >= minLng &&
+        eventLng <= maxLng
       );
-      return distance <= NEARBY_RADIUS_KM;
     });
-  }, [mappableEvents, userLocation]);
+  }, [mappableEvents, region]);
 
   const locationClusters = useMemo<LocationCluster[]>(() => {
     const grouped = new Map<string, { city: string; count: number; latitude: number; longitude: number }>();
 
-    nearbyEvents.forEach((event) => {
+    visibleEvents.forEach((event) => {
       const city = event.location.city ?? event.location.locationLabel ?? 'Bilinmeyen';
       const key = city.toLowerCase();
       const current = grouped.get(key);
@@ -164,7 +172,23 @@ export default function MapScreen() {
         const distanceB = haversineDistanceKm(region.latitude, region.longitude, b.latitude, b.longitude);
         return distanceA - distanceB;
       });
-  }, [nearbyEvents, region.latitude, region.longitude]);
+  }, [visibleEvents, region.latitude, region.longitude]);
+
+  const displayedEvents = useMemo(() => {
+    if (!selectedEventId) {
+      return visibleEvents.slice(0, 10);
+    }
+    
+    // Make sure the selected event is always at the top of the list
+    const selectedEvent = visibleEvents.find(e => e.id === selectedEventId);
+    const otherEvents = visibleEvents.filter(e => e.id !== selectedEventId).slice(0, 9);
+    
+    if (selectedEvent) {
+      return [selectedEvent, ...otherEvents];
+    }
+    
+    return visibleEvents.slice(0, 10);
+  }, [visibleEvents, selectedEventId]);
 
   const focusLocation = (cluster: LocationCluster) => {
     const nextRegion: Region = {
@@ -210,48 +234,54 @@ export default function MapScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <ScrollView className="flex-1" contentContainerClassName="pb-6">
+      <ScrollView ref={scrollViewRef} className="flex-1" contentContainerClassName="pb-6">
         <View className="px-4 pb-3 pt-5">
-          <Text className="text-2xl font-bold text-slate-900">Kesfet</Text>
-          <Text className="mt-1 text-sm text-slate-500">Yalnizca 30 km yakinindaki etkinlikler</Text>
+          <Text className="text-3xl font-extrabold text-slate-900">Keşfet</Text>
+          <Text className="mt-1 text-[13px] font-medium text-slate-500">Haritada görüntülenen alandaki etkinlikler</Text>
         </View>
 
-        <View className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <View style={{ height: 360 }}>
+        <View className="mx-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <View style={{ height: 380 }}>
             <MapView
               ref={mapRef}
               style={{ flex: 1 }}
               initialRegion={DEFAULT_REGION}
               showsUserLocation
               onRegionChangeComplete={setRegion}>
-              {userLocation ? (
-                <Marker
-                  coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
-                  pinColor="#16a34a"
-                  title="Konumum"
-                />
-              ) : null}
-
-              {nearbyEvents.map((event) => (
-                <Marker
-                  key={event.id}
-                  coordinate={{ latitude: event.location.lat as number, longitude: event.location.lng as number }}
-                  pinColor={event.isPaid ? '#f97316' : '#0ea5e9'}
-                  onCalloutPress={() => router.push(`/event/${event.id}`)}>
-                  <Callout tooltip>{renderCalloutContent(event)}</Callout>
-                </Marker>
-              ))}
+              {visibleEvents.map((event) => {
+                const isSelected = event.id === selectedEventId;
+                return (
+                  <Marker
+                    key={event.id}
+                    coordinate={{ latitude: event.location.lat as number, longitude: event.location.lng as number }}
+                    zIndex={isSelected ? 100 : 1}
+                    onPress={() => {
+                      setSelectedEventId(event.id);
+                      // Scroll down to the list smoothly
+                      scrollViewRef.current?.scrollTo({ y: 440, animated: true });
+                    }}
+                    onCalloutPress={() => router.push(`/event/${event.id}`)}>
+                    <View 
+                      className={`items-center justify-center rounded-full border-2 border-white shadow-md ${
+                        isSelected ? 'h-10 w-10 bg-[#357c1c]' : 'h-8 w-8 bg-[#77e349]'
+                      }`}>
+                      <IconSymbol name="star.fill" size={isSelected ? 18 : 14} color="white" />
+                    </View>
+                    <Callout tooltip>{renderCalloutContent(event)}</Callout>
+                  </Marker>
+                );
+              })}
             </MapView>
           </View>
         </View>
 
         {locationDenied ? (
-          <View className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-            <Text className="text-sm text-amber-800">Konum izni kapali. Yakin etkinlikler gosterilemiyor.</Text>
+          <View className="mx-4 mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+            <Text className="text-[13px] font-medium text-orange-800">Konum izni kapali. Harita mevcut konumunuza odaklanamiyor.</Text>
             <Pressable
-              className="mt-2 self-start rounded-full bg-amber-200 px-3 py-1"
+              className="mt-3 self-start rounded-xl bg-orange-200/50 px-3 py-1.5"
               onPress={requestLocationPermission}>
-              <Text className="text-xs font-semibold text-amber-900">Izni Tekrar Iste</Text>
+              <Text className="text-[12px] font-semibold text-orange-900">İzin Ver</Text>
             </Pressable>
           </View>
         ) : null}
@@ -296,16 +326,25 @@ export default function MapScreen() {
           )}
         </View>
 
-        <View className="mt-4 px-4">
-          <View className="mb-2 flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-slate-900">Yakin Etkinlikler</Text>
-            <Text className="text-xs text-slate-500">{nearbyEvents.length} etkinlik</Text>
+        <View className="mt-5 px-4">
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-[17px] font-bold text-slate-900">Haritadaki Etkinlikler</Text>
+            <View className={`px-2.5 py-1 rounded-full border ${visibleEvents.length > 0 ? 'bg-[#f0fce8] border-[#bbf09e]' : 'bg-slate-50 border-slate-200'}`}>
+              <Text className={`text-xs font-semibold ${visibleEvents.length > 0 ? 'text-[#357c1c]' : 'text-slate-500'}`}>
+                {visibleEvents.length} etkinlik
+              </Text>
+            </View>
           </View>
 
-          {nearbyEvents.length ? (
+          {displayedEvents.length ? (
             <View className="gap-3">
-              {nearbyEvents.slice(0, 10).map((event) => (
-                <EventRowCard key={event.id} event={event} onPress={(eventId) => router.push(`/event/${eventId}`)} />
+              {displayedEvents.map((event) => (
+                <EventRowCard 
+                  key={event.id} 
+                  event={event} 
+                  isHighlighted={event.id === selectedEventId}
+                  onPress={(eventId) => router.push(`/event/${eventId}`)} 
+                />
               ))}
             </View>
           ) : (

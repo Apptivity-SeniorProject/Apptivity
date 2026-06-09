@@ -149,6 +149,19 @@ public sealed class EventService : IEventService
         await _participationRepository.AddAsync(participation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Notify the event owner about the new application
+        await _notificationService.SendToAccountAsync(
+            new PushNotificationRequest(
+                eventEntity.OwnerId,
+                "Yeni Katılım İsteği",
+                $"'{eventEntity.Name}' etkinliğinize yeni bir katılım isteği geldi.",
+                new Dictionary<string, string>
+                {
+                    ["eventId"] = eventId.ToString(),
+                    ["relatedEntityId"] = eventId.ToString()
+                }),
+            cancellationToken);
+
         return Result<ApplyToEventResponse>.Success(new ApplyToEventResponse(eventId, userContext.AccountId, participation.Status, eventEntity.Status));
     }
 
@@ -216,7 +229,8 @@ public sealed class EventService : IEventService
                 new Dictionary<string, string>
                 {
                     ["eventId"] = eventId.ToString(),
-                    ["status"] = request.Status.ToString()
+                    ["status"] = request.Status.ToString(),
+                    ["relatedEntityId"] = eventId.ToString()
                 }),
             cancellationToken);
 

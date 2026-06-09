@@ -85,6 +85,7 @@ export default function TabLayout() {
         options={{
           title: 'Harita',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+          header: () => <TopBar />,
         }}
       />
       <Tabs.Screen
