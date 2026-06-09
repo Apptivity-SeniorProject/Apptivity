@@ -9,11 +9,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Apptivity.Infrastructure.Persistence.Migrations
+namespace Apptivity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260502175455_AddManualTestSeedAccounts")]
-    partial class AddManualTestSeedAccounts
+    [Migration("20260609224213_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -66,6 +66,12 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SuspendedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -85,116 +91,14 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasIndex("Phone")
                         .IsUnique();
 
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SuspendedUntilUtc");
+
                     b.HasIndex("Username")
                         .IsUnique();
 
                     b.ToTable("accounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "individual.alice@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$br7/VIZPU/vv/nKgPLb7Je2kLT9MLf.ioNpLg67CiK6ax34QKXpi.",
-                            Phone = "+905010000001",
-                            Type = 1,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "individual.alice"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "individual.berk@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$br7/VIZPU/vv/nKgPLb7Je2kLT9MLf.ioNpLg67CiK6ax34QKXpi.",
-                            Phone = "+905010000002",
-                            Type = 1,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "individual.berk"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "individual.cem@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$br7/VIZPU/vv/nKgPLb7Je2kLT9MLf.ioNpLg67CiK6ax34QKXpi.",
-                            Phone = "+905010000003",
-                            Type = 1,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "individual.cem"
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "individual.derya@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$br7/VIZPU/vv/nKgPLb7Je2kLT9MLf.ioNpLg67CiK6ax34QKXpi.",
-                            Phone = "+905010000004",
-                            Type = 1,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "individual.derya"
-                        },
-                        new
-                        {
-                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "organization.one@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$pUDpaVzxrVhzVIkdPKL65.d5AkfFirUGbj25GjhxcSclbgCiyXvae",
-                            Phone = "+905010000005",
-                            Type = 2,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "organization.apptivity.club"
-                        },
-                        new
-                        {
-                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "organization.two@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$pUDpaVzxrVhzVIkdPKL65.d5AkfFirUGbj25GjhxcSclbgCiyXvae",
-                            Phone = "+905010000006",
-                            Type = 2,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "organization.city.events"
-                        },
-                        new
-                        {
-                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "admin.one@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$.wLBQtqlp3Wl78hAPeVdA.NRTqL9AKeMLRyBjPtpEGypH2cFfjkuu",
-                            Phone = "+905010000007",
-                            Type = 3,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "admin.supervisor"
-                        },
-                        new
-                        {
-                            Id = new Guid("88888888-8888-8888-8888-888888888888"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "admin.two@apptivity.local",
-                            IsActive = true,
-                            IsDeleted = false,
-                            Password = "$2a$11$.wLBQtqlp3Wl78hAPeVdA.NRTqL9AKeMLRyBjPtpEGypH2cFfjkuu",
-                            Phone = "+905010000008",
-                            Type = 3,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Username = "admin.operator"
-                        });
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.AuditLog", b =>
@@ -277,6 +181,83 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.ToTable("chats", (string)null);
                 });
 
+            modelBuilder.Entity("Apptivity.Domain.Entities.ChatReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ReasonCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("ReporterId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("chat_reports", (string)null);
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.ChatReportMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChatReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("OriginalSentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SenderAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SenderDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatReportId");
+
+                    b.ToTable("chat_report_messages", (string)null);
+                });
+
             modelBuilder.Entity("Apptivity.Domain.Entities.Club", b =>
                 {
                     b.Property<Guid>("Id")
@@ -324,34 +305,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("clubs", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Organizer for technology and social events.",
-                            IsDeleted = false,
-                            IsVerified = true,
-                            Latitude = 41.0082m,
-                            LocationCity = "Istanbul",
-                            Longitude = 28.9784m,
-                            Name = "Apptivity Club",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Organizer for city-wide workshops and meetups.",
-                            IsDeleted = false,
-                            IsVerified = false,
-                            Latitude = 39.9334m,
-                            LocationCity = "Ankara",
-                            Longitude = 32.8597m,
-                            Name = "City Events Hub",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.ClubRating", b =>
@@ -385,26 +338,117 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("club_ratings", (string)null);
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            RatedCount = 0,
-                            Rating = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            RatedCount = 0,
-                            Rating = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationCursor", b =>
+                {
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<int>("CurrentTagOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_tag_order");
+
+                    b.Property<bool>("IsDepleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_depleted");
+
+                    b.HasKey("PlanId");
+
+                    b.ToTable("user_daily_recommendation_cursor", (string)null);
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DayKey")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("day_key");
+
+                    b.Property<DateTime>("GeneratedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at_utc");
+
+                    b.Property<bool>("LlmGenerated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("llm_generated");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DayKey")
+                        .IsUnique();
+
+                    b.ToTable("user_daily_recommendation_plan", (string)null);
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationPlanTag", b =>
+                {
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<int>("TagOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag_order");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("source");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_id");
+
+                    b.HasKey("PlanId", "TagOrder");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("PlanId", "TagId");
+
+                    b.ToTable("user_daily_recommendation_plan_tags", (string)null);
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationServedEvent", b =>
+                {
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<DateTime>("ServedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("served_at_utc");
+
+                    b.Property<int>("TagOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag_order");
+
+                    b.HasKey("PlanId", "EventId");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("PlanId", "ServedAtUtc");
+
+                    b.ToTable("user_daily_recommendation_served_events", (string)null);
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.DeviceToken", b =>
@@ -493,6 +537,14 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<decimal?>("LocationLat")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<decimal?>("LocationLng")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -508,6 +560,14 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PrimaryTagId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RejectedAdditionalExplanation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RejectedViolationReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("RemainingParticipationCount")
                         .HasColumnType("integer");
 
@@ -520,6 +580,9 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("VotingClosesAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsFeatured");
@@ -527,6 +590,8 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasIndex("OwnerId");
 
                     b.HasIndex("PrimaryTagId");
+
+                    b.HasIndex("LocationLat", "LocationLng");
 
                     b.ToTable("events", (string)null);
                 });
@@ -600,6 +665,56 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasIndex("SenderAccountId");
 
                     b.ToTable("messages", (string)null);
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("RelatedEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsRead");
+
+                    b.ToTable("notifications", (string)null);
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.OtpVerification", b =>
@@ -738,48 +853,43 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsResolved")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Reason")
+                    b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<Guid>("ReporterAccountId")
+                    b.Property<string>("EvidenceImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ReasonCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReporterId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
-                    b.Property<Guid?>("ResolvedByAccountId")
+                    b.Property<Guid>("TargetId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("TargetAccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("TargetEventId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsResolved");
+                    b.HasIndex("ReporterId");
 
-                    b.HasIndex("ReporterAccountId");
+                    b.HasIndex("Status");
 
-                    b.HasIndex("ResolvedByAccountId");
-
-                    b.HasIndex("TargetAccountId");
-
-                    b.HasIndex("TargetEventId");
+                    b.HasIndex("TargetType", "TargetId");
 
                     b.ToTable("reports", (string)null);
                 });
@@ -810,40 +920,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("reputations", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            ReputationPoint = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            ReputationPoint = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            ReputationPoint = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsDeleted = false,
-                            ReputationPoint = 0.0,
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Review", b =>
@@ -899,15 +975,24 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ColorCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(400)
-                        .HasColumnType("character varying(400)");
+                    b.Property<string>("IconName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -931,25 +1016,89 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = new Guid("96a9f6b2-40d7-4e15-9f8e-cb7596ed59f1"),
+                            ColorCode = "#10B981",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "football",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Spor",
+                            Name = "Sports",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = new Guid("40fd6d4c-0f95-49d5-bb6a-7a6419d15231"),
+                            ColorCode = "#3B82F6",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "cpu",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Teknoloji",
+                            Name = "Technology",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = new Guid("8ba4efa4-9f4a-4a56-8646-644a8e3f079d"),
+                            ColorCode = "#EC4899",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "music-note",
+                            IsActive = true,
                             IsDeleted = false,
-                            Name = "Muzik",
+                            Name = "Music",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("2f1769f1-0c31-4915-b9cc-d0cf79d5a5f3"),
+                            ColorCode = "#F59E0B",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "palette",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Art",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("d4e42a0d-6a4d-4d35-84d1-86e4b7e7e122"),
+                            ColorCode = "#0EA5E9",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "book-open",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Education",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("65558f2c-8d3e-4e47-88b5-c2a87d5a0a7f"),
+                            ColorCode = "#8B5CF6",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "gamepad-2",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Gaming",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("29b5f84d-6e7f-4d71-88c8-e0c91e84ae7b"),
+                            ColorCode = "#EF4444",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "heart-pulse",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Health",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("91b95171-08eb-4c09-a511-61ef9e6a2d5d"),
+                            ColorCode = "#14B8A6",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IconName = "briefcase",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Business",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -998,60 +1147,36 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("users", (string)null);
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Bio = "Runner and weekend traveler.",
-                            Birthdate = new DateOnly(1998, 3, 14),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Gender = "Female",
-                            IsDeleted = false,
-                            IsVerified = true,
-                            Name = "Alice",
-                            Surname = "Yilmaz",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            Bio = "Music fan and cyclist.",
-                            Birthdate = new DateOnly(1996, 11, 20),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Gender = "Male",
-                            IsDeleted = false,
-                            IsVerified = true,
-                            Name = "Berk",
-                            Surname = "Demir",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            Bio = "Tech meetups and hackathons.",
-                            Birthdate = new DateOnly(2000, 1, 9),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Gender = "Male",
-                            IsDeleted = false,
-                            IsVerified = false,
-                            Name = "Cem",
-                            Surname = "Arslan",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            Bio = "Community volunteer and reader.",
-                            Birthdate = new DateOnly(1999, 7, 2),
-                            CreatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Gender = "Female",
-                            IsDeleted = false,
-                            IsVerified = false,
-                            Name = "Derya",
-                            Surname = "Kara",
-                            UpdatedAt = new DateTime(2026, 5, 2, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
+            modelBuilder.Entity("account_tags", b =>
+                {
+                    b.Property<Guid>("account_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("tag_id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("account_id", "tag_id");
+
+                    b.HasIndex("tag_id");
+
+                    b.ToTable("account_tags", (string)null);
+                });
+
+            modelBuilder.Entity("event_tags", b =>
+                {
+                    b.Property<Guid>("event_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("tag_id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("event_id", "tag_id");
+
+                    b.HasIndex("tag_id");
+
+                    b.ToTable("event_tags", (string)null);
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.AuditLog", b =>
@@ -1084,6 +1209,36 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("Apptivity.Domain.Entities.ChatReport", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.Account", "Reporter")
+                        .WithMany("FiledChatReports")
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Reporter");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.ChatReportMessage", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.ChatReport", "ChatReport")
+                        .WithMany("Messages")
+                        .HasForeignKey("ChatReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatReport");
+                });
+
             modelBuilder.Entity("Apptivity.Domain.Entities.Club", b =>
                 {
                     b.HasOne("Apptivity.Domain.Entities.Account", "Account")
@@ -1104,6 +1259,66 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Club");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationCursor", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.DailyRecommendationPlan", "Plan")
+                        .WithOne("Cursor")
+                        .HasForeignKey("Apptivity.Domain.Entities.DailyRecommendationCursor", "PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationPlan", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Account", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationPlanTag", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.DailyRecommendationPlan", "Plan")
+                        .WithMany("Tags")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.Tag", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationServedEvent", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.DailyRecommendationPlan", "Plan")
+                        .WithMany("ServedEvents")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Plan");
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.DeviceToken", b =>
@@ -1173,6 +1388,17 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("SenderAccount");
                 });
 
+            modelBuilder.Entity("Apptivity.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Account", "Account")
+                        .WithMany("Notifications")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("Apptivity.Domain.Entities.Participation", b =>
                 {
                     b.HasOne("Apptivity.Domain.Entities.Event", "Event")
@@ -1205,34 +1431,13 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Report", b =>
                 {
-                    b.HasOne("Apptivity.Domain.Entities.Account", "ReporterAccount")
+                    b.HasOne("Apptivity.Domain.Entities.Account", "Reporter")
                         .WithMany("FiledReports")
-                        .HasForeignKey("ReporterAccountId")
+                        .HasForeignKey("ReporterId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Apptivity.Domain.Entities.Account", "ResolvedByAccount")
-                        .WithMany("ReviewedReports")
-                        .HasForeignKey("ResolvedByAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Apptivity.Domain.Entities.Account", "TargetAccount")
-                        .WithMany("ReceivedReports")
-                        .HasForeignKey("TargetAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Apptivity.Domain.Entities.Event", "TargetEvent")
-                        .WithMany("Reports")
-                        .HasForeignKey("TargetEventId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ReporterAccount");
-
-                    b.Navigation("ResolvedByAccount");
-
-                    b.Navigation("TargetAccount");
-
-                    b.Navigation("TargetEvent");
+                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Reputation", b =>
@@ -1284,6 +1489,36 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("account_tags", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Account", null)
+                        .WithMany()
+                        .HasForeignKey("account_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("tag_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("event_tags", b =>
+                {
+                    b.HasOne("Apptivity.Domain.Entities.Event", null)
+                        .WithMany()
+                        .HasForeignKey("event_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Apptivity.Domain.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("tag_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Apptivity.Domain.Entities.Account", b =>
                 {
                     b.Navigation("AuditLogs");
@@ -1294,17 +1529,17 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
 
                     b.Navigation("DeviceTokens");
 
+                    b.Navigation("FiledChatReports");
+
                     b.Navigation("FiledReports");
 
-                    b.Navigation("OwnedEvents");
+                    b.Navigation("Notifications");
 
-                    b.Navigation("ReceivedReports");
+                    b.Navigation("OwnedEvents");
 
                     b.Navigation("ReceivedReviews");
 
                     b.Navigation("RefreshTokens");
-
-                    b.Navigation("ReviewedReports");
 
                     b.Navigation("SentMessages");
 
@@ -1318,9 +1553,23 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("Messages");
                 });
 
+            modelBuilder.Entity("Apptivity.Domain.Entities.ChatReport", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("Apptivity.Domain.Entities.Club", b =>
                 {
                     b.Navigation("ClubRating");
+                });
+
+            modelBuilder.Entity("Apptivity.Domain.Entities.DailyRecommendationPlan", b =>
+                {
+                    b.Navigation("Cursor");
+
+                    b.Navigation("ServedEvents");
+
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("Apptivity.Domain.Entities.Event", b =>
@@ -1328,8 +1577,6 @@ namespace Apptivity.Infrastructure.Persistence.Migrations
                     b.Navigation("Chats");
 
                     b.Navigation("Participations");
-
-                    b.Navigation("Reports");
 
                     b.Navigation("Reviews");
                 });

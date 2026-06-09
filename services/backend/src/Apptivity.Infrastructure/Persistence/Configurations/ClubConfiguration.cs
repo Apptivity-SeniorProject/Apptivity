@@ -1,5 +1,4 @@
 using Apptivity.Domain.Entities;
-using Apptivity.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,6 +23,5 @@ public sealed class ClubConfiguration : IEntityTypeConfiguration<Club>
             .HasForeignKey<Club>(x => x.Id)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasData(ManualTestSeed.Clubs);
     }
 }

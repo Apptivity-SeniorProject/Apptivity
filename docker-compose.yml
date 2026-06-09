@@ -46,6 +46,8 @@ services:
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-Apptivity_Docker_Secret_Key_Min32Chars_XyZ!2026}
       Fcm__Enabled: ${FCM_ENABLED:-false}
       Fcm__ServerKey: ${FCM_SERVER_KEY:-}
+      Admin__Email: ${Admin__Email:-}
+      Admin__Password: ${Admin__Password:-}
       Groq__ApiKey: ${Groq__ApiKey:-}
       Groq__BaseUrl: ${Groq__BaseUrl:-https://api.groq.com/openai/v1}
       Groq__Model: ${Groq__Model:-openai/gpt-oss-20b}
