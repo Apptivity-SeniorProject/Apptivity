@@ -1,6 +1,7 @@
 import { Redirect, router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/src/components/ui/button';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -15,55 +16,53 @@ export function LandingScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
       <View className="flex-1 items-center justify-center px-8">
         {/* ── Logo & Branding ── */}
-        <View className="mb-6 h-24 w-24 items-center justify-center rounded-3xl bg-primary-50">
-          <Text style={{ fontSize: 48 }}>🎉</Text>
+        <View className="mb-4 h-24 w-24 items-center justify-center rounded-3xl bg-primary-50">
+          <Image
+            source={require('@/assets/apptivity/apptivity_logo.png')}
+            style={{ width: 64, height: 64 }}
+            resizeMode="contain"
+          />
         </View>
 
-        <Text className="font-sans-extrabold text-4xl text-gray-900">
+        <Text style={{ fontSize: 32, lineHeight: 40, letterSpacing: -0.5 }} className="font-sans-extrabold text-gray-900">
           Apptivity
         </Text>
 
-        <Text className="mt-3 text-center font-sans text-base text-gray-500">
-          Etkinlikleri keşfet, katıl, paylaş.{'\n'}
-          Çevrende neler olduğunu gör.
-        </Text>
-
         {/* ── Feature Highlights ── */}
-        <View className="mt-10 w-full gap-4">
+        <View className="mt-4 w-full gap-3">
           <FeatureItem
-            emoji="📍"
+            iconName="location-outline"
             title="Yakınındaki Etkinlikler"
-            description="Konumuna göre sana özel etkinlik önerileri"
           />
           <FeatureItem
-            emoji="🗓️"
+            iconName="calendar-outline"
             title="Takvim ile Planla"
-            description="Etkinliklerini takvimde görüntüle ve takip et"
           />
           <FeatureItem
-            emoji="💬"
+            iconName="people-outline"
             title="Katılımcılarla Sohbet"
-            description="Etkinlik içi gerçek zamanlı mesajlaşma"
           />
         </View>
       </View>
 
       {/* ── Action Buttons ── */}
-      <View className="gap-3 px-8 pb-6">
-        <Button
-          label="Giriş Yap"
-          variant="primary"
-          size="lg"
-          onPress={() => router.push('/(auth)/login')}
-        />
+      <View className="gap-3 px-8 pb-4">
         <Button
           label="Hesap Oluştur"
           variant="outline"
           size="lg"
+          className="rounded-full"
           onPress={() => router.push('/(auth)/register')}
+        />
+        <Button
+          label="Giriş Yap"
+          variant="primary"
+          size="lg"
+          className="rounded-full"
+          onPress={() => router.push('/(auth)/login')}
         />
       </View>
     </SafeAreaView>
@@ -73,23 +72,21 @@ export function LandingScreen() {
 // ─── Feature Item ────────────────────────────────────────────────────────────
 
 function FeatureItem({
-  emoji,
+  iconName,
   title,
-  description,
 }: {
-  emoji: string;
+  iconName: React.ComponentProps<typeof Ionicons>['name'];
   title: string;
-  description: string;
 }) {
   return (
-    <View className="flex-row items-center gap-4 rounded-card bg-surface-secondary px-4 py-3.5">
+    <View className="flex-row items-center gap-4 rounded-card border border-gray-200 bg-white px-4 py-3.5">
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary-50">
-        <Text style={{ fontSize: 20 }}>{emoji}</Text>
+        <Ionicons name={iconName} size={20} color="#44a31e" />
       </View>
       <View className="flex-1">
         <Text className="font-sans-semibold text-sm text-gray-900">{title}</Text>
-        <Text className="font-sans text-xs text-gray-500">{description}</Text>
       </View>
+
     </View>
   );
 }
