@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfile, useProfileEvents, useProfileStats } from '@/src/hooks/useProfile';
 import type { ProfileDto } from '@/src/types/profile';
 
-function normalizeAccountType(type: ProfileDto['type']): 'organization' | 'individual' | 'admin' | 'unknown' {
+function normalizeAccountType(type: ProfileDto['type'] | undefined): 'organization' | 'individual' | 'admin' | 'unknown' {
   if (typeof type === 'number') {
     if (type === 2) return 'organization';
     if (type === 1) return 'individual';
