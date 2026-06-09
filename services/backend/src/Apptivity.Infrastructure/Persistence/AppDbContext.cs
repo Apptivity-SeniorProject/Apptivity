@@ -34,6 +34,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<DailyRecommendationPlanTag> DailyRecommendationPlanTags => Set<DailyRecommendationPlanTag>();
     public DbSet<DailyRecommendationServedEvent> DailyRecommendationServedEvents => Set<DailyRecommendationServedEvent>();
     public DbSet<DailyRecommendationCursor> DailyRecommendationCursors => Set<DailyRecommendationCursor>();
+    public DbSet<ChatReport> ChatReports => Set<ChatReport>();
+    public DbSet<ChatReportMessage> ChatReportMessages => Set<ChatReportMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

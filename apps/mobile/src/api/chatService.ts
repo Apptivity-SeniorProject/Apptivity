@@ -28,6 +28,15 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
   throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
 }
 
+export const reportMessage = async (messageId: string): Promise<void> => {
+  await apiClient.post(`/api/chats/messages/${messageId}/report`);
+};
+
+export const createChatReport = async (data: { eventId: string; reasonCategory: number; description?: string }): Promise<{ id: string }> => {
+  const response = await apiClient.post<{ id: string }>('/api/chat-reports', data);
+  return response.data;
+};
+
 export function mapRawMessage(raw: RawMessageDto): MessageDto {
   return {
     messageId: raw.messageId ?? raw.MessageId ?? '',

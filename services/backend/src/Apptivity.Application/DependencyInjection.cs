@@ -1,6 +1,7 @@
 using Apptivity.Application.Contracts.Auth;
 using Apptivity.Application.Contracts.Admin;
 using Apptivity.Application.Contracts.Chats;
+using Apptivity.Application.Contracts.ChatReports;
 using Apptivity.Application.Contracts.Devices;
 using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Contracts.Notifications;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IChatReportService, ChatReportService>();
         services.AddScoped<INotificationHistoryService, NotificationHistoryService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ReputationCalculator>();

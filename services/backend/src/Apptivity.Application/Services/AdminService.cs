@@ -13,6 +13,7 @@ public sealed class AdminService : IAdminService
     private readonly IUserRepository _userRepository;
     private readonly IReputationRepository _reputationRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IChatReportRepository _chatReportRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AdminService(
@@ -20,12 +21,14 @@ public sealed class AdminService : IAdminService
         IUserRepository userRepository,
         IReputationRepository reputationRepository,
         IPasswordHasher passwordHasher,
+        IChatReportRepository chatReportRepository,
         IUnitOfWork unitOfWork)
     {
         _adminRepository = adminRepository;
         _userRepository = userRepository;
         _reputationRepository = reputationRepository;
         _passwordHasher = passwordHasher;
+        _chatReportRepository = chatReportRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -299,6 +302,61 @@ public sealed class AdminService : IAdminService
             .ToArray();
 
         return Result<PagedResult<AdminReportDto>>.Success(new PagedResult<AdminReportDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
+    public async Task<Result<PagedResult<AdminChatReportDto>>> GetChatReportsAsync(ChatReportsFilterRequest request, CancellationToken cancellationToken)
+    {
+        var paging = new PagedRequest
+        {
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize
+        };
+        paging.Normalize();
+
+        var filter = new ChatReportFilter(request.Status, paging.PageNumber, paging.PageSize);
+        var (items, totalCount) = await _chatReportRepository.GetListAsync(filter, cancellationToken);
+        var mapped = items
+            .Select(x => new AdminChatReportDto(
+                x.Id,
+                x.ReporterId,
+                x.Reporter.Username,
+                x.EventId,
+                x.Event.Name,
+                x.ReasonCategory,
+                x.Status,
+                x.CreatedAt))
+            .ToArray();
+
+        return Result<PagedResult<AdminChatReportDto>>.Success(new PagedResult<AdminChatReportDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
+    }
+
+    public async Task<Result<AdminChatReportDetailDto>> GetChatReportDetailAsync(Guid reportId, CancellationToken cancellationToken)
+    {
+        var report = await _chatReportRepository.GetByIdWithMessagesAsync(reportId, cancellationToken);
+        if (report is null)
+        {
+            return Result<AdminChatReportDetailDto>.Failure(ErrorCodes.ChatReportNotFound, "Chat report not found.");
+        }
+
+        var messages = report.Messages.Select(m => new AdminChatReportMessageDto(
+            m.SenderAccountId,
+            m.SenderDisplayName,
+            m.Content,
+            m.OriginalSentAtUtc)).ToList();
+
+        var dto = new AdminChatReportDetailDto(
+            report.Id,
+            report.ReporterId,
+            report.Reporter.Username,
+            report.EventId,
+            report.Event.Name,
+            report.Description,
+            report.ReasonCategory,
+            report.Status,
+            report.CreatedAt,
+            messages);
+
+        return Result<AdminChatReportDetailDto>.Success(dto);
     }
 
     public async Task<Result<AdminEventModerationDto>> DeleteEventAsync(Guid eventId, UserContext adminContext, CancellationToken cancellationToken)

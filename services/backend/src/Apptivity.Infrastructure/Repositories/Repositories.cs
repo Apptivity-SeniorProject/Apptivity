@@ -702,6 +702,56 @@ public sealed class TagRepository : ITagRepository
     }
 }
 
+public sealed class ChatReportRepository : IChatReportRepository
+{
+    private readonly AppDbContext _db;
+
+    public ChatReportRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task AddAsync(ChatReport chatReport, CancellationToken cancellationToken)
+    {
+        await _db.ChatReports.AddAsync(chatReport, cancellationToken);
+    }
+
+    public Task<ChatReport?> GetByIdWithMessagesAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return _db.ChatReports
+            .Include(x => x.Reporter)
+            .Include(x => x.Event)
+            .Include(x => x.Messages)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<ChatReport> Items, int TotalCount)> GetListAsync(ChatReportFilter filter, CancellationToken cancellationToken)
+    {
+        var query = _db.ChatReports
+            .AsNoTracking()
+            .Include(x => x.Reporter)
+            .Include(x => x.Event)
+            .Include(x => x.Messages)
+            .AsQueryable();
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(x => x.Status == filter.Status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((filter.PageNumber - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+}
+
+
 public sealed class ParticipationRepository : IParticipationRepository
 {
     private readonly AppDbContext _db;

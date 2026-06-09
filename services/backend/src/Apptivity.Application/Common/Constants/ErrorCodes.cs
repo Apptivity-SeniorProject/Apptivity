@@ -43,6 +43,7 @@ public static class ErrorCodes
     // Report
     public const string ReportNotFound = "REPORT_404";
     public const string ReportSelfTarget = "REPORT_400_SELF";
+    public const string ChatReportNotFound = "CHAT_REPORT_404";
 
     // Notification
     public const string NotificationNotFound = "NOTIF_404";

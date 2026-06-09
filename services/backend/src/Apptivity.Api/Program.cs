@@ -171,10 +171,21 @@ builder.Services.AddCors(options =>
     options.AddPolicy("StrictOrigins", policy =>
     {
         var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
-        policy.WithOrigins(corsOptions.AllowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+        
+        if (builder.Environment.IsDevelopment() || builder.Environment.IsStaging())
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.WithOrigins(corsOptions.AllowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 

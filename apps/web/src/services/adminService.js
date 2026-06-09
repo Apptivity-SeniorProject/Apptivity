@@ -200,3 +200,23 @@ export async function updateEventStatus(eventId, statusOrPayload) {
         }),
     })
 }
+
+export async function getAdminChatReports({ status, pageNumber = 1, pageSize = 20 }) {
+    const query = new URLSearchParams()
+    query.set('pageNumber', String(pageNumber))
+    query.set('pageSize', String(pageSize))
+
+    if (status) {
+        query.set('status', status)
+    }
+
+    return apiRequest(`/admin/chat-reports?${query.toString()}`, {
+        method: 'GET',
+    })
+}
+
+export async function getAdminChatReportDetail(reportId) {
+    return apiRequest(`/admin/chat-reports/${reportId}`, {
+        method: 'GET',
+    })
+}
