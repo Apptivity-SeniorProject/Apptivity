@@ -8,9 +8,11 @@ import { useMemo, useState } from 'react';
 import { FlatList, Keyboard, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { registerIndividual } from '@/src/api/authService';
 import { RegisterInterestsModal } from '@/src/components/auth/register-interests-modal';
-import { Button } from '@/src/components/ui/button';
+
 import { Input } from '@/src/components/ui/input';
 import { hitSlop } from '@/src/constants/theme';
 import { useSetMyInterests } from '@/src/hooks/useProfile';
@@ -218,59 +220,84 @@ export function RegisterScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-6 pt-12 pb-10"
+        contentContainerClassName="px-5 pt-5 pb-10"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <Pressable hitSlop={hitSlop.md} onPress={() => router.replace('/(auth)/landing')}>
-          <Text className="font-sans-medium text-sm text-gray-500">{'<'} Geri</Text>
+        {/* Geri */}
+        <Pressable
+          className="flex-row items-center gap-1 pt-3"
+          hitSlop={hitSlop.md}
+          onPress={() => router.replace('/(auth)/landing')}>
+          <Ionicons name="chevron-back" size={18} color="#44a31e" />
+          <Text className="text-[13px] font-sans-medium text-[#44a31e]">Geri Dön</Text>
         </Pressable>
 
-        <Text className="mt-4 font-sans-bold text-3xl text-gray-900">Hesap Oluştur</Text>
-        <Text className="mt-2 font-sans text-base text-gray-500">
-          Gerekli bilgilerini gir, kaydını tamamla ve direkt uygulamaya giriş yap.
-        </Text>
+        {/* Başlık */}
+        <View className="mb-7 items-center mt-5">
+          <Text className="text-[26px] font-bold text-gray-900 tracking-tight mb-1.5 text-center">
+            Hesap Oluştur
+          </Text>
+          <Text className="text-[13.5px] text-gray-400 leading-5 text-center">
+            Birkaç adımda kaydını tamamla,{'\n'}hemen giriş yap.
+          </Text>
+        </View>
 
-        <View className="mt-8 gap-4">
-          <Input
-            label="Kullanıcı Adı"
-            placeholder="Kullanıcı adınız"
-            autoCapitalize="none"
-            value={form.username}
-            onChangeText={(value) => updateField('username', value)}
-            error={errors.username}
-          />
-
-          <View className="flex-row gap-3">
+        <View className="gap-3.5">
+          {/* Kullanıcı Adı */}
+          <View>
+            <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+              Kullanıcı Adı
+            </Text>
             <Input
-              label="Ad"
-              placeholder="Adınız"
-              value={form.name}
-              onChangeText={(value) => updateField('name', value)}
-              error={errors.name}
-              containerClassName="flex-1"
-            />
-            <Input
-              label="Soyad"
-              placeholder="Soyadınız"
-              value={form.surname}
-              onChangeText={(value) => updateField('surname', value)}
-              error={errors.surname}
-              containerClassName="flex-1"
+              placeholder="kullanici_adiniz"
+              autoCapitalize="none"
+              value={form.username}
+              onChangeText={(value) => updateField('username', value)}
+              error={errors.username}
             />
           </View>
 
+          {/* Ad & Soyad */}
+          <View className="flex-row gap-2.5">
+            <View className="flex-1">
+              <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                Ad
+              </Text>
+              <Input
+                placeholder="Adınız"
+                value={form.name}
+                onChangeText={(value) => updateField('name', value)}
+                error={errors.name}
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                Soyad
+              </Text>
+              <Input
+                placeholder="Soyadınız"
+                value={form.surname}
+                onChangeText={(value) => updateField('surname', value)}
+                error={errors.surname}
+              />
+            </View>
+          </View>
+
+          {/* Telefon */}
           <View>
-            <Text className="mb-1.5 font-sans-medium text-sm text-gray-700">Telefon Numarası</Text>
-            <View className="flex-row gap-3">
+            <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+              Telefon
+            </Text>
+            <View className="flex-row gap-2">
               <Pressable
-                className="h-12 items-center justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
+                className="h-12 flex-row items-center justify-center rounded-xl border-[1.5px] border-gray-200 bg-[#F7F8FA] px-3.5 gap-1.5"
                 hitSlop={hitSlop.sm}
                 onPress={() => setIsCountryModalOpen(true)}>
-                <Text className="font-sans-semibold text-base text-gray-900">{countryCode}</Text>
+                <Text className="text-sm font-semibold text-gray-900">🇹🇷 {countryCode}</Text>
               </Pressable>
 
               <Input
-                placeholder="Telefon numaranız"
+                placeholder="555 000 00 00"
                 keyboardType="phone-pad"
                 value={form.phone}
                 onChangeText={(value) => updateField('phone', value)}
@@ -280,100 +307,126 @@ export function RegisterScreen() {
             </View>
           </View>
 
-          <Input
-            label="E-posta"
-            placeholder="E-posta adresiniz"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={form.email}
-            onChangeText={(value) => updateField('email', value)}
-            error={errors.email}
-            hint="Opsiyonel"
-          />
-
+          {/* E-posta */}
           <View>
-            <Text className="mb-1.5 font-sans-medium text-sm text-gray-700">Doğum Tarihi</Text>
-            <Pressable
-              className="h-12 justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
-              onPress={() => setShowBirthdatePicker(true)}>
-              <Text
-                className={
-                  formattedBirthdate
-                    ? 'font-sans text-base text-gray-900'
-                    : 'font-sans text-base text-gray-400'
-                }>
-                {formattedBirthdate || 'Gün / Ay / Yıl seçin'}
+            <View className="flex-row items-baseline gap-1.5 mb-1.5">
+              <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest">
+                E-posta
               </Text>
-            </Pressable>
+              <Text className="text-[11px] text-gray-300">(opsiyonel)</Text>
+            </View>
+            <Input
+              placeholder="ornek@eposta.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={form.email}
+              onChangeText={(value) => updateField('email', value)}
+              error={errors.email}
+            />
           </View>
 
-          <View>
-            <Text className="mb-1.5 font-sans-medium text-sm text-gray-700">Cinsiyet</Text>
-            <Pressable
-              className="h-12 justify-center rounded-button border border-gray-200 bg-surface-secondary px-4"
-              onPress={() => setIsGenderModalOpen(true)}>
-              <Text
-                className={
-                  gender ? 'font-sans text-base text-gray-900' : 'font-sans text-base text-gray-400'
-                }>
-                {gender || 'Cinsiyet seçin'}
+          {/* Doğum Tarihi & Cinsiyet yan yana */}
+          <View className="flex-row gap-2.5">
+            <View className="flex-1">
+              <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                Doğum Tarihi
               </Text>
-            </Pressable>
+              <Pressable
+                className="h-12 flex-row items-center rounded-xl border-[1.5px] border-gray-200 bg-[#F7F8FA] px-3.5 gap-2"
+                onPress={() => setShowBirthdatePicker(true)}>
+                <Text
+                  className={
+                    formattedBirthdate
+                      ? 'text-sm text-gray-900'
+                      : 'text-[13px] text-gray-300'
+                  }>
+                  {formattedBirthdate || 'GG / AA / YYYY'}
+                </Text>
+              </Pressable>
+            </View>
+            <View className="flex-1">
+              <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                Cinsiyet
+              </Text>
+              <Pressable
+                className="h-12 flex-row items-center justify-between rounded-xl border-[1.5px] border-gray-200 bg-[#F7F8FA] px-3.5"
+                onPress={() => setIsGenderModalOpen(true)}>
+                <Text
+                  className={
+                    gender ? 'text-sm text-gray-900' : 'text-sm text-gray-300'
+                  }>
+                  {gender || 'Seçin'}
+                </Text>
+                <Text className="text-sm text-gray-300">▾</Text>
+              </Pressable>
+            </View>
           </View>
 
-          <View className="rounded-2xl border border-gray-200 bg-surface-secondary px-4 py-4">
-            <Text className="text-sm font-medium text-gray-900">İlgi Alanları</Text>
-            <Text className="mt-1 text-sm text-gray-500">
-              Kayıt sırasında sevdiğin tagları seç. Böylece sana uygun etkinlikleri daha iyi öneririz.
+          {/* İlgi Alanları - Yeşil temalı kart */}
+          <View className="rounded-[14px] border-[1.5px] border-[#BBEFAA] bg-[#F0FCE8] px-3.5 py-3.5">
+            <View className="flex-row items-center gap-2 mb-1.5">
+              <Text className="text-[13px] font-bold text-[#357c1c]">İlgi Alanları</Text>
+            </View>
+            <Text className="text-[12.5px] text-[#3a8a1a] leading-[18px] mb-2.5">
+              Sana uygun etkinlikleri önerebilmemiz için ilgi alanlarını seç.
             </Text>
 
             {selectedTagsPreview.length > 0 ? (
-              <View className="mt-3 flex-row flex-wrap gap-2">
+              <View className="flex-row flex-wrap gap-2 mb-2.5">
                 {selectedTagsPreview.map((tag) => (
                   <View
                     key={tag.id}
-                    className="rounded-full border border-blue-600 bg-blue-600 px-3 py-2">
+                    className="rounded-full border border-[#5bcc2a] bg-[#5bcc2a] px-3 py-1.5">
                     <Text className="text-xs font-semibold text-white">{tag.name}</Text>
                   </View>
                 ))}
                 {selectedTagIds.length > selectedTagsPreview.length ? (
-                  <View className="rounded-full border border-slate-300 bg-white px-3 py-2">
-                    <Text className="text-xs font-semibold text-slate-600">
+                  <View className="rounded-full border border-[#BBEFAA] bg-white px-3 py-1.5">
+                    <Text className="text-xs font-semibold text-[#3a8a1a]">
                       +{selectedTagIds.length - selectedTagsPreview.length}
                     </Text>
                   </View>
                 ) : null}
               </View>
-            ) : (
-              <Text className="mt-3 text-sm text-gray-500">Henüz tag seçmedin.</Text>
-            )}
+            ) : null}
 
-            <Button
-              className="mt-4"
-              label={selectedTagIds.length > 0 ? 'Tagları Düzenle' : 'Tag Seç'}
-              variant="secondary"
+            <Pressable
+              className="rounded-[10px] border-[1.5px] border-[#BBEFAA] bg-white py-2.5 items-center justify-center flex-row gap-1.5"
               disabled={tagsQuery.isPending}
-              onPress={() => setIsInterestsModalOpen(true)}
+              onPress={() => setIsInterestsModalOpen(true)}>
+              <Text className="text-[13.5px] font-semibold text-[#44a31e]">
+                {selectedTagIds.length > 0 ? 'Tagları Düzenle' : '+ Tag Seç'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Şifre */}
+          <View>
+            <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+              Şifre
+            </Text>
+            <Input
+              placeholder="En az 6 karakter"
+              secureTextEntry
+              value={form.password}
+              onChangeText={(value) => updateField('password', value)}
+              error={errors.password}
             />
           </View>
 
-          <Input
-            label="Şifre"
-            placeholder="En az 6 karakter"
-            secureTextEntry
-            value={form.password}
-            onChangeText={(value) => updateField('password', value)}
-            error={errors.password}
-          />
-
-          <Input
-            label="Şifre Tekrar"
-            placeholder="Şifrenizi tekrar girin"
-            secureTextEntry
-            value={form.passwordConfirm}
-            onChangeText={(value) => updateField('passwordConfirm', value)}
-            error={errors.passwordConfirm}
-          />
+          {/* Şifre Tekrar */}
+          <View>
+            <Text className="text-[11.5px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+              Şifre Tekrar
+            </Text>
+            <Input
+              placeholder="Şifrenizi tekrar girin"
+              secureTextEntry
+              value={form.passwordConfirm}
+              onChangeText={(value) => updateField('passwordConfirm', value)}
+              error={errors.passwordConfirm}
+            />
+          </View>
         </View>
 
         {showBirthdatePicker ? (
@@ -385,18 +438,33 @@ export function RegisterScreen() {
           />
         ) : null}
 
-        <Button
-          className="mt-8"
-          label="Kayıt Ol"
-          size="lg"
-          isLoading={registerMutation.isPending}
-          onPress={handleRegister}
-        />
+        {/* Kayıt Ol Butonu */}
+        <Pressable
+          className="mt-6 h-[52px] rounded-[14px] items-center justify-center"
+          style={{
+            backgroundColor: registerMutation.isPending ? '#a3e88a' : undefined,
+            backgroundImage: registerMutation.isPending ? undefined : undefined,
+          }}
+          disabled={registerMutation.isPending}
+          onPress={handleRegister}>
+          <View
+            className="w-full h-full rounded-[14px] items-center justify-center"
+            style={{
+              backgroundColor: registerMutation.isPending ? '#a3e88a' : '#5bcc2a',
+            }}>
+            {registerMutation.isPending ? (
+              <Text className="text-[15.5px] font-bold text-white/60">Kayıt Ol...</Text>
+            ) : (
+              <Text className="text-[15.5px] font-bold text-white tracking-wide">Kayıt Ol</Text>
+            )}
+          </View>
+        </Pressable>
 
-        <View className="mt-6 flex-row items-center justify-center gap-1">
-          <Text className="font-sans text-sm text-gray-500">Zaten hesabın var mı?</Text>
+        {/* Alt link */}
+        <View className="mt-5 flex-row items-center justify-center gap-1 pb-7">
+          <Text className="text-[13.5px] text-gray-400">Zaten hesabın var mı?</Text>
           <Pressable hitSlop={hitSlop.sm} onPress={() => router.replace('/(auth)/login')}>
-            <Text className="font-sans-semibold text-sm text-primary-600">Giriş Yap</Text>
+            <Text className="text-[13.5px] font-bold text-[#5bcc2a]">Giriş Yap</Text>
           </Pressable>
         </View>
       </ScrollView>
