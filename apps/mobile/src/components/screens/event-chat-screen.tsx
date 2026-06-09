@@ -24,6 +24,9 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
 import type { MessageDto } from '@/src/types/chat';
 import { getApiErrorMessage } from '@/src/utils/error';
+import { ChatReportModal } from '@/src/components/reports/chat-report-modal';
+import { AlertCircle } from 'lucide-react-native';
+import { TouchableOpacity } from 'react-native';
 
 function formatTimestamp(value: string): string {
   try {
@@ -76,6 +79,7 @@ export function ChatScreen() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [composerHeight, setComposerHeight] = useState(76);
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
   const eventDetailQuery = useEventDetail(eventId, {
     refetchIntervalMs: 8000,
@@ -223,7 +227,19 @@ export function ChatScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <Stack.Screen options={{ title: 'Etkinlik Sohbeti' }} />
+      <Stack.Screen 
+        options={{ 
+          title: 'Etkinlik Sohbeti',
+          headerRight: () => (
+            <TouchableOpacity 
+              onPress={() => setIsReportModalVisible(true)}
+              className="mr-2 p-2 rounded-full hover:bg-slate-100"
+            >
+              <AlertCircle size={20} color="#ef4444" />
+            </TouchableOpacity>
+          )
+        }} 
+      />
       <View className="flex-1">
         {connectionError ? (
           <View className="mx-4 mt-3 rounded-xl bg-rose-100 px-3 py-2">
@@ -332,6 +348,12 @@ export function ChatScreen() {
           />
         </View>
       </View>
+
+      <ChatReportModal 
+        visible={isReportModalVisible} 
+        onClose={() => setIsReportModalVisible(false)} 
+        eventId={eventId} 
+      />
     </SafeAreaView>
   );
 }

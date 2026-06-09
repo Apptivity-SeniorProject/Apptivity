@@ -14,7 +14,7 @@ export async function uploadEventBanner(eventId, file) {
     const formData = new FormData()
     formData.append('file', file)
 
-    return apiRequest(`/images/events/${eventId}/banner`, {
+    return apiRequest(`/images/events/${eventId}/photos`, {
         method: 'POST',
         body: formData,
     })

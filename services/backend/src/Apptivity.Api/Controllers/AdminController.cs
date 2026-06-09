@@ -116,6 +116,25 @@ public sealed class AdminController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpGet("chat-reports")]
+    public async Task<IActionResult> GetChatReports(
+        [FromQuery] ReportStatus? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new ChatReportsFilterRequest(status, pageNumber, pageSize);
+        var result = await _adminService.GetChatReportsAsync(request, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpGet("chat-reports/{id:guid}")]
+    public async Task<IActionResult> GetChatReportDetail(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetChatReportDetailAsync(id, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpDelete("events/{id:guid}")]
     public async Task<IActionResult> DeleteEvent(Guid id, CancellationToken cancellationToken)
     {

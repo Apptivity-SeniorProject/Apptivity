@@ -19,6 +19,8 @@ public interface IReviewRepository
 
     Task<int> CountByReviewedAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
 
+    Task<double?> GetAverageRatingByReviewedAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
+
     /// <summary>
     /// Returns the count of reviews already cast on a specific target user for a specific event.
     /// Used by the reputation formula to determine voter_count (n).

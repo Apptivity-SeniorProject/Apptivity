@@ -7,6 +7,7 @@ import EventApprovalSection from '../components/admin/EventApprovalSection'
 import OrganizationCreateSection from '../components/admin/OrganizationCreateSection'
 import OrganizationManagementSection from '../components/admin/OrganizationManagementSection'
 import ReportsSection from '../components/admin/ReportsSection'
+import ChatReportsSection from '../components/admin/ChatReportsSection'
 import UserApprovalSection from '../components/admin/UserApprovalSection'
 import UserManagementSection from '../components/admin/UserManagementSection'
 import TagManagementSection from '../components/admin/TagManagementSection'
@@ -20,6 +21,10 @@ function getSelectedAdminMenuKey(pathname) {
 
     if (pathname === '/admin/reports/accounts') {
         return 'report-accounts'
+    }
+
+    if (pathname === '/admin/reports/chats') {
+        return 'report-chats'
     }
 
     if (pathname === '/admin/organizations/create') {
@@ -128,6 +133,10 @@ function AdminHomePage() {
                     key: 'report-accounts',
                     label: t('admin.menu.reports.account'),
                 },
+                {
+                    key: 'report-chats',
+                    label: t('admin.menu.reports.chat'),
+                },
             ],
         },
         {
@@ -151,6 +160,7 @@ function AdminHomePage() {
         'organization-banned': t('admin.menu.organizations.banned'),
         'report-events': t('admin.menu.reports.event'),
         'report-accounts': t('admin.menu.reports.account'),
+        'report-chats': t('admin.menu.reports.chat'),
         'tag-management': t('admin.menu.tagManagement'),
     }
 
@@ -164,6 +174,7 @@ function AdminHomePage() {
         'organization-banned': '/admin/organizations/banned',
         'report-events': '/admin/reports/events',
         'report-accounts': '/admin/reports/accounts',
+        'report-chats': '/admin/reports/chats',
         'tag-management': '/admin/tags',
     }
 
@@ -253,7 +264,6 @@ function AdminHomePage() {
                                 <Menu
                                     mode="inline"
                                     inlineCollapsed={isCollapsed}
-                                    defaultOpenKeys={['users', 'organizations', 'reports']}
                                     selectedKeys={[selectedKey]}
                                     items={menuItems}
                                     onClick={({ key }) => {
@@ -316,6 +326,8 @@ function AdminHomePage() {
                             <ReportsSection mode="event" />
                         ) : selectedKey === 'report-accounts' ? (
                             <ReportsSection mode="account" />
+                        ) : selectedKey === 'report-chats' ? (
+                            <ChatReportsSection />
                         ) : selectedKey === 'tag-management' ? (
                             <TagManagementSection />
                         ) : (
@@ -336,7 +348,6 @@ function AdminHomePage() {
             >
                 <Menu
                     mode="inline"
-                    defaultOpenKeys={['users', 'organizations', 'reports']}
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                     onClick={({ key }) => {

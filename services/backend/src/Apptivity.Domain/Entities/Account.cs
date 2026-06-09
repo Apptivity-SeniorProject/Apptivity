@@ -29,6 +29,7 @@ public sealed class Account : BaseEntity
     public ICollection<Review> WrittenReviews { get; set; } = new List<Review>();
     public ICollection<Review> ReceivedReviews { get; set; } = new List<Review>();
     public ICollection<Report> FiledReports { get; set; } = new List<Report>();
+    public ICollection<ChatReport> FiledChatReports { get; set; } = new List<ChatReport>();
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
     public ICollection<Tag> InterestTags { get; set; } = new List<Tag>();
 }

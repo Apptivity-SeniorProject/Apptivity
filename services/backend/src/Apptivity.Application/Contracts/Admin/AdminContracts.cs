@@ -98,6 +98,39 @@ public sealed record AdminReportDto(
     string? RelatedUserFullName,
     string? RelatedOrganizationName);
 
+public sealed record ChatReportsFilterRequest(
+    ReportStatus? Status,
+    int PageNumber = 1,
+    int PageSize = 20);
+
+public sealed record AdminChatReportDto(
+    Guid ReportId,
+    Guid ReporterId,
+    string ReporterUsername,
+    Guid EventId,
+    string EventName,
+    ReportReasonCategory ReasonCategory,
+    ReportStatus Status,
+    DateTime CreatedAt);
+
+public sealed record AdminChatReportMessageDto(
+    Guid SenderAccountId,
+    string SenderDisplayName,
+    string Content,
+    DateTime OriginalSentAtUtc);
+
+public sealed record AdminChatReportDetailDto(
+    Guid ReportId,
+    Guid ReporterId,
+    string ReporterUsername,
+    Guid EventId,
+    string EventName,
+    string? Description,
+    ReportReasonCategory ReasonCategory,
+    ReportStatus Status,
+    DateTime CreatedAt,
+    IReadOnlyCollection<AdminChatReportMessageDto> Messages);
+
 public interface IAdminService
 {
     Task<Result<AdminDashboardStatsDto>> GetDashboardStatsAsync(CancellationToken cancellationToken);
@@ -107,6 +140,8 @@ public interface IAdminService
     Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminReportDto>>> GetReportsAsync(ReportsFilterRequest request, CancellationToken cancellationToken);
+    Task<Result<PagedResult<AdminChatReportDto>>> GetChatReportsAsync(ChatReportsFilterRequest request, CancellationToken cancellationToken);
+    Task<Result<AdminChatReportDetailDto>> GetChatReportDetailAsync(Guid reportId, CancellationToken cancellationToken);
     Task<Result<AdminEventModerationDto>> DeleteEventAsync(Guid eventId, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<AdminEventModerationDto>> ToggleFeaturedAsync(Guid eventId, ToggleEventFeaturedRequest request, UserContext adminContext, CancellationToken cancellationToken);
 }

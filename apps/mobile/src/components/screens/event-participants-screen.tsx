@@ -1,20 +1,21 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { theme } from '@/src/constants/theme';
 import { updateEventParticipationStatus } from '@/src/api/eventService';
-import { useSubmitReview } from '@/src/hooks/useReviews';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
+import { useSubmitReview } from '@/src/hooks/useReviews';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventParticipantProfileDto, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
-import { theme } from '@/src/constants/theme';
 
 type TabKey = 'approved' | 'pending' | 'rejected';
 
@@ -87,53 +88,101 @@ function getStatusColor(status: ParticipationStatus | string | number | null | u
 
 function getReputationDisplay(level: string | null | undefined) {
   if (!level) return null;
-  
-  if (level.includes('Yıldız')) {
+
+  if (level.includes('Yıldız') || level.includes('YÄ±ldÄ±z') || level.toLowerCase().includes('yildiz')) {
     return { label: level, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' };
   }
 
   switch (level) {
-    case 'Pariah': return { label: 'Çok Kötü', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
-    case 'Suspicious': return { label: 'Kötü', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
-    case 'Neutral': return { label: 'Normal', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
-    case 'Trusted': return { label: 'Güvenilir', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
-    case 'Exemplary': return { label: 'Mükemmel', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
-    default: return { label: level, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+    case 'Pariah':
+      return { label: 'Cok Kotu', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
+    case 'Suspicious':
+      return { label: 'Kotu', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
+    case 'Neutral':
+      return { label: 'Normal', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+    case 'Trusted':
+      return { label: 'Guvenilir', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
+    case 'Exemplary':
+      return { label: 'Mukemmel', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
+    default:
+      return { label: level, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
   }
+}
+
+function normalizeAccountType(type: string | number | null | undefined): 'individual' | 'organization' | 'admin' | 'unknown' {
+  if (typeof type === 'number') {
+    if (type === 1) return 'individual';
+    if (type === 2) return 'organization';
+    if (type === 3) return 'admin';
+    return 'unknown';
+  }
+
+  if (typeof type === 'string') {
+    const normalized = type.trim().toLowerCase();
+    if (normalized === '1' || normalized === 'individual') return 'individual';
+    if (normalized === '2' || normalized === 'organization') return 'organization';
+    if (normalized === '3' || normalized === 'admin') return 'admin';
+  }
+
+  return 'unknown';
 }
 
 const PLACEHOLDER_AVATAR = 'https://ui-avatars.com/api/?background=e2e8f0&color=475569&bold=true&size=80';
 
 function ParticipantVoting({
-  participantId,
-  eventId,
+  accountType,
   isMutating,
   onSubmit,
 }: {
-  participantId: string;
-  eventId: string;
+  accountType: string | number | null | undefined;
   isMutating: boolean;
   onSubmit: (rating: number) => void;
 }) {
-  const [rating, setRating] = useState<number>(0);
-  const RATING_STEPS = [-2, -1, 0, 1, 2];
+  const isOrganizationTarget = normalizeAccountType(accountType) === 'organization';
+  const [rating, setRating] = useState<number>(isOrganizationTarget ? 1 : 0);
 
   return (
     <View className="mt-3 border-t border-slate-100 pt-3">
-      <Text className="mb-2 text-xs font-semibold text-slate-500">Katılımcıyı Değerlendir</Text>
-      <View className="items-center justify-center mb-3">
-        <Slider
-          style={{ width: '100%', height: 40 }}
-          minimumValue={-2}
-          maximumValue={2}
-          step={1}
-          value={rating}
-          onValueChange={setRating}
-          minimumTrackTintColor={rating > 0 ? '#10b981' : rating < 0 ? '#e11d48' : '#3b82f6'}
-          maximumTrackTintColor="#e2e8f0"
-          thumbTintColor={rating > 0 ? '#10b981' : rating < 0 ? '#e11d48' : '#3b82f6'}
-        />
-      </View>
+      <Text className="mb-2 text-xs font-semibold text-slate-500">
+        {isOrganizationTarget ? 'Organizasyonu Degerlendir' : 'Katilimciyi Degerlendir'}
+      </Text>
+
+      {isOrganizationTarget ? (
+        <View className="mb-3 flex-row items-center justify-center gap-2">
+          {[1, 2, 3, 4, 5].map((starValue) => {
+            const isActive = starValue <= rating;
+
+            return (
+              <Pressable
+                key={starValue}
+                className="rounded-full p-1"
+                disabled={isMutating}
+                onPress={() => setRating(starValue)}>
+                <Ionicons
+                  name={isActive ? 'star' : 'star-outline'}
+                  size={28}
+                  color={isActive ? theme.colors.primary : theme.colors.textTertiary}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View className="mb-3 items-center justify-center">
+          <Slider
+            style={{ width: '100%', height: 40 }}
+            minimumValue={-2}
+            maximumValue={2}
+            step={1}
+            value={rating}
+            onValueChange={setRating}
+            minimumTrackTintColor={rating > 0 ? '#10b981' : rating < 0 ? '#e11d48' : '#3b82f6'}
+            maximumTrackTintColor="#e2e8f0"
+            thumbTintColor={rating > 0 ? '#10b981' : rating < 0 ? '#e11d48' : '#3b82f6'}
+          />
+        </View>
+      )}
+
       <Pressable
         style={{
           backgroundColor: isMutating ? theme.colors.surfaceTertiary : theme.colors.primary,
@@ -141,15 +190,15 @@ function ParticipantVoting({
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
-          elevation: 4
+          elevation: 4,
         }}
-        className="rounded-xl py-3 items-center justify-center mt-2 active:opacity-70"
+        className="mt-2 items-center justify-center rounded-xl py-3 active:opacity-70"
         disabled={isMutating}
         onPress={() => onSubmit(rating)}>
         {isMutating ? (
           <ActivityIndicator color={theme.colors.primaryDark} size="small" />
         ) : (
-          <Text className="font-extrabold text-white text-[15px] tracking-wide">Oy Ver</Text>
+          <Text className="text-[15px] font-extrabold tracking-wide text-white">Oy Ver</Text>
         )}
       </Pressable>
     </View>
@@ -183,7 +232,7 @@ function ParticipantCard({
   const repDisplay = getReputationDisplay(participant.reputationLevel);
 
   return (
-    <View className="rounded-2xl border border-slate-200 bg-white px-4 py-3 mb-2">
+    <View className="mb-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
       <View className="flex-row items-center">
         <Image
           source={{ uri: avatarUri }}
@@ -192,7 +241,7 @@ function ParticipantCard({
           transition={120}
         />
         <View className="ml-3 flex-1">
-          <Text className="text-sm font-semibold text-slate-900 flex-shrink">{participant.displayName}</Text>
+          <Text className="flex-shrink text-sm font-semibold text-slate-900">{participant.displayName}</Text>
           {participant.username ? (
             <Text className="text-xs text-slate-500">@{participant.username}</Text>
           ) : null}
@@ -213,7 +262,7 @@ function ParticipantCard({
         ) : null}
 
         {participant.isVoted ? (
-          <View className="mr-3 rounded-full bg-indigo-100 px-2 py-1 flex-row items-center gap-1 border border-indigo-200">
+          <View className="mr-3 flex-row items-center gap-1 rounded-full border border-indigo-200 bg-indigo-100 px-2 py-1">
             <CheckCircle2 size={12} color="#4f46e5" />
             <Text className="text-[10px] font-bold text-indigo-600">Oy Verildi</Text>
           </View>
@@ -236,18 +285,19 @@ function ParticipantCard({
           </View>
         ) : null}
       </View>
-      
+
       {canVote && !participant.isVoted ? (
         <ParticipantVoting
-          participantId={participant.accountId}
-          eventId={eventId}
+          accountType={participant.type}
           isMutating={submitReviewMutation.isPending}
-          onSubmit={(rating) => submitReviewMutation.mutate({
-            eventId,
-            reviewedAccountId: participant.accountId,
-            rating,
-            comment: null
-          })}
+          onSubmit={(rating) =>
+            submitReviewMutation.mutate({
+              eventId,
+              reviewedAccountId: participant.accountId,
+              rating,
+              comment: null,
+            })
+          }
         />
       ) : null}
     </View>
@@ -276,9 +326,9 @@ export function EventParticipantsScreen() {
   }, [refetchEvent, participantsQuery]);
 
   const isOwner = Boolean(
-    myAccountId && 
-    eventData?.ownerId && 
-    String(myAccountId).toLowerCase() === String(eventData.ownerId).toLowerCase()
+    myAccountId &&
+      eventData?.ownerId &&
+      String(myAccountId).toLowerCase() === String(eventData.ownerId).toLowerCase(),
   );
 
   const reviewMutation = useMutation({
@@ -319,11 +369,16 @@ export function EventParticipantsScreen() {
 
   const allParticipants = participantsQuery.data?.participants ?? [];
 
-  const isCompleted = String(eventData.status) === 'Completed' || String(eventData.status) === '4' || String(participantsQuery.data?.eventStatus) === 'Completed' || String(participantsQuery.data?.eventStatus) === '4';
-  const isApprovedParticipant = String(eventData.currentUserParticipationStatus) === 'Approved' || String(eventData.currentUserParticipationStatus) === '2';
+  const isCompleted =
+    String(eventData.status) === 'Completed' ||
+    String(eventData.status) === '4' ||
+    String(participantsQuery.data?.eventStatus) === 'Completed' ||
+    String(participantsQuery.data?.eventStatus) === '4';
+  const isApprovedParticipant =
+    String(eventData.currentUserParticipationStatus) === 'Approved' ||
+    String(eventData.currentUserParticipationStatus) === '2';
   const canIVote = myRole === 'Individual' && (isOwner || isApprovedParticipant);
 
-  // Owner: filter by active tab. Non-owner: show only approved.
   const filteredParticipants = isOwner
     ? allParticipants.filter((p) => {
         const filterStr = OWNER_TABS.find((t) => t.key === activeTab)?.statusFilter;
@@ -350,7 +405,6 @@ export function EventParticipantsScreen() {
     <SafeAreaView className="flex-1 bg-slate-50">
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
       <View
         className="flex-row items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3"
         style={{ paddingTop: insets.top + 8 }}>
@@ -369,7 +423,6 @@ export function EventParticipantsScreen() {
         </View>
       </View>
 
-      {/* Owner: Summary badges */}
       {isOwner ? (
         <View className="flex-row justify-center gap-3 bg-white px-4 pb-3 pt-2">
           <View className="items-center rounded-xl bg-emerald-50 px-4 py-2">
@@ -387,7 +440,6 @@ export function EventParticipantsScreen() {
         </View>
       ) : null}
 
-      {/* Owner: Tabs */}
       {isOwner ? (
         <View className="flex-row border-b border-slate-200 bg-white px-2">
           {OWNER_TABS.map((tab) => {
@@ -401,10 +453,8 @@ export function EventParticipantsScreen() {
                   className={`text-sm font-semibold ${isActive ? tab.activeColor.replace('border-', 'text-') : 'text-slate-400'}`}>
                   {tab.label}
                 </Text>
-                <View
-                  className={`mt-0.5 rounded-full px-2 py-0.5 ${isActive ? tab.activeBg : 'bg-slate-100'}`}>
-                  <Text
-                    className={`text-[10px] font-bold ${isActive ? tab.activeText : 'text-slate-500'}`}>
+                <View className={`mt-0.5 rounded-full px-2 py-0.5 ${isActive ? tab.activeBg : 'bg-slate-100'}`}>
+                  <Text className={`text-[10px] font-bold ${isActive ? tab.activeText : 'text-slate-500'}`}>
                     {tabCounts[tab.key]}
                   </Text>
                 </View>
@@ -414,26 +464,17 @@ export function EventParticipantsScreen() {
         </View>
       ) : null}
 
-      {/* Non-owner: simple header */}
       {!isOwner ? (
         <View className="flex-row items-center gap-2 px-5 pb-2 pt-4">
           <UserCheck size={16} color="#059669" />
-          <Text className="text-sm font-semibold text-slate-700">
-            Kabul Edilen Katilimcilar ({approvedCount})
-          </Text>
+          <Text className="text-sm font-semibold text-slate-700">Kabul Edilen Katilimcilar ({approvedCount})</Text>
         </View>
       ) : null}
 
-      {/* Participant list */}
-      {/* Lists */}
       <ScrollView
         contentContainerClassName="gap-4 px-4 py-3 pb-10"
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }>
-        
-        {/* Organizer Section */}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {participantsQuery.data?.organizer ? (
           <View className="gap-2">
             <View className="flex-row items-center gap-2 px-1 pb-1">
@@ -443,12 +484,12 @@ export function EventParticipantsScreen() {
             <ParticipantCard
               key={participantsQuery.data.organizer.accountId}
               participant={participantsQuery.data.organizer}
-              isOwner={false} // Don't show status/actions for the organizer
+              isOwner={false}
               isPending={false}
               isMutatingStatus={false}
               canVote={
-                isCompleted && 
-                canIVote && 
+                isCompleted &&
+                canIVote &&
                 String(participantsQuery.data.organizer.accountId).toLowerCase() !== String(myAccountId).toLowerCase()
               }
               eventId={eventId}
@@ -458,11 +499,10 @@ export function EventParticipantsScreen() {
           </View>
         ) : null}
 
-        {/* Participants Section */}
-        <View className="gap-2 mt-2">
+        <View className="mt-2 gap-2">
           <View className="flex-row items-center gap-2 px-1 pb-1">
             <UserCheck size={16} color="#334155" />
-            <Text className="text-sm font-semibold text-slate-700">Katılımcılar</Text>
+            <Text className="text-sm font-semibold text-slate-700">Katilimcilar</Text>
           </View>
 
           {filteredParticipants.length === 0 ? (
