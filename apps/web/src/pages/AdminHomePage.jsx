@@ -1,16 +1,17 @@
-import { ApartmentOutlined, CalendarOutlined, FlagOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
+import { ApartmentOutlined, CalendarOutlined, FlagOutlined, LeftOutlined, LogoutOutlined, MenuOutlined, MessageOutlined, RightOutlined, UserSwitchOutlined, TagOutlined } from '@ant-design/icons'
 import { Button, ConfigProvider, Drawer, Grid, Layout, Menu, Space, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
+import ChatReportsSection from '../components/admin/ChatReportsSection'
 import EventApprovalSection from '../components/admin/EventApprovalSection'
+import FeedbackSection from '../components/admin/FeedbackSection'
 import OrganizationCreateSection from '../components/admin/OrganizationCreateSection'
 import OrganizationManagementSection from '../components/admin/OrganizationManagementSection'
 import ReportsSection from '../components/admin/ReportsSection'
-import ChatReportsSection from '../components/admin/ChatReportsSection'
+import TagManagementSection from '../components/admin/TagManagementSection'
 import UserApprovalSection from '../components/admin/UserApprovalSection'
 import UserManagementSection from '../components/admin/UserManagementSection'
-import TagManagementSection from '../components/admin/TagManagementSection'
 import LanguageSwitcher from '../components/common/LanguageSwitcher'
 import { clearAuthSession, getAuthSession } from '../services/sessionService'
 
@@ -53,6 +54,10 @@ function getSelectedAdminMenuKey(pathname) {
 
     if (pathname === '/admin/tags') {
         return 'tag-management'
+    }
+
+    if (pathname === '/admin/feedback') {
+        return 'feedback'
     }
 
     return 'event-approval'
@@ -144,6 +149,11 @@ function AdminHomePage() {
             icon: <TagOutlined />,
             label: t('admin.menu.tagManagement'),
         },
+        {
+            key: 'feedback',
+            icon: <MessageOutlined />,
+            label: 'Geri Bildirimler',
+        },
     ]
 
     if (!isAdmin) {
@@ -162,6 +172,7 @@ function AdminHomePage() {
         'report-accounts': t('admin.menu.reports.account'),
         'report-chats': t('admin.menu.reports.chat'),
         'tag-management': t('admin.menu.tagManagement'),
+        'feedback': 'Geri Bildirimler',
     }
 
     const pathByKey = {
@@ -176,6 +187,7 @@ function AdminHomePage() {
         'report-accounts': '/admin/reports/accounts',
         'report-chats': '/admin/reports/chats',
         'tag-management': '/admin/tags',
+        'feedback': '/admin/feedback',
     }
 
     return (
@@ -302,41 +314,43 @@ function AdminHomePage() {
                         </Layout.Sider>
                     )}
 
-                <Layout>
-                    <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
-                        <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                            {pageTitleByKey[selectedKey] || t('admin.menu.eventApproval')}
-                        </Typography.Title>
+                    <Layout>
+                        <Layout.Content style={{ padding: isMobile ? 12 : 24 }}>
+                            <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+                                {pageTitleByKey[selectedKey] || t('admin.menu.eventApproval')}
+                            </Typography.Title>
 
-                        {selectedKey === 'event-approval' ? (
-                            <EventApprovalSection />
-                        ) : selectedKey === 'user-approval' ? (
-                            <UserApprovalSection />
-                        ) : selectedKey === 'user-manage' ? (
-                            <UserManagementSection />
-                        ) : selectedKey === 'user-banned' ? (
-                            <UserManagementSection mode="banned" />
-                        ) : selectedKey === 'organization-create' ? (
-                            <OrganizationCreateSection />
-                        ) : selectedKey === 'organization-manage' ? (
-                            <OrganizationManagementSection />
-                        ) : selectedKey === 'organization-banned' ? (
-                            <OrganizationManagementSection mode="banned" />
-                        ) : selectedKey === 'report-events' ? (
-                            <ReportsSection mode="event" />
-                        ) : selectedKey === 'report-accounts' ? (
-                            <ReportsSection mode="account" />
-                        ) : selectedKey === 'report-chats' ? (
-                            <ChatReportsSection />
-                        ) : selectedKey === 'tag-management' ? (
-                            <TagManagementSection />
-                        ) : (
-                            <Typography.Text style={{ color: '#6b7280' }}>
-                                {t('admin.placeholderText')}
-                            </Typography.Text>
-                        )}
-                    </Layout.Content>
-                </Layout>
+                            {selectedKey === 'event-approval' ? (
+                                <EventApprovalSection />
+                            ) : selectedKey === 'user-approval' ? (
+                                <UserApprovalSection />
+                            ) : selectedKey === 'user-manage' ? (
+                                <UserManagementSection />
+                            ) : selectedKey === 'user-banned' ? (
+                                <UserManagementSection mode="banned" />
+                            ) : selectedKey === 'organization-create' ? (
+                                <OrganizationCreateSection />
+                            ) : selectedKey === 'organization-manage' ? (
+                                <OrganizationManagementSection />
+                            ) : selectedKey === 'organization-banned' ? (
+                                <OrganizationManagementSection mode="banned" />
+                            ) : selectedKey === 'report-events' ? (
+                                <ReportsSection mode="event" />
+                            ) : selectedKey === 'report-accounts' ? (
+                                <ReportsSection mode="account" />
+                            ) : selectedKey === 'report-chats' ? (
+                                <ChatReportsSection />
+                            ) : selectedKey === 'tag-management' ? (
+                                <TagManagementSection />
+                            ) : selectedKey === 'feedback' ? (
+                                <FeedbackSection />
+                            ) : (
+                                <Typography.Text style={{ color: '#6b7280' }}>
+                                    {t('admin.placeholderText')}
+                                </Typography.Text>
+                            )}
+                        </Layout.Content>
+                    </Layout>
                 </Layout>
             </Layout>
             <Drawer

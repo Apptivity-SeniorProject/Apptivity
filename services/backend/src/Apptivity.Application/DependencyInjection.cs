@@ -4,6 +4,7 @@ using Apptivity.Application.Contracts.Chats;
 using Apptivity.Application.Contracts.ChatReports;
 using Apptivity.Application.Contracts.Devices;
 using Apptivity.Application.Contracts.Events;
+using Apptivity.Application.Contracts.Feedback;
 using Apptivity.Application.Contracts.Notifications;
 using Apptivity.Application.Contracts.Profiles;
 using Apptivity.Application.Contracts.Reports;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IChatReportService, ChatReportService>();
         services.AddScoped<INotificationHistoryService, NotificationHistoryService>();
+        services.AddScoped<IFeedbackService, FeedbackService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ReputationCalculator>();
         return services;

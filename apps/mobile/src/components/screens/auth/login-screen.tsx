@@ -8,6 +8,7 @@ import {
   Keyboard,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -105,16 +106,21 @@ export function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="flex-grow px-8 pb-8"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <Pressable
-          className="absolute left-8 top-3 z-10 flex-row items-center gap-1"
+          className="mb-6 mt-3 self-start flex-row items-center gap-1"
           hitSlop={hitSlop.md}
           onPress={() => router.replace('/(auth)/landing')}>
           <Ionicons name="chevron-back" size={18} color="#44a31e" />
           <Text className="font-sans-medium text-sm text-primary-600">Geri Dön</Text>
         </Pressable>
 
-        <View className="flex-1 justify-center px-8">
+        <View className="flex-1 justify-center pb-6">
           <View className="flex-1 justify-center">
             <View className="items-center">
               <View className="mb-3 h-20 w-20 items-center justify-center rounded-3xl bg-primary-50">
@@ -189,6 +195,7 @@ export function LoginScreen() {
             </View>
           </View>
         </View>
+      </ScrollView>
 
       <Modal animationType="slide" transparent visible={isCountryModalOpen}>
         <Pressable

@@ -1,4 +1,4 @@
-﻿import {
+import {
     BellOutlined,
     CalendarOutlined,
     CheckCircleOutlined,
@@ -8,11 +8,13 @@
     SafetyOutlined,
     UsergroupAddOutlined,
 } from '@ant-design/icons'
-import { Button, Card, Col, Divider, Flex, Image, Row, Space, Steps, Typography } from 'antd'
+import { Button, Card, Col, Divider, Flex, Form, Image, Input, Row, Space, Steps, Typography, message } from 'antd'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import communityEventImg from '../../assets/images/community-event.jpg'
 import heroSocialImg from '../../assets/images/hero-social.jpg'
+import { submitFeedback } from '../../services/feedbackService'
 
 const sectionTitleStyle = {
     color: '#111111',
@@ -51,6 +53,9 @@ function LandingContent() {
     const navigate = useNavigate()
     const { t } = useTranslation()
     const appDownloadUrl = (import.meta.env.VITE_MOBILE_APP_DOWNLOAD_URL || '').trim()
+    const [feedbackForm] = Form.useForm()
+    const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+    const [messageApi, contextHolder] = message.useMessage()
 
     const featureItems = [
         {
@@ -93,8 +98,31 @@ function LandingContent() {
         window.location.assign(appDownloadUrl)
     }
 
+    const handleFeedbackSubmit = async (values) => {
+        setIsSubmittingFeedback(true)
+
+        const result = await submitFeedback({
+            firstName: values.firstName?.trim(),
+            lastName: values.lastName?.trim(),
+            email: values.email?.trim() || null,
+            message: values.message?.trim(),
+        })
+
+        if (!result.isSuccess) {
+            messageApi.error(result.errors?.[0]?.message || 'Geri bildiriminiz gönderilemedi.')
+            setIsSubmittingFeedback(false)
+            return
+        }
+
+        feedbackForm.resetFields()
+        messageApi.success('Geri bildiriminiz alındı. Teşekkür ederiz.')
+        setIsSubmittingFeedback(false)
+    }
+
     return (
         <Space direction="vertical" size={28} style={{ width: '100%' }}>
+            {contextHolder}
+
             <Card style={{ borderRadius: 12, borderColor: '#e5e7eb' }}>
                 <Row gutter={[24, 24]} align="middle">
                     <Col xs={24} lg={16}>
@@ -253,9 +281,82 @@ function LandingContent() {
                         style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
                         onClick={handleTestAppClick}
                     >
-                        Uygulamayı Test Et
+                        Uygulamayı İndir
                     </Button>
+                    <Typography.Text style={{ color: '#4b5563', textAlign: 'center' }}>
+                        Şu Anlık Sadece Android
+                    </Typography.Text>
                 </Flex>
+            </Card>
+
+            <Card id="feedback" style={{ borderRadius: 12, borderColor: '#e5e7eb', scrollMarginTop: 92 }}>
+                <Space direction="vertical" size={18} style={{ width: '100%' }}>
+                    <div>
+                        <Typography.Title level={3} style={sectionTitleStyle}>
+                            Geri Bildirim Bırakın
+                        </Typography.Title>
+                        <Typography.Paragraph style={mutedTextStyle}>
+                            Deneyiminizi, önerilerinizi veya gördüğünüz eksikleri bize iletebilirsiniz.
+                        </Typography.Paragraph>
+                    </div>
+
+                    <Form form={feedbackForm} layout="vertical" onFinish={handleFeedbackSubmit}>
+                        <Row gutter={[16, 0]}>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    label="İsim"
+                                    name="firstName"
+                                    rules={[{ required: true, message: 'İsim zorunludur.' }]}
+                                >
+                                    <Input placeholder="İsminizi girin" maxLength={100} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    label="Soyisim"
+                                    name="lastName"
+                                    rules={[{ required: true, message: 'Soyisim zorunludur.' }]}
+                                >
+                                    <Input placeholder="Soyisminizi girin" maxLength={100} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24}>
+                                <Form.Item
+                                    label="E-posta (Opsiyonel)"
+                                    name="email"
+                                    rules={[{ type: 'email', message: 'Geçerli bir e-posta girin.' }]}
+                                >
+                                    <Input placeholder="ornek@mail.com" maxLength={320} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24}>
+                                <Form.Item
+                                    label="Geri Bildiriminiz"
+                                    name="message"
+                                    rules={[{ required: true, message: 'Lütfen mesajınızı yazın.' }]}
+                                >
+                                    <Input.TextArea
+                                        rows={5}
+                                        maxLength={2000}
+                                        showCount
+                                        placeholder="Bize iletmek istediğiniz notu yazın"
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        <Flex justify="flex-end">
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={isSubmittingFeedback}
+                                style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
+                            >
+                                Gonder
+                            </Button>
+                        </Flex>
+                    </Form>
+                </Space>
             </Card>
 
             <Divider style={{ margin: '4px 0 0', borderColor: '#e5e7eb' }} />

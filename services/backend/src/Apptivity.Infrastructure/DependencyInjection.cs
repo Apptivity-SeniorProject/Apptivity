@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IChatReportRepository, ChatReportRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IFeedbackRepository, FeedbackRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRecommendationTransactionManager, RecommendationTransactionManager>();
 
