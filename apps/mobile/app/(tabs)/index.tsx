@@ -28,6 +28,8 @@ import { formatLocationShort } from '@/src/utils/event-format';
 import { SearchBar } from '@/src/components/events/search-bar';
 import { EventRowCard } from '@/src/components/events/event-row-card';
 import { EventCardSkeleton } from '@/src/components/events/event-card-skeleton';
+import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
 type CategoryOption = { id: string; name: string };
 type SearchMode = 'events' | 'profiles';
@@ -76,6 +78,7 @@ export default function HomeScreen() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState<SearchMode>('profiles');
   const [isSearchOverlayVisible, setIsSearchOverlayVisible] = useState(false);
+  const [isTagPickerVisible, setIsTagPickerVisible] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([ALL_CATEGORY_ID]);
   const [location, setLocation] = useState<{lat: number; lng: number} | null>(null);
   const [locationResolved, setLocationResolved] = useState(false);
@@ -99,7 +102,7 @@ export default function HomeScreen() {
   const categories = useMemo<CategoryOption[]>(() => {
     const dynamicCategories = (tags ?? []).map((tag) => ({
       id: tag.id,
-      name: tag.name,
+      name: normalizePossiblyMojibakeText(tag.name),
     }));
     return [{ id: ALL_CATEGORY_ID, name: 'Tümü' }, ...dynamicCategories];
   }, [tags]);
@@ -131,6 +134,21 @@ export default function HomeScreen() {
   const normalizedTagIds = useMemo(
     () => selectedTagIds.filter((id) => id !== ALL_CATEGORY_ID),
     [selectedTagIds]
+  );
+  const inlineCategories = useMemo(
+    () => categories.filter((category) => category.id !== ALL_CATEGORY_ID).slice(0, 4),
+    [categories]
+  );
+  const quickCategories = useMemo(
+    () => (categories.length > 0 ? [categories[0], ...inlineCategories] : inlineCategories),
+    [categories, inlineCategories]
+  );
+  const hiddenSelectedCount = useMemo(
+    () =>
+      normalizedTagIds.filter(
+        (tagId) => !inlineCategories.some((category) => category.id === tagId)
+      ).length,
+    [inlineCategories, normalizedTagIds]
   );
 
   const {
@@ -249,6 +267,9 @@ export default function HomeScreen() {
       return next.length ? next : [ALL_CATEGORY_ID];
     });
   };
+  const toggleTagFromPicker = (tagId: string) => {
+    toggleCategory({ id: tagId, name: '' });
+  };
 
   const TAB_BAR_HEIGHT = 56;
   const FAB_BOTTOM = TAB_BAR_HEIGHT - 30;
@@ -339,8 +360,11 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
-          {categories.map((cat) => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingBottom: 12, paddingRight: 16 }}>
+          {quickCategories.map((cat) => {
             const isActive = selectedTagIds.includes(cat.id);
             return (
               <Pressable
@@ -356,6 +380,28 @@ export default function HomeScreen() {
               </Pressable>
             );
           })}
+          <Pressable
+            onPress={() => setIsTagPickerVisible(true)}
+            style={{
+              minWidth: 40,
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderRadius: 9999,
+              borderWidth: 0.5,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: hiddenSelectedCount > 0 ? colors.primary : colors.surfaceSecondary,
+              borderColor: hiddenSelectedCount > 0 ? colors.primary : colors.border,
+            }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: hiddenSelectedCount > 0 ? '#1a4a05' : colors.textSecondary,
+              }}>
+              {hiddenSelectedCount > 0 ? `+${hiddenSelectedCount}` : '+'}
+            </Text>
+          </Pressable>
         </ScrollView>
       </View>
 
@@ -707,6 +753,23 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : null}
+
+      <TagSelectionModal
+        visible={isTagPickerVisible}
+        onClose={() => setIsTagPickerVisible(false)}
+        tags={tags ?? []}
+        selectedTagIds={normalizedTagIds}
+        onToggleTag={toggleTagFromPicker}
+        title="Etiket seç"
+        description="İlk etiketleri hızlı seçmeye devam edebilirsin. Diğer etiketler için arayıp filtreyi buradan güncelle."
+        searchPlaceholder="Etiket ara"
+        selectedSectionTitle="Seçilenler"
+        allTagsSectionTitle="Tüm etiketler"
+        emptyStateText="Aramana uyan etiket bulunamadı."
+        primaryActionLabel="Uygula"
+        presentation="popover"
+        topOffset={insets.top + 108}
+      />
     </View>
   );
 }
