@@ -1,3 +1,5 @@
+using Apptivity.Application.Common.Constants;
+using Apptivity.Application.Common.Models;
 using Apptivity.Application.Contracts.Events;
 using Apptivity.Application.Interfaces;
 using Apptivity.Domain.Enums;
@@ -138,6 +140,37 @@ public sealed class EventLifecycleService : IEventLifecycleService
             @event.IsVotingClosed = true;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    public async Task<Result> CloseVotingAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+    {
+        var @event = await _eventRepository.GetByIdAsync(eventId, cancellationToken);
+        if (@event is null)
+        {
+            return Result.Failure(ErrorCodes.EventNotFound, "Event not found.");
+        }
+
+        var isAdmin = userContext.AccountType == AccountType.Admin;
+        if (!isAdmin && @event.OwnerId != userContext.AccountId)
+        {
+            return Result.Failure(ErrorCodes.EventUnauthorized, "You are not allowed to close voting for this event.");
+        }
+
+        if (@event.Status != EventStatus.Completed)
+        {
+            return Result.Failure(ErrorCodes.EventInvalidState, "Voting can only be closed for completed events.");
+        }
+
+        if (@event.IsVotingClosed)
+        {
+            return Result.Failure(ErrorCodes.EventVotingClosed, "Voting is already closed for this event.");
+        }
+
+        await _reputationService.CalculateEventReputationsAsync(eventId, cancellationToken);
+        @event.IsVotingClosed = true;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 
     private static DateTime ToUtcDateTime(DateOnly date, TimeOnly time)

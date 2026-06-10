@@ -130,6 +130,7 @@ public sealed record EventParticipantProfileDto(
 public sealed record EventParticipantsResponse(
     Guid EventId,
     EventStatus EventStatus,
+    bool IsVotingClosed,
     EventParticipantProfileDto Organizer,
     IEnumerable<EventParticipantProfileDto> Participants);
 
@@ -220,4 +221,6 @@ public interface IEventLifecycleService
     /// and marks voting as closed — all in a single transaction per event.
     /// </summary>
     Task CloseExpiredVotingsAsync(CancellationToken cancellationToken);
+
+    Task<Result> CloseVotingAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken);
 }
