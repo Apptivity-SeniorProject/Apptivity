@@ -23,6 +23,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 
 using DotNetEnv;
 
@@ -195,7 +196,17 @@ if (builder.Environment.IsProduction())
     ValidateProductionConfiguration(builder.Configuration);
 }
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Clear KnownNetworks and KnownProxies so it accepts forwarded headers from Docker gateway (Nginx container)
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 var autoMigrateOnStartup = app.Configuration.GetValue("Database:AutoMigrateOnStartup", true);
 var isTestingEnvironment = app.Environment.IsEnvironment("Testing");
