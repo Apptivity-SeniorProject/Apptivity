@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,30 +8,39 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  KeyboardEvent,
-  Platform,
+  type KeyboardEvent,
+  Pressable,
   Text,
   TextInput,
   View,
-  Pressable,
-  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
+import { AlertCircle, Bell, CheckCheck, ChevronLeft, MessageCircle, Send } from 'lucide-react-native';
+
 import { getEventMessages, mapRawMessage, type RawMessageDto } from '@/src/api/chatService';
-import { Button } from '@/src/components/ui/button';
-import { TopBar } from '@/src/components/ui/top-bar';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { hitSlop } from '@/src/constants/theme';
+import { ChatReportModal } from '@/src/components/reports/chat-report-modal';
+import { colors, palette, hitSlop } from '@/src/constants/theme';
 import { useEventDetail } from '@/src/hooks/useEvents';
 import { useSignalR } from '@/src/hooks/useSignalR';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
+import { useNotifications } from '@/src/hooks/useNotifications';
 import type { MessageDto } from '@/src/types/chat';
 import { getApiErrorMessage } from '@/src/utils/error';
-import { ChatReportModal } from '@/src/components/reports/chat-report-modal';
-import { AlertCircle } from 'lucide-react-native';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
+// ── Mockup design tokens (flat, rounded-square language) ──
+const RADIUS = {
+  btn: 10,
+  avatar: 10,
+  send: 12,
+  input: 22,
+  emptyIcon: 18,
+  bubble: 16,
+  bubbleTail: 4,
+};
+const BORDER_COLOR = '#e5e7eb';
+const BORDER_WIDTH = 0.5;
 
 function formatTimestamp(value: string): string {
   try {
@@ -47,22 +56,16 @@ function senderDisplayName(message: MessageDto, myAccountId?: string): string {
   }
 
   if (message.senderName?.trim()) {
-    return message.senderName.trim();
+    return normalizePossiblyMojibakeText(message.senderName.trim());
   }
 
-  return 'Kullanici';
+  return 'Kullanıcı';
 }
 
 function getInitials(value: string): string {
   const words = value.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) {
-    return '?';
-  }
-
-  if (words.length === 1) {
-    return words[0].slice(0, 1).toUpperCase();
-  }
-
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 1).toUpperCase();
   return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
 }
 
@@ -79,21 +82,27 @@ export function ChatScreen() {
   const incrementUnread = useChatStore((state) => state.incrementUnread);
 
   const listRef = useRef<FlatList<MessageDto>>(null);
+  const inputRef = useRef<TextInput>(null);
   const [inputValue, setInputValue] = useState('');
   const [liveMessages, setLiveMessages] = useState<MessageDto[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const insets = useSafeAreaInsets();
-  const [composerHeight, setComposerHeight] = useState(76);
+  const [composerHeight, setComposerHeight] = useState(62);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  const composerOffset = keyboardHeight > 0 ? Math.max(keyboardHeight - insets.bottom, 0) : 0;
+
+  const notificationsQuery = useNotifications(50);
+  const unreadCount = (notificationsQuery.data?.items ?? []).filter((n) => !n.isRead).length;
 
   const eventDetailQuery = useEventDetail(eventId, {});
   const isOwner = Boolean(
     myAccountId &&
-    eventDetailQuery.data?.ownerId &&
-    myAccountId === eventDetailQuery.data.ownerId
+      eventDetailQuery.data?.ownerId &&
+      myAccountId === eventDetailQuery.data.ownerId
   );
-  const isApprovedParticipant = eventDetailQuery.data?.currentUserParticipationStatus === 'Approved';
+  const isApprovedParticipant =
+    eventDetailQuery.data?.currentUserParticipationStatus === 'Approved';
   const canAccessChat = joinedHint || isOwner || isApprovedParticipant;
 
   const messagesQuery = useQuery({
@@ -103,35 +112,28 @@ export function ChatScreen() {
     refetchInterval: 5000,
   });
 
-  const { connectionStatus, leaveEventRoom, stopConnection, sendMessageToRoom } = useSignalR<RawMessageDto>({
-    eventId,
-    accessToken,
-    enabled: Boolean(eventId && accessToken && canAccessChat),
-    onReceiveMessage: (payload) => {
-      const message = mapRawMessage(payload);
-
-      if (message.eventId !== eventId) {
-        incrementUnread(message.eventId);
-        return;
-      }
-
-      setLiveMessages((current) => {
-        if (current.some((item) => item.messageId === message.messageId)) {
-          return current;
+  const { connectionStatus, leaveEventRoom, stopConnection, sendMessageToRoom } =
+    useSignalR<RawMessageDto>({
+      eventId,
+      accessToken,
+      enabled: Boolean(eventId && accessToken && canAccessChat),
+      onReceiveMessage: (payload) => {
+        const message = mapRawMessage(payload);
+        if (message.eventId !== eventId) {
+          incrementUnread(message.eventId);
+          return;
         }
-        return [...current, message];
-      });
-    },
-  });
+        setLiveMessages((current) => {
+          if (current.some((item) => item.messageId === message.messageId)) return current;
+          return [...current, message];
+        });
+      },
+    });
 
   useEffect(() => {
-    if (!eventId) {
-      return;
-    }
-
+    if (!eventId) return;
     setActiveEvent(eventId);
     clearUnread(eventId);
-
     return () => {
       setActiveEvent(null);
       void leaveEventRoom(eventId);
@@ -141,10 +143,9 @@ export function ChatScreen() {
 
   useEffect(() => {
     if (connectionStatus === 'Disconnected' && eventId && accessToken && canAccessChat) {
-      setConnectionError('Sohbet baglantisi kesildi. Yeniden baglaniliyor.');
+      setConnectionError('Sohbet bağlantısı kesildi. Yeniden bağlanılıyor.');
       return;
     }
-
     setConnectionError(null);
   }, [accessToken, canAccessChat, connectionStatus, eventId]);
 
@@ -152,220 +153,392 @@ export function ChatScreen() {
     const apiItems = messagesQuery.data?.items ?? [];
     const merged = [...apiItems, ...liveMessages];
     const map = new Map<string, MessageDto>();
-
-    merged.forEach((message) => {
-      map.set(message.messageId, message);
-    });
-
+    merged.forEach((m) => map.set(m.messageId, m));
     return Array.from(map.values()).sort(
       (a, b) => new Date(a.sentAtUtc).getTime() - new Date(b.sentAtUtc).getTime()
     );
   }, [liveMessages, messagesQuery.data?.items]);
 
   useEffect(() => {
-    if (allMessages.length === 0) {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
-    });
+    if (allMessages.length === 0) return;
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   }, [allMessages.length]);
 
   useEffect(() => {
-    const handleKeyboardShow = (event: KeyboardEvent) => {
-      setKeyboardHeight(event.endCoordinates.height);
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      });
+    const handleShow = (e: KeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     };
-
-    const handleKeyboardHide = () => {
-      setKeyboardHeight(0);
-    };
-
-    const showSub = Keyboard.addListener('keyboardDidShow', handleKeyboardShow);
-    const hideSub = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    const handleHide = () => setKeyboardHeight(0);
+    const s1 = Keyboard.addListener('keyboardDidShow', handleShow);
+    const s2 = Keyboard.addListener('keyboardDidHide', handleHide);
+    return () => { s1.remove(); s2.remove(); };
   }, []);
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => sendMessageToRoom(eventId, content),
-    onSuccess: () => {
-      setInputValue('');
-      clearUnread(eventId);
-    },
+    onSuccess: () => { setInputValue(''); clearUnread(eventId); },
     onError: (error) => {
-      const message = getApiErrorMessage(error, 'Mesaj gonderilemedi.');
-      if (message.toLowerCase().includes('expired')) {
-        setConnectionError('Etkinlik sohbet suresi doldu (baslangictan 2 saat sonra kapanir).');
+      const msg = getApiErrorMessage(error, 'Mesaj gönderilemedi.');
+      if (msg.toLowerCase().includes('expired')) {
+        setConnectionError('Etkinlik sohbet süresi doldu. Sohbet başlangıçtan 2 saat sonra kapanır.');
         return;
       }
-      setConnectionError(message);
+      setConnectionError(msg);
     },
   });
 
   const loading = eventDetailQuery.isPending || messagesQuery.isPending;
+  const eventTitle = eventDetailQuery.data?.title ?? 'Etkinlik sohbeti';
+  const isDisabled = !inputValue.trim() || connectionStatus !== 'Connected' || sendMutation.isPending;
 
+  // ── Loading ──
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  if (!canAccessChat) {
-    return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-        <Text className="text-center text-base text-slate-600">
-          Sohbete sadece etkinlik sahibi veya onayli katilimcilar erisebilir.
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.surfaceSecondary }}>
+        <ActivityIndicator color={palette.primary[600]} />
+        <Text style={{ marginTop: 12, fontSize: 13, fontWeight: '500', color: '#6b7280' }}>
+          Sohbet hazırlanıyor...
         </Text>
       </View>
     );
   }
 
-  const tabBarHeight = 56 + insets.bottom;
-  const keyboardOffset = Platform.OS === 'android' && keyboardHeight > 0
-    ? Math.max(0, keyboardHeight - tabBarHeight + 15)
-    : 0;
-
+  // ── Access denied ──
+  if (!canAccessChat) {
+    return (
+      <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: colors.surfaceSecondary }}>
+        <View style={{
+          alignItems: 'center',
+          backgroundColor: colors.surface,
+          borderRadius: 14,
+          borderWidth: BORDER_WIDTH,
+          borderColor: BORDER_COLOR,
+          paddingHorizontal: 24,
+          paddingVertical: 32,
+          maxWidth: 320,
+          width: '100%',
+        }}>
+          <View style={{
+            width: 60, height: 60, borderRadius: RADIUS.emptyIcon,
+            backgroundColor: palette.primary[50],
+            borderWidth: 1, borderColor: palette.primary[200],
+            alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+          }}>
+            <MessageCircle size={28} color={palette.primary[600]} />
+          </View>
+          <Text style={{ fontSize: 15, fontWeight: '500', color: palette.primary[900], marginBottom: 8 }}>
+            Sohbet erişimi kapalı
+          </Text>
+          <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18 }}>
+            Sohbete sadece etkinlik sahibi veya{'\n'}onaylı katılımcılar erişebilir.
+          </Text>
+        </View>
+      </View>
+    );
+  }
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1" style={{ backgroundColor: colors.surface }}>
+      {/* ════════ HEADER ════════ */}
       <Stack.Screen
         options={{
           header: () => (
-            <TopBar
-              leftContent={
-                <View className="flex-row items-center gap-2">
-                  <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
-                    <IconSymbol name="chevron.left" size={28} color="#111827" />
-                  </Pressable>
-                  <ApptivityLogo />
+            <View style={{ backgroundColor: colors.surface, paddingTop: insets.top }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderBottomWidth: BORDER_WIDTH,
+                borderBottomColor: BORDER_COLOR,
+              }}>
+                {/* Back — rounded square */}
+                <Pressable
+                  onPress={() => router.back()}
+                  hitSlop={hitSlop.md}
+                  style={{
+                    width: 34, height: 34, borderRadius: RADIUS.btn,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderWidth: BORDER_WIDTH, borderColor: BORDER_COLOR,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                  <ChevronLeft size={16} color={palette.primary[700]} />
+                </Pressable>
+
+                {/* Avatar — rounded square */}
+                <View style={{
+                  width: 36, height: 36, borderRadius: RADIUS.avatar,
+                  backgroundColor: palette.primary[50],
+                  borderWidth: 1, borderColor: palette.primary[200],
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <MessageCircle size={18} color={palette.primary[600]} />
                 </View>
-              }
-              rightContent={
-                <TouchableOpacity
-                  onPress={() => setIsReportModalVisible(true)}
-                  className="mr-2 p-2 rounded-full hover:bg-slate-100"
-                >
-                  <AlertCircle size={20} color="#ef4444" />
-                </TouchableOpacity>
-              }
-            />
-          )
+
+                {/* Title + status */}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13, fontWeight: '500', color: palette.primary[900],
+                      maxWidth: 160,
+                    }}
+                    numberOfLines={1}>
+                    {eventTitle}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <View style={{
+                      width: 6, height: 6, borderRadius: 3,
+                      backgroundColor: connectionStatus === 'Connected' ? palette.primary[400] : '#9ca3af',
+                    }} />
+                    <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                      {allMessages.length} mesaj · {connectionStatus === 'Connected' ? 'Çevrimiçi' : 'Bağlanıyor...'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Notification bell — rounded square */}
+                <Pressable
+                  onPress={() => router.push('/(tabs)/notifications')}
+                  style={{
+                    width: 34, height: 34, borderRadius: RADIUS.btn,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderWidth: BORDER_WIDTH, borderColor: BORDER_COLOR,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                  <Bell size={16} color={palette.primary[700]} />
+                  {unreadCount > 0 ? (
+                    <View style={{
+                      position: 'absolute', top: -4, right: -4,
+                      width: 16, height: 16, borderRadius: 8,
+                      backgroundColor: '#ef4444',
+                      borderWidth: 1.5, borderColor: colors.surface,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: '#fff' }}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              </View>
+            </View>
+          ),
         }}
       />
+
       <View className="flex-1">
+        {/* Connection error */}
         {connectionError ? (
-          <View className="mx-4 mt-3 rounded-xl bg-rose-100 px-3 py-2">
-            <Text className="text-sm text-rose-700">{connectionError}</Text>
+          <View style={{
+            marginHorizontal: 16, marginTop: 8,
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            backgroundColor: colors.errorLight, borderRadius: 12,
+            borderWidth: BORDER_WIDTH, borderColor: colors.errorMuted,
+            paddingHorizontal: 12, paddingVertical: 8,
+          }}>
+            <AlertCircle size={14} color={colors.error} />
+            <Text style={{ flex: 1, fontSize: 12, color: colors.error, lineHeight: 18 }}>
+              {connectionError}
+            </Text>
           </View>
         ) : null}
 
+        {/* ════════ MESSAGES ════════ */}
         <FlatList
           ref={listRef}
-          className="flex-1 px-4 pt-4"
+          className="flex-1"
           data={allMessages}
           keyExtractor={(item) => item.messageId}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            gap: 12,
-            paddingBottom:
-              composerHeight + (Platform.OS === 'android' ? keyboardHeight : 0) + 12,
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: composerHeight + composerOffset + 8,
+            gap: 8,
+            flexGrow: allMessages.length === 0 ? 1 : undefined,
           }}
           onContentSizeChange={() => {
-            if (allMessages.length > 0) {
-              listRef.current?.scrollToEnd({ animated: true });
-            }
+            if (allMessages.length > 0) listRef.current?.scrollToEnd({ animated: true });
           }}
           renderItem={({ item }) => {
             const isMine = item.senderAccountId === myAccountId;
             const name = senderDisplayName(item, myAccountId);
-            const bubbleClassName = isMine
-              ? 'max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2'
-              : 'max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2';
 
             return (
-              <View className={isMine ? 'items-end' : 'items-start'}>
-                <View className={isMine ? '' : 'flex-row items-end gap-2'}>
+              <View style={{ alignItems: isMine ? 'flex-end' : 'flex-start' }}>
+                <View style={{
+                  flexDirection: isMine ? 'column' : 'row',
+                  alignItems: 'flex-end',
+                  gap: 8,
+                  maxWidth: '82%',
+                }}>
+                  {/* Avatar — other users */}
                   {!isMine ? (
                     item.senderProfilePhoto ? (
                       <Image
                         source={{ uri: item.senderProfilePhoto }}
-                        style={{ width: 24, height: 24, borderRadius: 999 }}
+                        style={{ width: 30, height: 30, borderRadius: RADIUS.avatar }}
                         contentFit="cover"
                       />
                     ) : (
-                      <View className="h-6 w-6 items-center justify-center rounded-full bg-slate-200">
-                        <Text className="text-[10px] font-semibold text-slate-700">
+                      <View style={{
+                        width: 30, height: 30, borderRadius: RADIUS.avatar,
+                        backgroundColor: colors.surfaceTertiary,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#6b7280' }}>
                           {getInitials(name)}
                         </Text>
                       </View>
                     )
                   ) : null}
 
-                  <View className={bubbleClassName}>
-                    <Text
-                      className={
-                        isMine
-                          ? 'text-xs font-semibold text-emerald-100'
-                          : 'text-xs font-semibold text-slate-500'
-                      }>
-                      {name}
-                    </Text>
-                    <Text className={isMine ? 'mt-1 text-sm text-white' : 'mt-1 text-sm text-slate-800'}>
-                      {item.content}
-                    </Text>
-                    <Text
-                      className={
-                        isMine ? 'mt-1 text-[11px] text-emerald-100' : 'mt-1 text-[11px] text-slate-400'
-                      }>
-                      {formatTimestamp(item.sentAtUtc)}
-                    </Text>
+                  {/* Bubble */}
+                  <View>
+                    {!isMine ? (
+                      <Text style={{
+                        fontSize: 11, fontWeight: '600', color: '#9ca3af',
+                        marginBottom: 3, marginLeft: 2,
+                      }}>
+                        {name}
+                      </Text>
+                    ) : null}
+
+                    <View style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: RADIUS.bubble,
+                      borderBottomRightRadius: isMine ? RADIUS.bubbleTail : RADIUS.bubble,
+                      borderBottomLeftRadius: isMine ? RADIUS.bubble : RADIUS.bubbleTail,
+                      backgroundColor: isMine ? palette.primary[100] : colors.surfaceSecondary,
+                    }}>
+                      <Text style={{
+                        fontSize: 13, lineHeight: 19,
+                        color: isMine ? palette.primary[900] : palette.neutral[900],
+                      }}>
+                        {item.content}
+                      </Text>
+
+                      {/* Time + read receipt */}
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center',
+                        justifyContent: 'flex-end', gap: 3, marginTop: 4,
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          color: isMine ? palette.primary[600] : '#9ca3af',
+                        }}>
+                          {formatTimestamp(item.sentAtUtc)}
+                        </Text>
+                        {isMine ? (
+                          <CheckCheck size={12} color={palette.primary[500]} strokeWidth={2.5} />
+                        ) : null}
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
             );
           }}
           ListEmptyComponent={
-            <View className="mt-10 items-center">
-              <Text className="text-sm text-slate-500">Henuz mesaj yok.</Text>
+            <View style={{
+              flex: 1,
+              alignItems: 'center', justifyContent: 'center',
+              backgroundColor: colors.surfaceSecondary,
+              padding: 16,
+            }}>
+              <View style={{
+                alignItems: 'center', gap: 12,
+              }}>
+                {/* Icon — rounded square, matching mockup */}
+                <View style={{
+                  width: 60, height: 60, borderRadius: RADIUS.emptyIcon,
+                  backgroundColor: palette.primary[50],
+                  borderWidth: 1, borderColor: palette.primary[200],
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <MessageCircle size={28} color={palette.primary[600]} />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '500', color: palette.primary[900] }}>
+                  Henüz mesaj yok
+                </Text>
+                <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18 }}>
+                  İlk mesajı gönderip sohbeti{'\n'}başlatabilirsin.
+                </Text>
+              </View>
             </View>
           }
         />
 
+        {/* ════════ INPUT AREA ════════ */}
         <View
-          className="absolute inset-x-0 flex-row items-end gap-2 border-t border-slate-200 bg-white px-4 pb-4 pt-3"
-          style={{ bottom: keyboardOffset }}
-          onLayout={(event) => {
-            setComposerHeight(event.nativeEvent.layout.height);
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: composerOffset,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            backgroundColor: colors.surface,
+            borderTopWidth: BORDER_WIDTH,
+            borderTopColor: BORDER_COLOR,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
+          onLayout={(e) => setComposerHeight(e.nativeEvent.layout.height)}>
+          {/* Input */}
+          <View style={{
+            flex: 1,
+            backgroundColor: colors.surfaceSecondary,
+            borderWidth: BORDER_WIDTH,
+            borderColor: BORDER_COLOR,
+            borderRadius: RADIUS.input,
+            paddingHorizontal: 16,
+            minHeight: 42,
+            maxHeight: 120,
+            justifyContent: 'center',
           }}>
-          <TextInput
-            className="min-h-12 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900"
-            placeholder="Mesaj yaz..."
-            placeholderTextColor="#94A3B8"
-            value={inputValue}
-            onChangeText={setInputValue}
-            onFocus={() => {
-              requestAnimationFrame(() => {
-                listRef.current?.scrollToEnd({ animated: true });
-              });
-            }}
-            multiline
-            maxLength={500}
-          />
-          <Button
-            label="Gonder"
-            className="h-12 px-4"
-            isLoading={sendMutation.isPending}
-            disabled={!inputValue.trim() || connectionStatus !== 'Connected'}
+            <TextInput
+              ref={inputRef}
+              style={{
+                fontSize: 13,
+                color: palette.primary[900],
+                paddingVertical: 10,
+                maxHeight: 100,
+                textAlignVertical: 'center',
+              }}
+              placeholder="Bir mesaj yaz…"
+              placeholderTextColor="#9ca3af"
+              value={inputValue}
+              onChangeText={setInputValue}
+              onFocus={() => {
+                requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+              }}
+              multiline
+              scrollEnabled
+              maxLength={500}
+            />
+          </View>
+
+          {/* Send — always green, rounded square */}
+          <Pressable
+            disabled={isDisabled}
             onPress={() => sendMutation.mutate(inputValue.trim())}
-          />
+            style={({ pressed }) => ({
+              width: 46, height: 46, borderRadius: 14,
+              backgroundColor: palette.primary[400],
+              alignItems: 'center', justifyContent: 'center',
+              opacity: pressed ? 0.85 : 1,
+            })}>
+            {sendMutation.isPending ? (
+              <ActivityIndicator size="small" color={palette.primary[900]} />
+            ) : (
+              <Send size={20} color={palette.primary[900]} />
+            )}
+          </Pressable>
         </View>
       </View>
 

@@ -25,7 +25,7 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
     return responseData.data;
   }
 
-  throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
+  throw new Error(responseData.errors?.[0]?.message ?? 'İstek başarısız.');
 }
 
 export const reportMessage = async (messageId: string): Promise<void> => {

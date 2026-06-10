@@ -7,7 +7,7 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
     return responseData.data;
   }
 
-  throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
+  throw new Error(responseData.errors?.[0]?.message ?? 'İstek başarısız.');
 }
 
 export async function createReport(payload: ReportRequest): Promise<void> {
@@ -42,7 +42,7 @@ function normalizeReportFileMeta(asset: ReportImageAsset): { fileName: string; m
 export async function uploadReportEvidence(asset: ReportImageAsset): Promise<string | undefined> {
   const normalizedUri = asset.uri.trim();
   if (!normalizedUri) {
-    throw new Error('Fotograf URI bos olamaz.');
+    throw new Error('Fotoğraf URI boş olamaz.');
   }
 
   const normalizedMeta = normalizeReportFileMeta(asset);

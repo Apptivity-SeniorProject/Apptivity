@@ -44,11 +44,11 @@ function getParticipationBadge(status?: ParticipationStatus | null): {
   }
 
   if (status === 'Approved') {
-    return { text: 'Durum: Katilim onaylandi', className: 'bg-emerald-100 text-emerald-700' };
+    return { text: 'Durum: Katılım onaylandı', className: 'bg-emerald-100 text-emerald-700' };
   }
 
   if (status === 'Rejected') {
-    return { text: 'Durum: Katilim reddedildi', className: 'bg-rose-100 text-rose-700' };
+    return { text: 'Durum: Katılım reddedildi', className: 'bg-rose-100 text-rose-700' };
   }
 
   return null;
@@ -256,7 +256,7 @@ export function EventDetailScreen() {
 
       if (getApiErrorCode(error) === 'PART_409') {
         queryClient.setQueryData<EventDetail>(['event-detail', eventId], (current) => current);
-        toast.info('Bu etkinlige zaten katildin.');
+        toast.info('Bu etkinliğe zaten katıldın.');
         return;
       }
 
@@ -336,7 +336,7 @@ export function EventDetailScreen() {
   if (!data) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-        <Text className="text-base text-slate-500">Etkinlik detayi yuklenemedi.</Text>
+        <Text className="text-base text-slate-500">Etkinlik detayı yüklenemedi.</Text>
       </View>
     );
   }
@@ -410,7 +410,7 @@ export function EventDetailScreen() {
     router.replace({
       pathname: '/recommendation/done',
       params: {
-        message: message?.trim() || 'Simdilik bu kadar onerimiz var senin icin.',
+        message: message?.trim() || 'Şimdilik bu kadar önerimiz var senin için.',
       },
     });
   };
@@ -608,7 +608,7 @@ export function EventDetailScreen() {
             <View className="flex-row items-center gap-2">
               <Users size={16} color="#64748B" />
               <Text className="text-sm text-slate-700">
-                Katilimci: {data.participantCount}/{data.capacity}
+                Katılımcı: {data.participantCount}/{data.capacity}
               </Text>
             </View>
             <View className="border-t border-slate-100 pt-3">
@@ -630,7 +630,7 @@ export function EventDetailScreen() {
               <View className="flex-row items-center justify-between gap-3">
                 <View className="flex-1">
                   <Text className="text-base font-semibold text-slate-900">Haritadaki Konum</Text>
-                  <Text className="mt-1 text-sm text-slate-500">Dokununca harita uygulamasinda acilir</Text>
+                  <Text className="mt-1 text-sm text-slate-500">Dokununca harita uygulamasında açılır</Text>
                 </View>
                 <View className="self-start rounded-full bg-[#f0fce8] px-2.5 py-1">
                   <Text className="text-xs font-semibold text-[#357c1c]">Haritada Aç</Text>
@@ -717,10 +717,10 @@ export function EventDetailScreen() {
               </View>
               <View>
                 <Text className="text-base font-semibold text-slate-900">
-                  {isOwner ? 'Katilimci Yonetimi' : 'Katilimcilar'}
+                  {isOwner ? 'Katılımcı Yönetimi' : 'Katılımcılar'}
                 </Text>
                 <Text className="text-xs text-slate-500">
-                  {data.participantCount}/{data.capacity} katilimci
+                  {data.participantCount}/{data.capacity} katılımcı
                 </Text>
               </View>
             </View>
@@ -732,7 +732,7 @@ export function EventDetailScreen() {
               {!isOwner ? (
                 !isJoined ? (
                   <Button
-                    label="Etkinlige Katil"
+                    label="Etkinliğe Katıl"
                     isLoading={joinMutation.isPending}
                     disabled={joinButtonDisabled}
                     onPress={() => joinMutation.mutate()}
@@ -740,7 +740,7 @@ export function EventDetailScreen() {
                 ) : null
               ) : !isCancelledEvent ? (
                 <Button
-                  label="Etkinligi Sil"
+                  label="Etkinliği Sil"
                   isLoading={cancelEventMutation.isPending}
                   className="bg-rose-700"
                   onPress={() => cancelEventMutation.mutate()}
@@ -749,13 +749,13 @@ export function EventDetailScreen() {
 
               {isOwner && isCancelledEvent ? (
                 <Text className="text-center text-xs text-slate-500">
-                  Bu etkinlik zaten iptal edilmis.
+                  Bu etkinlik zaten iptal edilmiş.
                 </Text>
               ) : null}
 
               {!isOwner && !canJoin && !isJoined ? (
                 <Text className="text-center text-xs text-rose-600">
-                  Bu etkinlige katilim su an mumkun degil (kontenjan dolu veya etkinlik gecmis).
+                  Bu etkinliğe katılım şu an mümkün değil (kontenjan dolu veya etkinlik geçmiş).
                 </Text>
               ) : null}
             </>
@@ -831,7 +831,7 @@ export function EventDetailScreen() {
             <ArrowLeft size={20} color="#0f172a" />
           </Pressable>
           <Pressable
-            accessibilityLabel="Etkinlige katil"
+            accessibilityLabel="Etkinliğe katıl"
             className="h-16 w-16 items-center justify-center rounded-full bg-primary-500"
             disabled={recommendationJoinDisabled || joinMutation.isPending}
             onPress={() => joinMutation.mutate()}

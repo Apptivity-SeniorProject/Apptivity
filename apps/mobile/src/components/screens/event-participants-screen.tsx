@@ -6,7 +6,6 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TopBar } from '@/src/components/ui/top-bar';
 import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
@@ -19,6 +18,7 @@ import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventParticipantProfileDto, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
 type TabKey = 'approved' | 'pending' | 'rejected';
 
@@ -36,7 +36,7 @@ const OWNER_TABS: TabConfig[] = [
   {
     key: 'approved',
     label: 'Kabul Edildi',
-    emptyText: 'Henuz kabul edilen katilimci yok.',
+    emptyText: 'Hen�z kabul edilen kat1l1mc1 yok.',
     statusFilter: 'Approved',
     activeColor: 'border-emerald-600',
     activeBg: 'bg-emerald-600',
@@ -45,7 +45,7 @@ const OWNER_TABS: TabConfig[] = [
   {
     key: 'pending',
     label: 'Bekliyor',
-    emptyText: 'Bekleyen katilimci yok.',
+    emptyText: 'Bekleyen katılımcı yok.',
     statusFilter: 'Pending',
     activeColor: 'border-amber-600',
     activeBg: 'bg-amber-600',
@@ -54,7 +54,7 @@ const OWNER_TABS: TabConfig[] = [
   {
     key: 'rejected',
     label: 'Red Edildi',
-    emptyText: 'Reddedilen katilimci yok.',
+    emptyText: 'Reddedilen katılımcı yok.',
     statusFilter: 'Rejected',
     activeColor: 'border-rose-600',
     activeBg: 'bg-rose-600',
@@ -92,11 +92,13 @@ function getStatusColor(status: ParticipationStatus | string | number | null | u
 function getReputationDisplay(level: string | null | undefined) {
   if (!level) return null;
 
-  if (level.includes('Yıldız') || level.includes('YÄ±ldÄ±z') || level.toLowerCase().includes('yildiz')) {
-    return { label: level, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' };
+  const normalizedLevel = normalizePossiblyMojibakeText(level);
+
+  if (normalizedLevel.includes('Yıldız') || normalizedLevel.toLowerCase().includes('yildiz')) {
+    return { label: normalizedLevel, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' };
   }
 
-  switch (level) {
+  switch (normalizedLevel) {
     case 'Pariah':
       return { label: 'Etkinlik Bozan', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
     case 'Suspicious':
@@ -108,7 +110,7 @@ function getReputationDisplay(level: string | null | undefined) {
     case 'Exemplary':
       return { label: 'Etkinlik Canavarı', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
     default:
-      return { label: level, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+      return { label: normalizedLevel, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
   }
 }
 
@@ -147,7 +149,7 @@ function ParticipantVoting({
   return (
     <View className="mt-3 border-t border-slate-100 pt-3">
       <Text className="mb-2 text-xs font-semibold text-slate-500">
-        {isOrganizationTarget ? 'Organizasyonu Degerlendir' : 'Katilimciyi Degerlendir'}
+        {isOrganizationTarget ? 'Organizasyonu Deerlendir' : 'Katılımcıyı Değerlendir'}
       </Text>
 
       {isOrganizationTarget ? (
@@ -355,7 +357,7 @@ export function EventParticipantsScreen() {
       ]);
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Katilim durumu guncellenemedi.'));
+      toast.error(getApiErrorMessage(error, 'Katılım durumu güncellenemedi.'));
     },
   });
 
@@ -370,7 +372,7 @@ export function EventParticipantsScreen() {
   if (!eventData) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-        <Text className="text-base text-slate-500">Etkinlik bulunamadi.</Text>
+        <Text className="text-base text-slate-500">Etkinlik bulunamadı.</Text>
       </View>
     );
   }
@@ -474,7 +476,7 @@ export function EventParticipantsScreen() {
       {!isOwner ? (
         <View className="flex-row items-center gap-2 px-5 pb-2 pt-4">
           <UserCheck size={16} color="#059669" />
-          <Text className="text-sm font-semibold text-slate-700">Kabul Edilen Katilimcilar ({approvedCount})</Text>
+          <Text className="text-sm font-semibold text-slate-700">Kabul Edilen Katılımcılar ({approvedCount})</Text>
         </View>
       ) : null}
 
@@ -509,13 +511,13 @@ export function EventParticipantsScreen() {
         <View className="mt-2 gap-2">
           <View className="flex-row items-center gap-2 px-1 pb-1">
             <UserCheck size={16} color="#334155" />
-            <Text className="text-sm font-semibold text-slate-700">Katilimcilar</Text>
+            <Text className="text-sm font-semibold text-slate-700">Katılımcılar</Text>
           </View>
 
           {filteredParticipants.length === 0 ? (
             <View className="items-center py-8">
               <Text className="text-sm text-slate-400">
-                {isOwner ? activeTabConfig.emptyText : 'Henuz kabul edilen katilimci yok.'}
+                {isOwner ? activeTabConfig.emptyText : 'Hen�z kabul edilen kat1l1mc1 yok.'}
               </Text>
             </View>
           ) : (

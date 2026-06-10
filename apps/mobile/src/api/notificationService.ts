@@ -2,65 +2,54 @@ import { apiClient } from '@/src/api/apiClient';
 import type { ApiEnvelope } from '@/src/types/api';
 import type { PagedResult } from '@/src/types/event';
 import type { NotificationDto } from '@/src/types/notification';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
 function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
   if (responseData.isSuccess && responseData.data) {
     return responseData.data;
   }
 
-  throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
+  throw new Error(responseData.errors?.[0]?.message ?? 'İstek başarısız.');
 }
 
 function normalizeTurkishText(value: string): string {
-  return value
-    .replaceAll('Ã‡', 'Ç')
-    .replaceAll('Ã§', 'ç')
-    .replaceAll('Ä°', 'İ')
-    .replaceAll('Ä±', 'ı')
-    .replaceAll('Ã–', 'Ö')
-    .replaceAll('Ã¶', 'ö')
-    .replaceAll('Ãœ', 'Ü')
-    .replaceAll('Ã¼', 'ü')
-    .replaceAll('Åž', 'Ş')
-    .replaceAll('ÅŸ', 'ş')
-    .replaceAll('ÄŸ', 'ğ')
-    .replaceAll('Äž', 'Ğ');
+  return normalizePossiblyMojibakeText(value).trim();
 }
 
 function translateNotificationTitle(title: string): string {
-  const normalized = normalizeTurkishText(title).trim();
+  const normalized = normalizeTurkishText(title);
 
   if (normalized === 'Participation Approved') {
-    return 'Katilim Onaylandi';
+    return 'Katılım Onaylandı';
   }
 
   if (normalized === 'Participation Rejected') {
-    return 'Katilim Reddedildi';
+    return 'Katılım Reddedildi';
   }
 
   if (normalized === 'Event Cancelled') {
-    return 'Etkinlik Iptal Edildi';
+    return 'Etkinlik İptal Edildi';
   }
 
   return normalized;
 }
 
 function translateNotificationContent(content: string): string {
-  const normalized = normalizeTurkishText(content).trim();
+  const normalized = normalizeTurkishText(content);
 
-  const approvedMatch = normalized.match(/^Your participation for '(.+)' has been approved\.$/i);
+  const approvedMatch = normalized.match(/^Your participation for '(.+)' has been approved.$/i);
   if (approvedMatch) {
-    return `'${approvedMatch[1]}' etkinligine katilimin onaylandi.`;
+    return `'${approvedMatch[1]}' etkinliğine katılımın onaylandı.`;
   }
 
-  const rejectedMatch = normalized.match(/^Your participation for '(.+)' has been rejected\.$/i);
+  const rejectedMatch = normalized.match(/^Your participation for '(.+)' has been rejected.$/i);
   if (rejectedMatch) {
-    return `'${rejectedMatch[1]}' etkinligine katilimin reddedildi.`;
+    return `'${rejectedMatch[1]}' etkinliğine katılımın reddedildi.`;
   }
 
-  const cancelledMatch = normalized.match(/^The event '(.+)' has been cancelled\.$/i);
+  const cancelledMatch = normalized.match(/^The event '(.+)' has been cancelled.$/i);
   if (cancelledMatch) {
-    return `'${cancelledMatch[1]}' etkinligi iptal edildi.`;
+    return `'${cancelledMatch[1]}' etkinliği iptal edildi.`;
   }
 
   return normalized;
@@ -93,9 +82,7 @@ export async function getMyNotifications(
 }
 
 export async function markNotificationAsRead(notificationId: string): Promise<NotificationDto> {
-  const response = await apiClient.patch<ApiEnvelope<NotificationDto>>(
-    `/api/notifications/${notificationId}/read`
-  );
+  const response = await apiClient.patch<ApiEnvelope<NotificationDto>>('/api/notifications/' + notificationId + '/read');
 
   return mapNotification(unwrapEnvelope(response.data));
 }
@@ -104,6 +91,6 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   const response = await apiClient.patch<ApiEnvelope<unknown>>('/api/notifications/read-all');
 
   if (!response.data.isSuccess) {
-    throw new Error(response.data.errors?.[0]?.message ?? 'Bildirimler guncellenemedi.');
+    throw new Error(response.data.errors?.[0]?.message ?? 'Bildirimler güncellenemedi.');
   }
 }

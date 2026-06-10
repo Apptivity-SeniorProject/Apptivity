@@ -27,7 +27,7 @@ export function EventRowCard({
 }: EventRowCardProps) {
   const location = formatLocationShort(event.location);
   const remainingCount = Math.max(0, event.remainingParticipationCount ?? 0);
-  const priceText = event.isPaid ? formatEventPrice(event.price, true) : 'Ucretsiz';
+  const priceText = event.isPaid ? formatEventPrice(event.price, true) : 'Ücretsiz';
 
   return (
     <Pressable
@@ -50,7 +50,7 @@ export function EventRowCard({
           {onBookmarkPress ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={isBookmarked ? 'Begeniyi kaldir' : 'Etkinligi begen'}
+              accessibilityLabel={isBookmarked ? 'Beğeniyi kaldır' : 'Etkinliği beğen'}
               hitSlop={10}
               className="h-9 w-9 items-center justify-center rounded-full bg-slate-100"
               disabled={isBookmarkPending}

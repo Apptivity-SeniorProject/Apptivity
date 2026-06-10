@@ -108,7 +108,7 @@ export function useSignalR<TMessage = unknown>({
       const connection = connectionRef.current;
 
       if (!connection || connection.state !== HubConnectionState.Connected) {
-        throw new Error('Chat baglantisi hazir degil.');
+        throw new Error('Chat bağlantısı hazır değil.');
       }
 
       await invokeWithFallback(connection, SEND_MESSAGE_METHODS, targetEventId, message);
@@ -140,7 +140,7 @@ export function useSignalR<TMessage = unknown>({
         await invokeWithFallback(connection, LEAVE_ROOM_METHODS, joinedRoomId);
       }
     } catch {
-      // Baglanti kopukken odadan cikis invoke hatasi yutulur.
+      // Bağlantı kopukken odadan çıkış invoke hatası yutulur.
     }
 
     await connection.stop();

@@ -12,9 +12,9 @@
       "bundleIdentifier": "com.apptivity.mobile",
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Konumunuza yakin etkinlikleri gosterebilmek icin konum izni gerekiyor.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Senin Icin onerilerini iyilestirmek ve arka planda konum ozetini olusturmak icin konum izni gerekiyor.",
-        "NSPhotoLibraryUsageDescription": "Etkinlik olustururken fotograf secmek icin galeri erisimi gerekiyor."
+        "NSLocationWhenInUseUsageDescription": "Konumunuza yakın etkinlikleri gösterebilmek için konum izni gerekiyor.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Senin İçin önerilerini iyileştirmek ve arka planda konum özetini oluşturmak için konum izni gerekiyor.",
+        "NSPhotoLibraryUsageDescription": "Etkinlik oluştururken fotoğraf seçmek için galeri erişimi gerekiyor."
       },
       "uiBackgroundModes": [
         "location"
@@ -34,6 +34,7 @@
         "monochromeImage": "./assets/apptivity/apptivity_logo_monochrome.png"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_COARSE_LOCATION",

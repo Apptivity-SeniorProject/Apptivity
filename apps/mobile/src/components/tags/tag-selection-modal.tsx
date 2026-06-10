@@ -5,50 +5,69 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import type { TagDto } from '@/src/types/lookup';
 import { cn } from '@/src/utils/cn';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
-interface RegisterInterestsModalProps {
+interface TagSelectionModalProps {
   visible: boolean;
   onClose: () => void;
   tags: TagDto[];
   selectedTagIds: string[];
   onToggleTag: (tagId: string) => void;
+  title: string;
+  description: string;
+  searchPlaceholder?: string;
+  selectedSectionTitle?: string;
+  allTagsSectionTitle?: string;
+  emptyStateText?: string;
+  primaryActionLabel?: string;
 }
 
-export function RegisterInterestsModal({
+export function TagSelectionModal({
   visible,
   onClose,
   tags,
   selectedTagIds,
   onToggleTag,
-}: RegisterInterestsModalProps) {
+  title,
+  description,
+  searchPlaceholder = 'Tag ara',
+  selectedSectionTitle = 'Seçtiklerin',
+  allTagsSectionTitle = 'Tüm Taglar',
+  emptyStateText = 'Aramana uyan tag bulunamadı.',
+  primaryActionLabel = 'Tamam',
+}: TagSelectionModalProps) {
   const [searchText, setSearchText] = useState('');
+  const normalizedTags = useMemo(
+    () => tags.map((tag) => ({ ...tag, name: normalizePossiblyMojibakeText(tag.name) })),
+    [tags]
+  );
 
   const filteredTags = useMemo(() => {
     const normalizedSearch = searchText.trim().toLocaleLowerCase('tr-TR');
     if (!normalizedSearch) {
-      return tags;
+      return normalizedTags;
     }
 
-    return tags.filter((tag) => tag.name.toLocaleLowerCase('tr-TR').includes(normalizedSearch));
-  }, [searchText, tags]);
+    return normalizedTags.filter((tag) =>
+      tag.name.toLocaleLowerCase('tr-TR').includes(normalizedSearch)
+    );
+  }, [normalizedTags, searchText]);
 
   const selectedTags = useMemo(
-    () => tags.filter((tag) => selectedTagIds.includes(tag.id)),
-    [selectedTagIds, tags]
+    () => normalizedTags.filter((tag) => selectedTagIds.includes(tag.id)),
+    [normalizedTags, selectedTagIds]
   );
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/35">
         <View className="max-h-[82%] rounded-t-3xl bg-white px-5 pb-6 pt-5">
-          <Text className="text-lg font-semibold text-slate-900">İlgi Alanlarını Seç</Text>
-          <Text className="mt-2 text-sm text-slate-500">
-            Hepsini bir anda doldurmak zorunda değilsin. Beğendiğin etkinlik türlerini seç, önerileri buna göre düzenleyelim.
-          </Text>
+          <Text className="text-lg font-semibold text-slate-900">{title}</Text>
+          <Text className="mt-2 text-sm leading-5 text-slate-500">{description}</Text>
 
           <Input
             containerClassName="mt-4"
-            placeholder="Tag ara"
+            placeholder={searchPlaceholder}
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -56,7 +75,7 @@ export function RegisterInterestsModal({
           {selectedTags.length > 0 ? (
             <View className="mt-4">
               <Text className="mb-2 text-sm font-medium text-slate-700">
-                Seçtiklerin ({selectedTags.length})
+                {selectedSectionTitle} ({selectedTags.length})
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View className="flex-row gap-2">
@@ -73,7 +92,7 @@ export function RegisterInterestsModal({
             </View>
           ) : null}
 
-          <Text className="mb-3 mt-5 text-sm font-medium text-slate-700">Tüm Taglar</Text>
+          <Text className="mb-3 mt-5 text-sm font-medium text-slate-700">{allTagsSectionTitle}</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             <View className="flex-row flex-wrap gap-2 pb-2">
               {filteredTags.map((tag) => {
@@ -100,14 +119,14 @@ export function RegisterInterestsModal({
 
             {filteredTags.length === 0 ? (
               <View className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5">
-                <Text className="text-sm text-slate-500">Aramana uyan tag bulunamadı.</Text>
+                <Text className="text-sm text-slate-500">{emptyStateText}</Text>
               </View>
             ) : null}
           </ScrollView>
 
           <View className="mt-5 flex-row gap-3">
             <Button label="Kapat" variant="secondary" className="flex-1" onPress={onClose} />
-            <Button label="Tamam" className="flex-1" onPress={onClose} />
+            <Button label={primaryActionLabel} className="flex-1" onPress={onClose} />
           </View>
         </View>
       </View>

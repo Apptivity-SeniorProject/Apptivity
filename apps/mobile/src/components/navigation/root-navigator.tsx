@@ -7,13 +7,13 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient } from '@/src/api/queryClient';
+import { ErrorModalHost } from '@/src/components/ui/error-modal-host';
 import { ToastHost } from '@/src/components/ui/toast-host';
 import { prefetchInitialHomeQueries } from '@/src/hooks/useEvents';
 import { getStartupHomeCoordinates } from '@/src/services/recommendationHotZoneService';
 import { syncRecommendationLocationTracking } from '@/src/services/locationTrackingService';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { parseAuthToken } from '@/src/utils/auth';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import '../../../global.css';
 
@@ -81,6 +81,7 @@ export function RootNavigator() {
 
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
+          <ErrorModalHost />
           <ToastHost />
           <StatusBar style="dark" />
         </ThemeProvider>

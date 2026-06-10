@@ -1,11 +1,11 @@
 import { Modal, Pressable, ScrollView, Text, View, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
 
+import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
 import { Button } from '@/src/components/ui/button';
-import { cn } from '@/src/utils/cn';
 import type { TagDto } from '@/src/types/lookup';
 import type { ProfileDto } from '@/src/types/profile';
 import { useUpdateProfile, useSetMyInterests, useUploadProfilePhoto } from '@/src/hooks/useProfile';
@@ -35,6 +35,7 @@ export function EditProfileModal({
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isInterestsModalOpen, setIsInterestsModalOpen] = useState(false);
 
   useEffect(() => {
     if (visible && profile) {
@@ -52,11 +53,16 @@ export function EditProfileModal({
     );
   };
 
+  const selectedTagsPreview = useMemo(
+    () => tags.filter((tag) => selectedTagIds.includes(tag.id)).slice(0, 4),
+    [selectedTagIds, tags]
+  );
+
   const handleProfilePhotoPress = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
-      toast.error('Galeri erisimi reddedildi.');
+      toast.error('Galeri erişimi reddedildi.');
       return;
     }
 
@@ -78,10 +84,10 @@ export function EditProfileModal({
       { uri: asset.uri, mimeType },
       {
         onSuccess: () => {
-          toast.success('Profil fotografi guncellendi.');
+          toast.success('Profil fotoğrafı güncellendi.');
         },
         onError: (error) => {
-          toast.error(getApiErrorMessage(error, 'Profil fotografi yuklenemedi.'));
+          toast.error(getApiErrorMessage(error, 'Profil fotoğrafı yüklenemedi.'));
         },
       }
     );
@@ -116,13 +122,14 @@ export function EditProfileModal({
   const initials = profile ? (profile.userProfile?.name?.[0] || profile.username?.[0] || '?').toUpperCase() : '?';
 
   return (
-    <Modal animationType="slide" transparent visible={visible}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
+    <>
+      <Modal animationType="slide" transparent visible={visible}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <View className="flex-1 justify-end bg-black/35">
           <View className="max-h-[90%] rounded-t-3xl bg-white px-5 pb-6 pt-5">
-            <Text className="text-lg font-semibold text-slate-900 mb-4">Profili Duzenle</Text>
+            <Text className="text-lg font-semibold text-slate-900 mb-4">Profili Düzenle</Text>
             
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-4">
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-4" keyboardShouldPersistTaps="handled">
               {/* Photo */}
               <View className="items-center mb-6">
                 <Pressable 
@@ -152,12 +159,12 @@ export function EditProfileModal({
               {/* Form Fields */}
               <View className="gap-3 mb-5">
                 <View>
-                  <Text className="text-xs font-medium text-slate-500 mb-1">Kullanici Adi</Text>
+                  <Text className="text-xs font-medium text-slate-500 mb-1">Kullanıcı Adı</Text>
                   <TextInput
                     className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900"
                     value={username}
                     onChangeText={setUsername}
-                    placeholder="kullanici.adi"
+                    placeholder="kullanıcı.adı"
                     autoCapitalize="none"
                   />
                 </View>
@@ -194,37 +201,40 @@ export function EditProfileModal({
                 </View>
               </View>
 
-              <Text className="mb-2 text-sm font-medium text-slate-700">Ilgi Alanlari</Text>
+              <Text className="mb-2 text-sm font-medium text-slate-700">İlgi Alanları</Text>
               <Text className="mb-3 text-xs text-slate-500">
-                Bu secimler Senin Icin onerilerini etkiler.
+                Bu seçimler Senin İçin önerilerini etkiler.
               </Text>
-              <View className="flex-row flex-wrap gap-2 pb-2">
-                {tags.map((tag) => {
-                  const isSelected = selectedTagIds.includes(tag.id);
-                  return (
-                    <Pressable
+              {selectedTagsPreview.length > 0 ? (
+                <View className="mb-3 flex-row flex-wrap gap-2">
+                  {selectedTagsPreview.map((tag) => (
+                    <View
                       key={tag.id}
-                      className={cn(
-                        'rounded-full border px-3 py-2',
-                        isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-200 bg-slate-100'
-                      )}
-                      onPress={() => handleToggleTag(tag.id)}>
-                      <Text
-                        className={cn(
-                          'text-xs font-semibold',
-                          isSelected ? 'text-white' : 'text-slate-700'
-                        )}>
-                        {tag.name}
+                      className="rounded-full border border-[#5bcc2a] bg-[#5bcc2a] px-3 py-1.5">
+                      <Text className="text-xs font-semibold text-white">{tag.name}</Text>
+                    </View>
+                  ))}
+                  {selectedTagIds.length > selectedTagsPreview.length ? (
+                    <View className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5">
+                      <Text className="text-xs font-semibold text-slate-700">
+                        +{selectedTagIds.length - selectedTagsPreview.length}
                       </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              <Pressable
+                className="rounded-xl border border-slate-200 bg-slate-50 py-3 items-center justify-center"
+                onPress={() => setIsInterestsModalOpen(true)}>
+                <Text className="text-sm font-semibold text-slate-700">
+                  {selectedTagIds.length > 0 ? 'İlgi Alanlarını Düzenle' : '+ İlgi Alanı Seç'}
+                </Text>
+              </Pressable>
             </ScrollView>
 
             <View className="mt-2 flex-row gap-3">
               <Button
-                label="Iptal"
+                label="İptal"
                 variant="secondary"
                 className="flex-1"
                 disabled={isSaving}
@@ -240,6 +250,17 @@ export function EditProfileModal({
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+      </Modal>
+
+      <TagSelectionModal
+        visible={isInterestsModalOpen}
+        onClose={() => setIsInterestsModalOpen(false)}
+        tags={tags}
+        selectedTagIds={selectedTagIds}
+        onToggleTag={handleToggleTag}
+        title="İlgi Alanlarını Seç"
+        description="Hepsini bir anda doldurmak zorunda değilsin. Sana uygun öneriler için ilgini çeken başlıkları seç."
+      />
+    </>
   );
 }

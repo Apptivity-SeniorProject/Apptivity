@@ -11,8 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { registerIndividual } from '@/src/api/authService';
-import { RegisterInterestsModal } from '@/src/components/auth/register-interests-modal';
-
+import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
 import { Input } from '@/src/components/ui/input';
 import { hitSlop } from '@/src/constants/theme';
 import { useSetMyInterests } from '@/src/hooks/useProfile';
@@ -516,12 +515,14 @@ export function RegisterScreen() {
         </Pressable>
       </Modal>
 
-      <RegisterInterestsModal
+      <TagSelectionModal
         visible={isInterestsModalOpen}
         onClose={() => setIsInterestsModalOpen(false)}
         tags={tagsQuery.data ?? []}
         selectedTagIds={selectedTagIds}
         onToggleTag={toggleTag}
+        title="İlgi Alanlarını Seç"
+        description="Hepsini bir anda doldurmak zorunda değilsin. Beğendiğin etkinlik türlerini seç, önerileri buna göre düzenleyelim."
       />
     </SafeAreaView>
   );

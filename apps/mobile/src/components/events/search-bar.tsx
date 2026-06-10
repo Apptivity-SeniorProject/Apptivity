@@ -23,7 +23,7 @@ export function SearchBar({
   onPress,
   autoFocus = false,
   showFilterButton = true,
-  placeholder = 'Etkinlik veya kullanici ara...',
+  placeholder = 'Etkinlik veya kullanıcı ara...',
   editable = true,
 }: SearchBarProps) {
   return (
