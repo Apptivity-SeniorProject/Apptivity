@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TopBar } from '@/src/components/ui/top-bar';
+import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { hitSlop, theme } from '@/src/constants/theme';
 import { updateEventParticipationStatus } from '@/src/api/eventService';
@@ -419,16 +420,7 @@ export function EventParticipantsScreen() {
                   <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
                     <IconSymbol name="chevron.left" size={28} color="#111827" />
                   </Pressable>
-                  <View className="flex-row items-center gap-2">
-                    <Image 
-                      source={require('@/assets/apptivity/apptivity_logo.svg')} 
-                      style={{ width: 26, height: 26 }} 
-                      contentFit="contain" 
-                    />
-                    <Text className="font-sans-bold text-lg text-primary-600">
-                      Apptivity
-                    </Text>
-                  </View>
+                  <ApptivityLogo />
                 </View>
               }
             />
