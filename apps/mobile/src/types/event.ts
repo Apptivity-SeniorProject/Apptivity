@@ -157,6 +157,7 @@ export interface EventParticipantProfileDto {
 export interface EventParticipantsResponseDto {
   eventId: string;
   eventStatus: EventStatus;
+  isVotingClosed: boolean;
   organizer: EventParticipantProfileDto;
   participants: EventParticipantProfileDto[];
 }

@@ -364,7 +364,13 @@ public sealed class EventService : IEventService
             currentUserReviewTargets.Contains(p.UserId),
             p.User.Reputation?.Level.ToString())).ToList();
 
-        return Result<EventParticipantsResponse>.Success(new EventParticipantsResponse(eventEntity.Id, eventEntity.Status, ownerDto, participantDtos));
+        return Result<EventParticipantsResponse>.Success(
+            new EventParticipantsResponse(
+                eventEntity.Id,
+                eventEntity.Status,
+                eventEntity.IsVotingClosed,
+                ownerDto,
+                participantDtos));
     }
 
     public async Task<Result<EventSummaryDto>> CreateEventAsync(CreateEventRequest request, UserContext userContext, CancellationToken cancellationToken)

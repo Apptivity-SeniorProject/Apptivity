@@ -5,18 +5,20 @@ import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { TopBar } from '@/src/components/ui/top-bar';
 import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
+import { Button } from '@/src/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { hitSlop, theme } from '@/src/constants/theme';
-import { updateEventParticipationStatus } from '@/src/api/eventService';
+import { closeEventVoting, updateEventParticipationStatus } from '@/src/api/eventService';
 import { useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useSubmitReview } from '@/src/hooks/useReviews';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import type { EventParticipantProfileDto, ParticipationStatus } from '@/src/types/event';
+import { cn } from '@/src/utils/cn';
 import { getApiErrorMessage } from '@/src/utils/error';
 import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
@@ -321,10 +323,9 @@ export function EventParticipantsScreen() {
   const toast = useToast();
   const myAccountId = useAuthStore((state) => state.user?.id);
   const myRole = useAuthStore((state) => state.user?.role);
-
-
   const [activeTab, setActiveTab] = useState<TabKey>('approved');
   const [refreshing, setRefreshing] = useState(false);
+  const [isCloseVotingConfirmVisible, setIsCloseVotingConfirmVisible] = useState(false);
 
   const { data: eventData, isPending: isEventPending, refetch: refetchEvent } = useEventDetail(eventId);
   const participantsQuery = useEventParticipants(eventId);
@@ -361,6 +362,23 @@ export function EventParticipantsScreen() {
     },
   });
 
+  const closeVotingMutation = useMutation({
+    mutationFn: () => closeEventVoting(eventId),
+    onSuccess: async () => {
+      setIsCloseVotingConfirmVisible(false);
+      toast.success('Oylama kapatıldı. Puanlar güncellendi.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['event-participants', eventId] }),
+        queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
+        queryClient.invalidateQueries({ queryKey: ['my-participations'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile-stats'] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, 'Oylama kapatılamadı.'));
+    },
+  });
+
   if (isEventPending || participantsQuery.isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50">
@@ -388,6 +406,7 @@ export function EventParticipantsScreen() {
     String(eventData.currentUserParticipationStatus) === 'Approved' ||
     String(eventData.currentUserParticipationStatus) === '2';
   const canIVote = myRole === 'Individual' && (isOwner || isApprovedParticipant);
+  const isVotingClosed = participantsQuery.data?.isVotingClosed ?? false;
 
   const filteredParticipants = isOwner
     ? allParticipants.filter((p) => {
@@ -412,7 +431,8 @@ export function EventParticipantsScreen() {
   const activeTabConfig = OWNER_TABS.find((t) => t.key === activeTab)!;
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <>
+      <View className="flex-1 bg-slate-50">
       <Stack.Screen 
         options={{ 
           header: () => (
@@ -445,6 +465,42 @@ export function EventParticipantsScreen() {
           <View className="items-center rounded-xl bg-rose-50 px-4 py-2">
             <Text className="text-lg font-bold text-rose-700">{rejectedCount}</Text>
             <Text className="text-[10px] font-medium text-rose-600">Red</Text>
+          </View>
+        </View>
+      ) : null}
+
+      {isCompleted ? (
+        <View className="bg-white px-4 pb-3">
+          <View className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <View className="flex-row items-center justify-between gap-3">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-slate-800">
+                  {isVotingClosed ? 'Oylama kapandı' : 'Oylama açık'}
+                </Text>
+                <Text className="mt-1 text-xs leading-5 text-slate-500">
+                  {isVotingClosed
+                    ? 'Oy verme tamamlandı. Güncel puanlar artık herkes için görünür.'
+                    : isOwner
+                      ? 'İstersen 24 saat dolmadan oylamayı kapatıp puanları hemen yansıtabilirsin.'
+                      : 'Oylama süresi dolana kadar katılımcılar oy vermeye devam edebilir.'}
+                </Text>
+              </View>
+
+              {isOwner && !isVotingClosed ? (
+                <Pressable
+                  className="rounded-xl bg-[#5bcc2a] px-4 py-3 active:opacity-80"
+                  disabled={closeVotingMutation.isPending}
+                  onPress={() => setIsCloseVotingConfirmVisible(true)}>
+                  {closeVotingMutation.isPending ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
+                  ) : (
+                    <Text className="text-xs font-extrabold tracking-wide text-white">
+                      Oylamayı Kapat
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         </View>
       ) : null}
@@ -498,6 +554,7 @@ export function EventParticipantsScreen() {
               isMutatingStatus={false}
               canVote={
                 isCompleted &&
+                !isVotingClosed &&
                 canIVote &&
                 String(participantsQuery.data.organizer.accountId).toLowerCase() !== String(myAccountId).toLowerCase()
               }
@@ -524,7 +581,8 @@ export function EventParticipantsScreen() {
             filteredParticipants.map((participant) => {
               const isTargetApproved = String(participant.status) === 'Approved' || String(participant.status) === '2';
               const isTargetMe = String(participant.accountId).toLowerCase() === String(myAccountId).toLowerCase();
-              const canVoteForThisParticipant = isCompleted && canIVote && !isTargetMe && isTargetApproved;
+              const canVoteForThisParticipant =
+                isCompleted && !isVotingClosed && canIVote && !isTargetMe && isTargetApproved;
 
               return (
                 <ParticipantCard
@@ -553,6 +611,55 @@ export function EventParticipantsScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+      </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={isCloseVotingConfirmVisible}
+        onRequestClose={() => {
+          if (!closeVotingMutation.isPending) {
+            setIsCloseVotingConfirmVisible(false);
+          }
+        }}>
+        <View className="flex-1 justify-end bg-black/35">
+          <Pressable
+            className="absolute inset-0"
+            disabled={closeVotingMutation.isPending}
+            onPress={() => setIsCloseVotingConfirmVisible(false)}
+          />
+
+          <View className="rounded-t-3xl bg-white px-5 pb-6 pt-5">
+            <Text className="text-lg font-semibold text-slate-900">Oylamayı Kapat</Text>
+            <Text className="mt-2 text-sm leading-6 text-slate-500">
+              Bu işlem oylamayı hemen kapatır ve puanları herkese yansıtır. Kapatıldıktan sonra yeniden açılamaz.
+            </Text>
+
+            <View className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <Text className="text-xs font-semibold uppercase tracking-[0.4px] text-amber-700">Dikkat</Text>
+              <Text className="mt-1 text-sm leading-5 text-amber-800">
+                Henüz oy vermemiş kullanıcılar varsa bu işlemden sonra değerlendirme yapamaz.
+              </Text>
+            </View>
+
+            <View className="mt-5 flex-row gap-3">
+              <Button
+                label="Vazgeç"
+                variant="secondary"
+                className="flex-1"
+                disabled={closeVotingMutation.isPending}
+                onPress={() => setIsCloseVotingConfirmVisible(false)}
+              />
+              <Button
+                label="Oylamayı Kapat"
+                className={cn('flex-1', closeVotingMutation.isPending ? '' : 'bg-[#5bcc2a]')}
+                isLoading={closeVotingMutation.isPending}
+                onPress={() => closeVotingMutation.mutate()}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }

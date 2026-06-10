@@ -19,15 +19,18 @@ namespace Apptivity.Api.Controllers;
 public sealed class EventsController : ApiControllerBase
 {
     private readonly IEventService _eventService;
+    private readonly IEventLifecycleService _eventLifecycleService;
     private readonly IUserContextAccessor _userContextAccessor;
     private readonly RecommendationOptions _recommendationOptions;
 
     public EventsController(
         IEventService eventService,
+        IEventLifecycleService eventLifecycleService,
         IUserContextAccessor userContextAccessor,
         IOptions<RecommendationOptions> recommendationOptions)
     {
         _eventService = eventService;
+        _eventLifecycleService = eventLifecycleService;
         _userContextAccessor = userContextAccessor;
         _recommendationOptions = recommendationOptions.Value;
     }
@@ -85,6 +88,16 @@ public sealed class EventsController : ApiControllerBase
         if (context is null) return Unauthorized();
 
         var result = await _eventService.CancelEventAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
+    [HttpPost("{id:guid}/voting/close")]
+    public async Task<IActionResult> CloseVoting(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null) return Unauthorized();
+
+        var result = await _eventLifecycleService.CloseVotingAsync(id, context, cancellationToken);
         return FromResult(result);
     }
 

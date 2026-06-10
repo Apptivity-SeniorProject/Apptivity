@@ -405,9 +405,17 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
 
   return {
     ...payload,
+    isVotingClosed: payload.isVotingClosed ?? false,
     organizer: mapEventParticipant(payload.organizer),
     participants: payload.participants.map(mapEventParticipant),
   };
+}
+
+export async function closeEventVoting(eventId: string): Promise<void> {
+  const response = await apiClient.post<ApiEnvelope<null>>(`/api/events/${eventId}/voting/close`);
+  if (!response.data.isSuccess) {
+    throw new Error(response.data.errors?.[0]?.message ?? 'Oylama kapatılamadı.');
+  }
 }
 
 export async function createEvent(payload: CreateEventPayload): Promise<EventListItem> {
