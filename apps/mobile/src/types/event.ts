@@ -98,6 +98,9 @@ export interface DailyRecommendedNextRequest {
   latitude?: number;
   longitude?: number;
   ordered_hot_zones?: string[] | null;
+  session_id?: string | null;
+  excluded_event_ids?: string[] | null;
+  start_tag_order?: number | null;
 }
 
 export interface DailyRecommendedNextResponseDto {
@@ -106,6 +109,7 @@ export interface DailyRecommendedNextResponseDto {
   currentTagOrder: number | null;
   remainingTagCount: number;
   message?: string | null;
+  nextTagOrder?: number | null;
   debugLlmTagIds?: string[] | null;
 }
 

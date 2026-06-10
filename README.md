@@ -46,6 +46,12 @@ npx tsc --noEmit
 npm run start
 ```
 
+### Mobile Recommendation Notu
+
+- Su anda mobilde zar butonuna her basista recommendation session sifirlanir.
+- Bu nedenle kullanici logout yapmadan da yeni bir AI recommendation session baslatir.
+- Ayni session icinde gorulen eventler tekrar gosterilmez; ama zar butonuna yeniden basildiginda yeni session acildigi icin onceki session eventleri tekrar gelebilir.
+
 !! 
 gemini db de bunların eksik olduğunu belirtti: 
 Bu notları alırsan, EF Core sınıflarını (Entity) yazarken mimarimiz kusursuz olur:

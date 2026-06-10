@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { useRecommendationFlowStore } from '@/src/store/useRecommendationFlowStore';
+import { useRecommendationSessionStore } from '@/src/store/useRecommendationSessionStore';
 import type { AuthTokens, AuthUser } from '@/src/types/auth';
 
 interface AuthState {
@@ -33,6 +35,8 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken, refreshToken, user });
       },
       logout: () => {
+        useRecommendationFlowStore.getState().reset();
+        useRecommendationSessionStore.getState().reset();
         set({ accessToken: null, refreshToken: null, user: null });
       },
       setHydrated: (value) => {

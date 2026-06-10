@@ -13,9 +13,19 @@ export const useRecommendationFlowStore = create<RecommendationFlowState>((set) 
   eventIds: [],
   currentIndex: 0,
   startSession: (initialEventId) =>
-    set({
-      eventIds: [initialEventId],
-      currentIndex: 0,
+    set((state) => {
+      if (
+        state.currentIndex === 0 &&
+        state.eventIds.length === 1 &&
+        state.eventIds[0] === initialEventId
+      ) {
+        return state;
+      }
+
+      return {
+        eventIds: [initialEventId],
+        currentIndex: 0,
+      };
     }),
   appendEvent: (eventId) =>
     set((state) => {
@@ -36,12 +46,25 @@ export const useRecommendationFlowStore = create<RecommendationFlowState>((set) 
       };
     }),
   setCurrentIndex: (index) =>
-    set((state) => ({
-      currentIndex: Math.max(0, Math.min(index, state.eventIds.length - 1)),
-    })),
+    set((state) => {
+      const nextIndex = Math.max(0, Math.min(index, state.eventIds.length - 1));
+      if (nextIndex === state.currentIndex) {
+        return state;
+      }
+
+      return {
+        currentIndex: nextIndex,
+      };
+    }),
   reset: () =>
-    set({
-      eventIds: [],
-      currentIndex: 0,
+    set((state) => {
+      if (state.eventIds.length === 0 && state.currentIndex === 0) {
+        return state;
+      }
+
+      return {
+        eventIds: [],
+        currentIndex: 0,
+      };
     }),
 }));

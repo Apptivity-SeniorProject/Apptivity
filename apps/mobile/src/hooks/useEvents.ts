@@ -165,6 +165,9 @@ export type DailyRecommendedNextOverrides = {
   latitude?: number;
   longitude?: number;
   orderedHotZones?: string[] | null;
+  sessionId?: string | null;
+  excludedEventIds?: string[] | null;
+  startTagOrder?: number | null;
 };
 
 export async function prefetchInitialHomeQueries(
@@ -241,6 +244,9 @@ export async function fetchDailyRecommendedNext(overrides?: DailyRecommendedNext
     latitude: coordinates?.latitude,
     longitude: coordinates?.longitude,
     orderedHotZones: orderedHotZoneKeys,
+    sessionId: overrides?.sessionId,
+    excludedEventIds: overrides?.excludedEventIds,
+    startTagOrder: overrides?.startTagOrder,
   });
 }
 

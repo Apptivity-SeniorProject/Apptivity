@@ -60,7 +60,7 @@ public sealed class EventServiceDailyRecommendationTests
 
         var result = await service.GetDailyRecommendedNextAsync(
             new UserContext(accountId, AccountType.Individual),
-            new DailyRecommendedNextRequest(null, null, null),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -118,22 +118,22 @@ public sealed class EventServiceDailyRecommendationTests
 
         var firstResult = await service.GetDailyRecommendedNextAsync(
             new UserContext(accountId, AccountType.Individual),
-            new DailyRecommendedNextRequest(null, null, null),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
             CancellationToken.None);
 
         var secondResult = await service.GetDailyRecommendedNextAsync(
             new UserContext(accountId, AccountType.Individual),
-            new DailyRecommendedNextRequest(null, null, null),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", new[] { firstResult.Data!.Event!.Id }, firstResult.Data.NextTagOrder),
             CancellationToken.None);
 
         Assert.True(firstResult.IsSuccess);
         Assert.True(secondResult.IsSuccess);
         Assert.Equal("Profile Event 1", firstResult.Data!.Event!.Name);
         Assert.Equal(1, firstResult.Data.CurrentTagOrder);
-        Assert.Equal(1, firstResult.Data.RemainingTagCount);
+        Assert.Equal(2, firstResult.Data.NextTagOrder);
         Assert.Equal("History Event 1", secondResult.Data!.Event!.Name);
         Assert.Equal(2, secondResult.Data.CurrentTagOrder);
-        Assert.Equal(2, secondResult.Data.RemainingTagCount);
+        Assert.Equal(1, secondResult.Data.NextTagOrder);
     }
 
     [Fact]
@@ -178,16 +178,20 @@ public sealed class EventServiceDailyRecommendationTests
             dailyRecommendationRepository);
 
         var servedNames = new List<string>();
+        var excludedEventIds = new List<Guid>();
+        int? nextTagOrder = null;
         for (var i = 0; i < 6; i++)
         {
             var result = await service.GetDailyRecommendedNextAsync(
                 new UserContext(accountId, AccountType.Individual),
-                new DailyRecommendedNextRequest(null, null, null),
+                new DailyRecommendedNextRequest(null, null, null, "session-a", excludedEventIds, nextTagOrder),
                 CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Equal("served", result.Data!.Status);
             servedNames.Add(result.Data.Event!.Name);
+            excludedEventIds.Add(result.Data.Event.Id);
+            nextTagOrder = result.Data.NextTagOrder;
         }
 
         Assert.Equal(
@@ -201,6 +205,95 @@ public sealed class EventServiceDailyRecommendationTests
                 "History Event 3"
             },
             servedNames);
+    }
+
+    [Fact]
+    public async Task GetDailyRecommendedNextAsync_AllowsSameDayRepeatAcrossDifferentSessions()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+        var profileTagId = Guid.Parse("70000000-0000-0000-0000-000000000010");
+        var profileTag = CreateTag(profileTagId, "Profile");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "repeat-user",
+            Phone = "+905551112266",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[]
+            {
+                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(accountId, profileTag, 2, "Profile Event 2"),
+            }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
+
+        var firstSessionResult = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
+            CancellationToken.None);
+
+        var secondSessionResult = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-b", Array.Empty<Guid>(), null),
+            CancellationToken.None);
+
+        Assert.True(firstSessionResult.IsSuccess);
+        Assert.True(secondSessionResult.IsSuccess);
+        Assert.Equal("Profile Event 1", firstSessionResult.Data!.Event!.Name);
+        Assert.Equal("Profile Event 1", secondSessionResult.Data!.Event!.Name);
+    }
+
+    [Fact]
+    public async Task GetDailyRecommendedNextAsync_ReturnsDepleted_WhenSessionExcludesAllCandidates()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000005");
+        var profileTagId = Guid.Parse("80000000-0000-0000-0000-000000000010");
+        var profileTag = CreateTag(profileTagId, "Profile");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "depleted-user",
+            Phone = "+905551112277",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var matchingEvent = CreateEvent(accountId, profileTag, 1, "Profile Event 1");
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[] { matchingEvent }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
+
+        var result = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", new[] { matchingEvent.Id }, null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("depleted", result.Data!.Status);
+        Assert.Null(result.Data.NextTagOrder);
     }
 
     private static Tag CreateTag(Guid id, string name)

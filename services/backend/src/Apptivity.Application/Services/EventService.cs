@@ -1043,6 +1043,11 @@ public sealed class EventService : IEventService
             return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.Validation, "longitude must be between -180 and 180.");
         }
 
+        if (request.StartTagOrder is <= 0)
+        {
+            return Result<DailyRecommendedNextResponse>.Failure(ErrorCodes.Validation, "start_tag_order must be greater than 0.");
+        }
+
         var account = await _userRepository.GetAccountByIdWithInterestsAsync(userContext.AccountId, cancellationToken);
         if (account is null)
         {
@@ -1070,6 +1075,7 @@ public sealed class EventService : IEventService
                         null,
                         0,
                         "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                        null,
                         null);
                 }
 
@@ -1085,49 +1091,21 @@ public sealed class EventService : IEventService
                 }
             }
 
-            var cursor = await _dailyRecommendationRepository.GetCursorForUpdateAsync(plan.Id, txToken) ?? plan.Cursor;
-            var isNewCursor = false;
-            if (cursor is null)
-            {
-                cursor = new DailyRecommendationCursor
-                {
-                    PlanId = plan.Id,
-                    CurrentTagOrder = 1,
-                    IsDepleted = false
-                };
-                plan.Cursor = cursor;
-                isNewCursor = true;
-            }
-
-            var currentTagOrder = cursor.CurrentTagOrder;
-            var isCursorDepleted = cursor.IsDepleted;
-
-            if (isCursorDepleted)
-            {
-                return new DailyRecommendedNextResponse(
-                    null,
-                    "depleted",
-                    null,
-                    0,
-                    DailyRecommendationDepletedMessage,
-                    GetDebugLlmTagIds(plan));
-            }
-
             var totalTagCount = plan.Tags.Count;
             if (totalTagCount == 0)
             {
-                await SetCursorStateAsync(plan.Id, totalTagCount, true, cursor, isNewCursor, txToken);
                 return new DailyRecommendedNextResponse(
                     null,
                     "unavailable",
                     null,
                     0,
                     "Su anda oneri servisi kullanilamiyor. Lutfen daha sonra tekrar dene.",
+                    null,
                     GetDebugLlmTagIds(plan));
             }
 
-            var excludedEventIds = plan.ServedEvents
-                .Select(x => x.EventId)
+            var excludedEventIds = (request.ExcludedEventIds ?? Array.Empty<Guid>())
+                .Where(x => x != Guid.Empty)
                 .ToHashSet();
 
             var activeEvents = await _eventRepository.GetPublishedAndOngoingAsync(txToken);
@@ -1136,7 +1114,7 @@ public sealed class EventService : IEventService
                 ? null
                 : await _dailyRecommendationRepository.GetMostFrequentServedClubCityAsync(userContext.AccountId, txToken);
 
-            var startOrder = Math.Clamp(currentTagOrder, 1, totalTagCount);
+            var startOrder = Math.Clamp(request.StartTagOrder ?? 1, 1, totalTagCount);
             for (var attempt = 0; attempt < totalTagCount; attempt++)
             {
                 var tagOrder = ((startOrder - 1 + attempt) % totalTagCount) + 1;
@@ -1161,27 +1139,27 @@ public sealed class EventService : IEventService
                     continue;
                 }
 
-                await _dailyRecommendationRepository.AddServedEventAsync(
-                    plan.Id,
-                    selectedEvent.Id,
-                    tagOrder,
-                    nowUtc,
-                    txToken);
+                if (!plan.ServedEvents.Any(x => x.EventId == selectedEvent.Id))
+                {
+                    await _dailyRecommendationRepository.AddServedEventAsync(
+                        plan.Id,
+                        selectedEvent.Id,
+                        tagOrder,
+                        nowUtc,
+                        txToken);
+                }
 
                 var nextTagOrder = (tagOrder % totalTagCount) + 1;
-                await SetCursorStateAsync(plan.Id, nextTagOrder, false, cursor, isNewCursor, txToken);
-
-                var remainingTagCount = totalTagCount - nextTagOrder + 1;
+                var remainingTagCount = Math.Max(0, totalTagCount - attempt - 1);
                 return new DailyRecommendedNextResponse(
                     MapEventSummary(selectedEvent),
                     "served",
                     tagOrder,
                     remainingTagCount,
                     null,
+                    nextTagOrder,
                     GetDebugLlmTagIds(plan));
             }
-
-            await SetCursorStateAsync(plan.Id, totalTagCount, true, cursor, isNewCursor, txToken);
 
             return new DailyRecommendedNextResponse(
                 null,
@@ -1189,6 +1167,7 @@ public sealed class EventService : IEventService
                 null,
                 0,
                 DailyRecommendationDepletedMessage,
+                null,
                 GetDebugLlmTagIds(plan));
         }, txCancellationToken);
 

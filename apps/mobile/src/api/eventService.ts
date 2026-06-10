@@ -350,12 +350,16 @@ export async function getDailyRecommendedNext(request: {
   latitude?: number;
   longitude?: number;
   orderedHotZones?: string[] | null;
+  sessionId?: string | null;
+  excludedEventIds?: string[] | null;
+  startTagOrder?: number | null;
 }): Promise<{
   event: EventListItem | null;
   status: 'served' | 'depleted' | 'unavailable';
   currentTagOrder: number | null;
   remainingTagCount: number;
   message?: string | null;
+  nextTagOrder?: number | null;
   debugLlmTagIds?: string[] | null;
 }> {
   const response = await apiClient.post<ApiEnvelope<DailyRecommendedNextResponseDto>>(
@@ -364,6 +368,9 @@ export async function getDailyRecommendedNext(request: {
       latitude: request.latitude,
       longitude: request.longitude,
       ordered_hot_zones: request.orderedHotZones ?? null,
+      session_id: request.sessionId ?? null,
+      excluded_event_ids: request.excludedEventIds ?? null,
+      start_tag_order: request.startTagOrder ?? null,
     },
   );
 
@@ -374,6 +381,7 @@ export async function getDailyRecommendedNext(request: {
     currentTagOrder: payload.currentTagOrder,
     remainingTagCount: payload.remainingTagCount,
     message: payload.message ?? null,
+    nextTagOrder: payload.nextTagOrder ?? null,
     debugLlmTagIds: payload.debugLlmTagIds ?? null,
   };
 }

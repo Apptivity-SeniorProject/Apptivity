@@ -20,6 +20,8 @@ import { useToast } from '@/src/hooks/useToast';
 import { useTags } from '@/src/hooks/useTags';
 import { getStartupHomeCoordinates } from '@/src/services/recommendationHotZoneService';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { useRecommendationFlowStore } from '@/src/store/useRecommendationFlowStore';
+import { useRecommendationSessionStore } from '@/src/store/useRecommendationSessionStore';
 import { parseAuthToken } from '@/src/utils/auth';
 import { useProfileSearch } from '@/src/hooks/useProfile';
 import type { EventListItem } from '@/src/types/event';
@@ -89,6 +91,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const accessToken = useAuthStore((state) => state.accessToken);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const accountId = useAuthStore((state) => state.user?.id);
+  const resetRecommendationFlow = useRecommendationFlowStore((state) => state.reset);
+  const startNewRecommendationSession = useRecommendationSessionStore((state) => state.startNewSession);
   const toast = useToast();
 
   const { data: tags } = useTags();
@@ -240,6 +245,11 @@ export default function HomeScreen() {
       return;
     }
 
+    if (accountId) {
+      startNewRecommendationSession(accountId);
+    }
+
+    resetRecommendationFlow();
     isSuggestRequestInFlightRef.current = true;
     router.push({
       pathname: '/recommendation/loading',

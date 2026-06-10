@@ -136,6 +136,7 @@ apiClient.interceptors.response.use(
               status?: string;
               currentTagOrder?: number | null;
               remainingTagCount?: number;
+              nextTagOrder?: number | null;
               debugLlmTagIds?: string[] | null;
             }>
           | undefined;
@@ -147,6 +148,7 @@ apiClient.interceptors.response.use(
             status: data?.status ?? null,
             currentTagOrder: data?.currentTagOrder ?? null,
             remainingTagCount: data?.remainingTagCount ?? null,
+            nextTagOrder: data?.nextTagOrder ?? null,
             debugLlmTagIds: data?.debugLlmTagIds ?? [],
           })
         );

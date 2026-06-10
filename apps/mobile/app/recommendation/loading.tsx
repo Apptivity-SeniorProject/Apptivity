@@ -6,7 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '@/src/constants/theme';
 import { fetchDailyRecommendedNext, type DailyRecommendedNextOverrides } from '@/src/hooks/useEvents';
+import { useAuthStore } from '@/src/store/useAuthStore';
 import { useRecommendationFlowStore } from '@/src/store/useRecommendationFlowStore';
+import { useRecommendationSessionStore } from '@/src/store/useRecommendationSessionStore';
 
 let inFlightRecommendationRequest:
   | Promise<Awaited<ReturnType<typeof fetchDailyRecommendedNext>>>
@@ -24,8 +26,13 @@ function requestDailyRecommendation(overrides?: DailyRecommendedNextOverrides) {
 
 export default function RecommendationLoadingScreen() {
   const params = useLocalSearchParams<{ latitude?: string; longitude?: string }>();
+  const accountId = useAuthStore((state) => state.user?.id);
   const resetRecommendationFlow = useRecommendationFlowStore((state) => state.reset);
   const startRecommendationSession = useRecommendationFlowStore((state) => state.startSession);
+  const ensureRecommendationSession = useRecommendationSessionStore((state) => state.ensureSession);
+  const seenRecommendationEventIds = useRecommendationSessionStore((state) => state.seenEventIds);
+  const nextRecommendationTagOrder = useRecommendationSessionStore((state) => state.nextTagOrder);
+  const trackRecommendationEvent = useRecommendationSessionStore((state) => state.trackServedEvent);
   const screenOptions = useMemo(() => ({ headerShown: false }), []);
   const hasRequestedRef = useRef(false);
   const requestCoordinates = useMemo(() => {
@@ -66,12 +73,31 @@ export default function RecommendationLoadingScreen() {
 
     const run = async () => {
       try {
-        const result = await requestDailyRecommendation(requestCoordinates);
+        const sessionId = accountId ? ensureRecommendationSession(accountId) : null;
+        const result = await requestDailyRecommendation({
+          ...requestCoordinates,
+          sessionId,
+          excludedEventIds: seenRecommendationEventIds,
+          startTagOrder: nextRecommendationTagOrder,
+        });
         if (isCancelled) {
           return;
         }
 
         if (result.status === 'served' && result.event) {
+          if (seenRecommendationEventIds.includes(result.event.id)) {
+            router.replace({
+              pathname: '/recommendation/done',
+              params: {
+                message:
+                  result.message ??
+                  'Şimdilik bu kadar önerimiz var senin için.',
+              },
+            });
+            return;
+          }
+
+          trackRecommendationEvent(result.event.id, result.nextTagOrder ?? null);
           startRecommendationSession(result.event.id);
           router.replace({
             pathname: '/event/[id]',
@@ -111,7 +137,15 @@ export default function RecommendationLoadingScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [requestCoordinates, startRecommendationSession]);
+  }, [
+    accountId,
+    ensureRecommendationSession,
+    nextRecommendationTagOrder,
+    requestCoordinates,
+    seenRecommendationEventIds,
+    startRecommendationSession,
+    trackRecommendationEvent,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">

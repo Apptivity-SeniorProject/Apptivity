@@ -77,7 +77,10 @@ public sealed record RecommendedEventsRequest(
 public sealed record DailyRecommendedNextRequest(
     decimal? Latitude,
     decimal? Longitude,
-    [property: JsonPropertyName("ordered_hot_zones")] IReadOnlyCollection<string>? OrderedHotZones);
+    [property: JsonPropertyName("ordered_hot_zones")] IReadOnlyCollection<string>? OrderedHotZones,
+    [property: JsonPropertyName("session_id")] string? SessionId,
+    [property: JsonPropertyName("excluded_event_ids")] IReadOnlyCollection<Guid>? ExcludedEventIds,
+    [property: JsonPropertyName("start_tag_order")] int? StartTagOrder);
 
 public sealed record DailyRecommendedNextResponse(
     EventSummaryDto? Event,
@@ -85,6 +88,7 @@ public sealed record DailyRecommendedNextResponse(
     int? CurrentTagOrder,
     int RemainingTagCount,
     string? Message,
+    int? NextTagOrder,
     IReadOnlyCollection<Guid>? DebugLlmTagIds);
 
 public sealed record ApplyToEventResponse(Guid EventId, Guid UserId, ParticipationStatus Status, EventStatus EventStatus);

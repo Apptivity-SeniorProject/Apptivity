@@ -16,6 +16,7 @@ import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
 import { useRecommendationFlowStore } from '@/src/store/useRecommendationFlowStore';
+import { useRecommendationSessionStore } from '@/src/store/useRecommendationSessionStore';
 import type { ApiEnvelope } from '@/src/types/api';
 import type { EventDetail, ParticipationStatus } from '@/src/types/event';
 import { getApiErrorMessage } from '@/src/utils/error';
@@ -139,6 +140,10 @@ export function EventDetailScreen() {
   const appendRecommendationEvent = useRecommendationFlowStore((state) => state.appendEvent);
   const setRecommendationCurrentIndex = useRecommendationFlowStore((state) => state.setCurrentIndex);
   const resetRecommendationFlow = useRecommendationFlowStore((state) => state.reset);
+  const ensureRecommendationSession = useRecommendationSessionStore((state) => state.ensureSession);
+  const seenRecommendationEventIds = useRecommendationSessionStore((state) => state.seenEventIds);
+  const nextRecommendationTagOrder = useRecommendationSessionStore((state) => state.nextTagOrder);
+  const trackRecommendationEvent = useRecommendationSessionStore((state) => state.trackServedEvent);
   const insets = useSafeAreaInsets();
   const dailyRecommendationMutation = useDailyRecommendedNext();
 
@@ -208,26 +213,26 @@ export function EventDetailScreen() {
       return;
     }
 
-    const existingIndex = recommendationEventIds.indexOf(eventId);
+    const flowState = useRecommendationFlowStore.getState();
+    const existingIndex = flowState.eventIds.indexOf(eventId);
 
-    if (recommendationEventIds.length === 0) {
+    if (flowState.eventIds.length === 0) {
       startRecommendationSession(eventId);
       return;
     }
 
     if (existingIndex >= 0) {
-      if (existingIndex !== recommendationCurrentIndex) {
+      if (existingIndex !== flowState.currentIndex) {
         setRecommendationCurrentIndex(existingIndex);
       }
       return;
     }
 
-    startRecommendationSession(eventId);
+    appendRecommendationEvent(eventId);
   }, [
+    appendRecommendationEvent,
     eventId,
     isRecommendationFlow,
-    recommendationCurrentIndex,
-    recommendationEventIds,
     setRecommendationCurrentIndex,
     startRecommendationSession,
   ]);
@@ -434,13 +439,22 @@ export function EventDetailScreen() {
     }
 
     try {
-      const result = await dailyRecommendationMutation.mutateAsync(undefined);
+      const sessionId = myAccountId ? ensureRecommendationSession(myAccountId) : null;
+      const result = await dailyRecommendationMutation.mutateAsync({
+        sessionId,
+        excludedEventIds: seenRecommendationEventIds,
+        startTagOrder: nextRecommendationTagOrder,
+      });
       if (result.status === 'served' && result.event) {
-        if (recommendationEventIds.includes(result.event.id)) {
+        if (
+          recommendationEventIds.includes(result.event.id) ||
+          seenRecommendationEventIds.includes(result.event.id)
+        ) {
           navigateToRecommendationDone();
           return;
         }
 
+        trackRecommendationEvent(result.event.id, result.nextTagOrder ?? null);
         appendRecommendationEvent(result.event.id);
         navigateWithinRecommendationFlow(result.event.id);
         return;
