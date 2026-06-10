@@ -11,6 +11,7 @@ export function MainRoutes() {
     return (
         <Routes>
             <Route key="homePageRoute" path="/" element={<HomePage />} />
+            <Route key="adminLoginAliasPageRoute" path="/admin/login" element={<AdminLoginPage />} />
             <Route key="adminHomePageRoute" path="/admin/*" element={<AdminHomePage />} />
             <Route key="organizationHomePageRoute" path="/organization" element={<OrganizationHomePage />} />
             <Route key="loginPageRoute" path="/login" element={<LoginPage />} />

@@ -6,11 +6,6 @@ import Login from './Login'
 
 const { useBreakpoint } = Grid
 
-const rolePathByKey = {
-    admin: '/login/admin',
-    organization: '/login/organization',
-}
-
 function AuthPage({ role = 'admin' }) {
     const navigate = useNavigate()
     const currentRole = role === 'organization' ? 'organization' : 'admin'
@@ -54,43 +49,25 @@ function AuthPage({ role = 'admin' }) {
                         </Flex>
 
                         <Flex align="center" gap={8} wrap={isMobile}>
-                            <Button
-                                type={currentRole === 'admin' ? 'primary' : 'default'}
-                                style={{
-                                    borderRadius: 999,
-                                    height: 34,
-                                    paddingInline: 14,
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    backgroundColor: currentRole === 'admin' ? '#111111' : '#ffffff',
-                                    borderColor: '#111111',
-                                    color: currentRole === 'admin' ? '#ffffff' : '#111111',
-                                    flex: isMobile ? 1 : 'none',
-                                    minWidth: isMobile ? 0 : 'auto',
-                                }}
-                                onClick={() => navigate(rolePathByKey.admin)}
-                            >
-                                {t('landing.adminLogin')}
-                            </Button>
-
-                            <Button
-                                type={currentRole === 'organization' ? 'primary' : 'default'}
-                                style={{
-                                    borderRadius: 999,
-                                    height: 34,
-                                    paddingInline: 14,
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    backgroundColor: currentRole === 'organization' ? '#111111' : '#ffffff',
-                                    borderColor: '#111111',
-                                    color: currentRole === 'organization' ? '#ffffff' : '#111111',
-                                    flex: isMobile ? 1 : 'none',
-                                    minWidth: isMobile ? 0 : 'auto',
-                                }}
-                                onClick={() => navigate(rolePathByKey.organization)}
-                            >
-                                {t('landing.organizationLogin')}
-                            </Button>
+                            {currentRole === 'organization' ? null : (
+                                <Button
+                                    style={{
+                                        borderRadius: 999,
+                                        height: 34,
+                                        paddingInline: 14,
+                                        fontSize: 13,
+                                        fontWeight: 500,
+                                        backgroundColor: '#ffffff',
+                                        borderColor: '#111111',
+                                        color: '#111111',
+                                        flex: isMobile ? 1 : 'none',
+                                        minWidth: isMobile ? 0 : 'auto',
+                                    }}
+                                    onClick={() => navigate('/login/organization')}
+                                >
+                                    {t('landing.organizationLogin')}
+                                </Button>
+                            )}
 
                             <LanguageSwitcher />
                         </Flex>
