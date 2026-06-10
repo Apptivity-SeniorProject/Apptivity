@@ -90,6 +90,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/apptivity
-            sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=${{ steps.tag.outputs.VERSION }}/' .env
+            sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=${{ github.ref_name }}/' .env
             docker compose pull
             docker compose up -d
