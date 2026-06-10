@@ -1,6 +1,4 @@
 ﻿import {
-    AndroidFilled,
-    AppleFilled,
     BellOutlined,
     CalendarOutlined,
     CheckCircleOutlined,
@@ -8,7 +6,6 @@
     EnvironmentOutlined,
     HeartOutlined,
     SafetyOutlined,
-    TeamOutlined,
     UsergroupAddOutlined,
 } from '@ant-design/icons'
 import { Button, Card, Col, Divider, Flex, Image, Row, Space, Steps, Typography } from 'antd'
@@ -53,6 +50,7 @@ const ctaButtonStyle = {
 function LandingContent() {
     const navigate = useNavigate()
     const { t } = useTranslation()
+    const appDownloadUrl = (import.meta.env.VITE_MOBILE_APP_DOWNLOAD_URL || '').trim()
 
     const featureItems = [
         {
@@ -87,6 +85,14 @@ function LandingContent() {
         },
     ]
 
+    const handleTestAppClick = () => {
+        if (!appDownloadUrl) {
+            return
+        }
+
+        window.location.assign(appDownloadUrl)
+    }
+
     return (
         <Space direction="vertical" size={28} style={{ width: '100%' }}>
             <Card style={{ borderRadius: 12, borderColor: '#e5e7eb' }}>
@@ -103,12 +109,6 @@ function LandingContent() {
                                 <Button
                                     type="primary"
                                     style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
-                                    onClick={() => navigate('/login/admin')}
-                                >
-                                    {t('landing.adminLogin')}
-                                </Button>
-                                <Button
-                                    style={{ ...ctaButtonStyle, borderColor: '#111111', color: '#111111' }}
                                     onClick={() => navigate('/login/organization')}
                                 >
                                     {t('landing.organizationLogin')}
@@ -231,12 +231,6 @@ function LandingContent() {
                             },
                             {
                                 status: 'finish',
-                                icon: <TeamOutlined />,
-                                title: <span style={{ color: '#111111' }}>{t('landing.how.step3Title')}</span>,
-                                description: <span style={{ color: '#4b5563' }}>{t('landing.how.step3Body')}</span>,
-                            },
-                            {
-                                status: 'finish',
                                 icon: <HeartOutlined />,
                                 title: <span style={{ color: '#111111' }}>{t('landing.how.step4Title')}</span>,
                                 description: <span style={{ color: '#4b5563' }}>{t('landing.how.step4Body')}</span>,
@@ -254,21 +248,13 @@ function LandingContent() {
                     <Typography.Paragraph style={{ ...mutedTextStyle, textAlign: 'center' }}>
                         {t('landing.cta.subtitle')}
                     </Typography.Paragraph>
-                    <Space>
-                        <Button
-                            type="primary"
-                            icon={<AppleFilled />}
-                            style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
-                        >
-                            {t('landing.cta.appStore')}
-                        </Button>
-                        <Button
-                            icon={<AndroidFilled />}
-                            style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111', color: '#ffffff' }}
-                        >
-                            {t('landing.cta.googlePlay')}
-                        </Button>
-                    </Space>
+                    <Button
+                        type="primary"
+                        style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
+                        onClick={handleTestAppClick}
+                    >
+                        Uygulamayı Test Et
+                    </Button>
                 </Flex>
             </Card>
 

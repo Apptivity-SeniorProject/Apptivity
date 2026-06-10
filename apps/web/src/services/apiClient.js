@@ -70,10 +70,14 @@ function getOrCreateDeviceId() {
 
 function resolveLoginPath() {
     if (typeof window === 'undefined') {
-        return '/login/admin'
+        return '/admin/login'
     }
 
     const currentPath = window.location.pathname || ''
+    if (currentPath.startsWith('/admin')) {
+        return '/admin/login'
+    }
+
     return currentPath.startsWith('/organization') ? '/login/organization' : '/login/admin'
 }
 

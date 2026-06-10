@@ -81,15 +81,6 @@ function LandingNavbar() {
 
                         <Space direction="vertical" size={10} style={{ width: '100%', marginTop: 8 }}>
                             <Button
-                                style={{ ...actionButtonStyle, width: '100%', borderColor: '#111111', color: '#111111' }}
-                                onClick={() => {
-                                    setOpen(false)
-                                    navigate('/login/admin')
-                                }}
-                            >
-                                {t('landing.adminLogin')}
-                            </Button>
-                            <Button
                                 type="primary"
                                 style={{ ...actionButtonStyle, width: '100%', backgroundColor: '#111111', borderColor: '#111111' }}
                                 onClick={() => {
@@ -130,13 +121,6 @@ function LandingNavbar() {
                 </Space>
 
                 <Flex align="center" gap={10}>
-                    <Button
-                        style={{ ...actionButtonStyle, borderColor: '#111111', color: '#111111' }}
-                        onClick={() => navigate('/login/admin')}
-                    >
-                        {t('landing.adminLogin')}
-                    </Button>
-
                     <Button
                         type="primary"
                         style={{ ...actionButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
