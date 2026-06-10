@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -191,6 +192,28 @@ export default function HomeScreen() {
     setDebouncedSearchTerm('');
   };
   const recommendedQuery = useRecommendedNearbyEvents(location?.lat, location?.lng, 8, { enabled: canLoadRecommended && locationResolved });
+  const refetchRecommended = recommendedQuery.refetch;
+
+  const hasFocusedOnceRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!canLoadEvents || !locationResolved) {
+        return;
+      }
+
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+
+      void refresh();
+
+      if (canLoadRecommended) {
+        void refetchRecommended();
+      }
+    }, [canLoadEvents, locationResolved, refresh, canLoadRecommended, refetchRecommended])
+  );
 
   const handleSuggestEventsPress = () => {
     if (isSuggestRequestInFlightRef.current) return;
@@ -250,7 +273,12 @@ export default function HomeScreen() {
         }}>
         <View style={{ height: 115, backgroundColor: colors.surfaceTertiary, justifyContent: 'center', alignItems: 'center' }}>
           {(event.bannerImageUrl || event.imageUrls?.[0]) ? (
-            <ExpoImage source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            <ExpoImage
+              source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           ) : (
             <Ionicons name="image-outline" size={30} color="rgba(255,255,255,0.15)" />
           )}
@@ -367,7 +395,12 @@ export default function HomeScreen() {
           }}>
           <View style={{ width: 72, height: 72, borderRadius: radius.md, backgroundColor: colors.surfaceTertiary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             {(event.bannerImageUrl || event.imageUrls?.[0]) ? (
-              <ExpoImage source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+              <ExpoImage
+                source={{ uri: event.bannerImageUrl || event.imageUrls?.[0] }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
             ) : (
               <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.2)" />
             )}

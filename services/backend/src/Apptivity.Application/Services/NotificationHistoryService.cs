@@ -18,6 +18,13 @@ public sealed class NotificationHistoryService : INotificationHistoryService
 
     public async Task<Result<PagedResult<NotificationDto>>> GetMyNotificationsAsync(UserContext userContext, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
+        var deletedNotificationCount = await _notificationRepository
+            .SoftDeleteDeletedEventNotificationsByAccountIdAsync(userContext.AccountId, cancellationToken);
+        if (deletedNotificationCount > 0)
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         var paging = new PagedRequest
         {
             PageNumber = pageNumber,

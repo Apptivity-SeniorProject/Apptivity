@@ -9,4 +9,6 @@ public interface INotificationRepository
     Task<IReadOnlyCollection<Notification>> GetUnreadByAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
     Task<bool> HasUnreadChatNotificationAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken);
     Task AddRangeAsync(IReadOnlyCollection<Notification> notifications, CancellationToken cancellationToken);
+    Task<int> SoftDeleteByRelatedEntityIdAsync(Guid relatedEntityId, CancellationToken cancellationToken);
+    Task<int> SoftDeleteDeletedEventNotificationsByAccountIdAsync(Guid accountId, CancellationToken cancellationToken);
 }

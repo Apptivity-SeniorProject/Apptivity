@@ -39,7 +39,8 @@ export function EventRowCard({
         source={{ uri: event.bannerImageUrl ?? PLACEHOLDER_IMAGE }}
         style={{ width: 88, height: 88, borderRadius: 16 }}
         contentFit="cover"
-        transition={120}
+        cachePolicy="memory-disk"
+        transition={0}
       />
 
       <View className="flex-1 gap-1">

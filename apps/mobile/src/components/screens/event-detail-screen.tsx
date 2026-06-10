@@ -382,6 +382,9 @@ export function EventDetailScreen() {
     : `${PLACEHOLDER_AVATAR}&name=${encodeURIComponent(data.organizerName || 'U')}`;
   const organizerUsername = organizerParticipant?.username?.trim();
   const organizerReputation = !isOwner ? getReputationDisplay(organizerParticipant?.reputationLevel) : null;
+  const pendingParticipantCount = (participantsQuery.data?.participants ?? []).filter(
+    (participant) => String(participant.status) === 'Pending' || String(participant.status) === '1'
+  ).length;
   const previousRecommendationEventId = isRecommendationFlow
     ? recommendationEventIds[recommendationCurrentIndex - 1]
     : undefined;
@@ -724,7 +727,16 @@ export function EventDetailScreen() {
                 </Text>
               </View>
             </View>
-            <ChevronRight size={20} color="#94a3b8" />
+            <View className="ml-3 flex-row items-center">
+              {isOwner && pendingParticipantCount > 0 ? (
+                <View className="mr-2 min-w-[24px] max-w-[72px] items-center rounded-full bg-amber-50 px-2 py-1">
+                  <Text className="text-[11px] font-bold text-amber-700">
+                    {pendingParticipantCount}
+                  </Text>
+                </View>
+              ) : null}
+              <ChevronRight size={20} color="#94a3b8" />
+            </View>
           </Pressable>
 
           {!isRecommendationFlow ? (

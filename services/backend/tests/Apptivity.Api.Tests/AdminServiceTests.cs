@@ -71,8 +71,25 @@ public sealed class AdminServiceTests
 
         var adminRepository = new FakeAdminRepository(eventEntity);
         var reportRepository = new FakeReportRepository(affectedPendingReport, alreadyResolvedReport, ignoredReport, unrelatedPendingReport);
+        var notificationRepository = new FakeNotificationRepository(
+            new Notification
+            {
+                Id = Guid.NewGuid(),
+                AccountId = Guid.NewGuid(),
+                Title = "Participation Approved",
+                Content = "Test",
+                RelatedEntityId = eventId
+            },
+            new Notification
+            {
+                Id = Guid.NewGuid(),
+                AccountId = Guid.NewGuid(),
+                Title = "Other",
+                Content = "Unrelated",
+                RelatedEntityId = Guid.NewGuid()
+            });
         var unitOfWork = new FakeUnitOfWork();
-        var service = CreateService(adminRepository, reportRepository, unitOfWork);
+        var service = CreateService(adminRepository, reportRepository, notificationRepository, unitOfWork);
 
         var result = await service.DeleteEventAsync(
             eventId,
@@ -87,6 +104,8 @@ public sealed class AdminServiceTests
         Assert.Equal(ReportStatus.Resolved, alreadyResolvedReport.Status);
         Assert.Equal(ReportStatus.Resolved, ignoredReport.Status);
         Assert.Equal(ReportStatus.Pending, unrelatedPendingReport.Status);
+        Assert.Single(notificationRepository.ActiveNotifications);
+        Assert.DoesNotContain(notificationRepository.ActiveNotifications, x => x.RelatedEntityId == eventId);
         Assert.Equal(1, unitOfWork.SaveChangesCallCount);
         Assert.Contains(adminRepository.AuditLogs, x => x.Action == "EventForceDeleted" && x.EntityId == eventId);
     }
@@ -106,8 +125,9 @@ public sealed class AdminServiceTests
 
         var adminRepository = new FakeAdminRepository(eventEntity: null);
         var reportRepository = new FakeReportRepository(report);
+        var notificationRepository = new FakeNotificationRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var service = CreateService(adminRepository, reportRepository, unitOfWork);
+        var service = CreateService(adminRepository, reportRepository, notificationRepository, unitOfWork);
 
         var result = await service.IgnoreReportAsync(
             report.Id,
@@ -158,8 +178,17 @@ public sealed class AdminServiceTests
 
         var adminRepository = new FakeAdminRepository(eventEntity);
         var reportRepository = new FakeReportRepository(pendingReport);
+        var notificationRepository = new FakeNotificationRepository(
+            new Notification
+            {
+                Id = Guid.NewGuid(),
+                AccountId = Guid.NewGuid(),
+                Title = "Participation Approved",
+                Content = "Test",
+                RelatedEntityId = eventId
+            });
         var unitOfWork = new FakeUnitOfWork();
-        var service = CreateService(adminRepository, reportRepository, unitOfWork);
+        var service = CreateService(adminRepository, reportRepository, notificationRepository, unitOfWork);
 
         var result = await service.DeleteEventAsync(
             eventId,
@@ -170,6 +199,7 @@ public sealed class AdminServiceTests
         Assert.Equal(EventStatus.Published, eventEntity.Status);
         Assert.False(eventEntity.IsDeleted);
         Assert.Equal(ReportStatus.Pending, pendingReport.Status);
+        Assert.Single(notificationRepository.ActiveNotifications);
         Assert.Equal(0, unitOfWork.SaveChangesCallCount);
         Assert.Empty(adminRepository.AuditLogs);
     }
@@ -177,6 +207,7 @@ public sealed class AdminServiceTests
     private static AdminService CreateService(
         FakeAdminRepository adminRepository,
         FakeReportRepository reportRepository,
+        FakeNotificationRepository notificationRepository,
         FakeUnitOfWork unitOfWork)
     {
         return new AdminService(
@@ -186,6 +217,7 @@ public sealed class AdminServiceTests
             new FakePasswordHasher(),
             reportRepository,
             new FakeChatReportRepository(),
+            notificationRepository,
             unitOfWork);
     }
 
@@ -260,6 +292,48 @@ public sealed class AdminServiceTests
             SaveChangesCallCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class FakeNotificationRepository : INotificationRepository
+    {
+        private readonly List<Notification> _notifications;
+
+        public FakeNotificationRepository(params Notification[] notifications)
+        {
+            _notifications = notifications.ToList();
+        }
+
+        public IReadOnlyCollection<Notification> ActiveNotifications => _notifications.Where(x => !x.IsDeleted).ToArray();
+
+        public Task<(IReadOnlyCollection<Notification> Items, int TotalCount)> GetByAccountIdAsync(Guid accountId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        public Task<Notification?> GetByIdAsync(Guid notificationId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        public Task<IReadOnlyCollection<Notification>> GetUnreadByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        public Task<bool> HasUnreadChatNotificationAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        public Task AddRangeAsync(IReadOnlyCollection<Notification> notifications, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        public Task<int> SoftDeleteByRelatedEntityIdAsync(Guid relatedEntityId, CancellationToken cancellationToken)
+        {
+            var matched = _notifications.Where(x => x.RelatedEntityId == relatedEntityId && !x.IsDeleted).ToArray();
+            foreach (var notification in matched)
+            {
+                notification.IsDeleted = true;
+                notification.DeletedAt = DateTime.UtcNow;
+            }
+
+            return Task.FromResult(matched.Length);
+        }
+
+        public Task<int> SoftDeleteDeletedEventNotificationsByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
     }
 
     private sealed class FakeUserRepository : IUserRepository

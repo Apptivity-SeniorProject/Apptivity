@@ -122,9 +122,7 @@ export function useEvents(filters: EventFilters, options?: UseEventsOptions) {
     return queryResult.data?.pages.flatMap((page) => page.items) ?? [];
   }, [queryResult.data?.pages]);
 
-  const refresh = async () => {
-    await queryResult.refetch();
-  };
+  const refresh = queryResult.refetch;
 
   return {
     ...queryResult,

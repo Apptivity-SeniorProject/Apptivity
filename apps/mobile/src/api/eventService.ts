@@ -386,7 +386,6 @@ export async function getEventDetail(eventId: string): Promise<EventDetail> {
 
   const payload = unwrapEnvelope(detailResponse.data);
   const detail = mapEventDetail(payload);
-
   const photos = photosResponse?.data?.isSuccess ? photosResponse.data.data?.photos : undefined;
   if (photos && photos.length > 0) {
     detail.imageUrls = photos.map((url) => getFullImageUrl(url)!).filter(Boolean);

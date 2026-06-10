@@ -15,6 +15,7 @@ public sealed class AdminService : IAdminService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IReportRepository _reportRepository;
     private readonly IChatReportRepository _chatReportRepository;
+    private readonly INotificationRepository _notificationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AdminService(
@@ -24,6 +25,7 @@ public sealed class AdminService : IAdminService
         IPasswordHasher passwordHasher,
         IReportRepository reportRepository,
         IChatReportRepository chatReportRepository,
+        INotificationRepository notificationRepository,
         IUnitOfWork unitOfWork)
     {
         _adminRepository = adminRepository;
@@ -32,6 +34,7 @@ public sealed class AdminService : IAdminService
         _passwordHasher = passwordHasher;
         _reportRepository = reportRepository;
         _chatReportRepository = chatReportRepository;
+        _notificationRepository = notificationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -414,6 +417,8 @@ public sealed class AdminService : IAdminService
         {
             report.Status = ReportStatus.Resolved;
         }
+
+        await _notificationRepository.SoftDeleteByRelatedEntityIdAsync(eventId, cancellationToken);
 
         await AddAuditLogAsync(adminContext.AccountId, "EventForceDeleted", "Event", eventEntity.Id, $"eventName={eventEntity.Name}", cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

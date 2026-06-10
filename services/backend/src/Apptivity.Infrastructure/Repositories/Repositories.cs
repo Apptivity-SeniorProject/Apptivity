@@ -1552,6 +1552,44 @@ public sealed class NotificationRepository : INotificationRepository
     {
         await _db.Notifications.AddRangeAsync(notifications, cancellationToken);
     }
+
+    public async Task<int> SoftDeleteByRelatedEntityIdAsync(Guid relatedEntityId, CancellationToken cancellationToken)
+    {
+        var notifications = await _db.Notifications
+            .Where(x => x.RelatedEntityId == relatedEntityId)
+            .ToListAsync(cancellationToken);
+
+        if (notifications.Count == 0)
+        {
+            return 0;
+        }
+
+        _db.Notifications.RemoveRange(notifications);
+        return notifications.Count;
+    }
+
+    public async Task<int> SoftDeleteDeletedEventNotificationsByAccountIdAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        var deletedEventIds = _db.Events
+            .IgnoreQueryFilters()
+            .Where(x => x.IsDeleted)
+            .Select(x => x.Id);
+
+        var notifications = await _db.Notifications
+            .Where(x =>
+                x.AccountId == accountId &&
+                x.RelatedEntityId.HasValue &&
+                deletedEventIds.Contains(x.RelatedEntityId.Value))
+            .ToListAsync(cancellationToken);
+
+        if (notifications.Count == 0)
+        {
+            return 0;
+        }
+
+        _db.Notifications.RemoveRange(notifications);
+        return notifications.Count;
+    }
 }
 
 public sealed class UnitOfWork : IUnitOfWork
