@@ -3,7 +3,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -109,6 +111,7 @@ export function PublicProfileScreen() {
   const accountId = params.id ?? '';
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('organized-events');
+  const [isPhotoViewerOpen, setIsPhotoViewerOpen] = useState(false);
 
   const profileQuery = useProfile(accountId);
   const statsQuery = useProfileStats(accountId);
@@ -132,6 +135,19 @@ export function PublicProfileScreen() {
       setActiveTab(nextTab);
     }
   }, [activeTab, visibleTabs]);
+
+  useEffect(() => {
+    if (!isPhotoViewerOpen) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setIsPhotoViewerOpen(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [isPhotoViewerOpen]);
 
   const isLoading = profileQuery.isPending || statsQuery.isPending;
   const displayName = profile
@@ -200,7 +216,10 @@ export function PublicProfileScreen() {
     <View>
       <View className="border-b border-gray-200 bg-white px-4 pb-4 pt-5">
         <View className="mb-4 flex-row items-center">
-          <View className="relative mr-3.5 h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#77e349] bg-[#f0fce8]">
+          <Pressable
+            className="relative mr-3.5 h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#77e349] bg-[#f0fce8]"
+            disabled={!profile?.profilePhoto}
+            onLongPress={() => setIsPhotoViewerOpen(true)}>
             {profile?.profilePhoto ? (
               <Image
                 source={{ uri: profile.profilePhoto }}
@@ -210,7 +229,7 @@ export function PublicProfileScreen() {
             ) : (
               <Text className="text-[22px] font-semibold text-[#357c1c]">{initials}</Text>
             )}
-          </View>
+          </Pressable>
           <View className="min-w-0 flex-1 justify-center">
             <Text className="mb-[3px] text-lg font-semibold leading-tight text-gray-900" numberOfLines={1}>
               {displayName}
@@ -364,6 +383,23 @@ export function PublicProfileScreen() {
           />
         }
       />
+      {profile?.profilePhoto && isPhotoViewerOpen ? (
+        <Modal
+          visible
+          animationType="fade"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setIsPhotoViewerOpen(false)}>
+          <Pressable className="flex-1 items-center justify-center bg-black" onPress={() => setIsPhotoViewerOpen(false)}>
+            <Image
+              source={{ uri: profile.profilePhoto }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={180}
+            />
+          </Pressable>
+        </Modal>
+      ) : null}
     </View>
   );
 }

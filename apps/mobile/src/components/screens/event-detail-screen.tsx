@@ -2,15 +2,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, Users } from 'lucide-react-native';
-import { ActivityIndicator, BackHandler, Dimensions, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Clock3, Flag, Heart, MapPin, MessageCircle, UserCheck, Users } from 'lucide-react-native';
+import { ActivityIndicator, BackHandler, Dimensions, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
-import { useDailyRecommendedNext, useEventDetail } from '@/src/hooks/useEvents';
+import { useDailyRecommendedNext, useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useChatStore } from '@/src/store/useChatStore';
@@ -27,6 +28,7 @@ const { width: windowWidth } = Dimensions.get('window');
 
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80';
+const PLACEHOLDER_AVATAR = 'https://ui-avatars.com/api/?background=e2e8f0&color=475569&bold=true&size=80';
 
 function getParticipationBadge(status?: ParticipationStatus | null): {
   text: string;
@@ -82,6 +84,33 @@ function isCancelledStatus(status: string | number | null | undefined): boolean 
   return false;
 }
 
+function getReputationDisplay(level: string | null | undefined) {
+  if (!level) return null;
+
+  if (
+    level.includes('YÄ±ldÄ±z') ||
+    level.includes('YÃ„Â±ldÃ„Â±z') ||
+    level.toLowerCase().includes('yildiz')
+  ) {
+    return { label: level, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' };
+  }
+
+  switch (level) {
+    case 'Pariah':
+      return { label: 'Etkinlik Bozan', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' };
+    case 'Suspicious':
+      return { label: 'Gelmese mi ya ?', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
+    case 'Neutral':
+      return { label: 'Normal görünüyor', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+    case 'Trusted':
+      return { label: 'Gelsin kanka', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
+    case 'Exemplary':
+      return { label: 'Etkinlik Canavarı', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' };
+    default:
+      return { label: level, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+  }
+}
+
 function getApiErrorCode(error: unknown): string | null {
   if (!isAxiosError<ApiEnvelope<unknown>>(error)) {
     return null;
@@ -97,6 +126,9 @@ export function EventDetailScreen() {
   const isRecommendationFlow = params.recommendationFlow === '1';
   const queryClient = useQueryClient();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [isPhotoViewerOpen, setIsPhotoViewerOpen] = useState(false);
+  const [viewerPhotoIndex, setViewerPhotoIndex] = useState(0);
   const toast = useToast();
   const myAccountId = useAuthStore((state) => state.user?.id);
   const unreadCount = useChatStore((state) => state.unreadByEvent[eventId] ?? 0);
@@ -112,6 +144,25 @@ export function EventDetailScreen() {
 
 
   const { data, isPending, refetch, isRefetching } = useEventDetail(eventId, {});
+  const participantsQuery = useEventParticipants(eventId);
+  const photoCount = data?.imageUrls?.length ? data.imageUrls.length : 1;
+
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [eventId, photoCount]);
+
+  useEffect(() => {
+    if (!isPhotoViewerOpen) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setIsPhotoViewerOpen(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [isPhotoViewerOpen]);
 
   const handleBackNavigation = useCallback(() => {
     if (shouldReturnToHome || isRecommendationFlow) {
@@ -303,12 +354,23 @@ export function EventDetailScreen() {
   const locationLabel = data.location.locationLabel?.trim();
   const fullAddress = data.location.fullAddress?.trim();
   const city = data.location.city?.trim();
+  const latitude = data.location.lat;
+  const longitude = data.location.lng;
   const normalizedLocationLabel = locationLabel?.toLocaleLowerCase('tr-TR');
   const hasCustomLocationDetail = Boolean(
     locationLabel &&
     normalizedLocationLabel !== fullAddress?.toLocaleLowerCase('tr-TR') &&
     normalizedLocationLabel !== city?.toLocaleLowerCase('tr-TR')
   );
+  const hasMapCoordinate = Number.isFinite(latitude) && Number.isFinite(longitude);
+  const mapPreviewRegion: Region | null = hasMapCoordinate
+    ? {
+        latitude: latitude as number,
+        longitude: longitude as number,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      }
+    : null;
 
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
   const isOwner = Boolean(myAccountId && data.ownerId && myAccountId === data.ownerId);
@@ -321,6 +383,13 @@ export function EventDetailScreen() {
   const isApprovedParticipant = data.currentUserParticipationStatus === 'Approved';
   const canOpenChat = isOwner || isApprovedParticipant;
   const isBookmarked = Boolean(data.isBookmarkedByCurrentUser);
+  const organizerParticipant = participantsQuery.data?.organizer;
+  const organizerAccountId = organizerParticipant?.accountId ?? data.ownerId;
+  const organizerAvatarUri = organizerParticipant?.profilePhoto || data.organizerProfilePhoto
+    ? organizerParticipant?.profilePhoto || data.organizerProfilePhoto
+    : `${PLACEHOLDER_AVATAR}&name=${encodeURIComponent(data.organizerName || 'U')}`;
+  const organizerUsername = organizerParticipant?.username?.trim();
+  const organizerReputation = !isOwner ? getReputationDisplay(organizerParticipant?.reputationLevel) : null;
   const previousRecommendationEventId = isRecommendationFlow
     ? recommendationEventIds[recommendationCurrentIndex - 1]
     : undefined;
@@ -394,6 +463,28 @@ export function EventDetailScreen() {
     }
   };
 
+  const handleOpenExternalMap = async () => {
+    if (!hasMapCoordinate) {
+      return;
+    }
+
+    const label = encodeURIComponent(data.title);
+    const lat = latitude as number;
+    const lng = longitude as number;
+    const nativeUrl =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?ll=${lat},${lng}&q=${label}`
+        : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    try {
+      const canOpenNative = await Linking.canOpenURL(nativeUrl);
+      await Linking.openURL(canOpenNative ? nativeUrl : webUrl);
+    } catch {
+      await Linking.openURL(webUrl);
+    }
+  };
+
   return (
     <View className="flex-1 bg-slate-50">
       <Stack.Screen options={screenOptions} />
@@ -402,17 +493,48 @@ export function EventDetailScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
         <View style={{ height: 280 }}>
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const nextIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+              setCurrentPhotoIndex(Math.max(0, Math.min(nextIndex, photos.length - 1)));
+            }}>
             {photos.map((url, index) => (
-              <Image
+              <Pressable
                 key={`${url}-${index}`}
-                source={{ uri: url }}
-                style={{ width: windowWidth, height: 280 }}
-                contentFit="cover"
-                transition={180}
-              />
+                onLongPress={() => {
+                  setViewerPhotoIndex(index);
+                  setIsPhotoViewerOpen(true);
+                }}>
+                <Image
+                  source={{ uri: url }}
+                  style={{ width: windowWidth, height: 280 }}
+                  contentFit="cover"
+                  transition={180}
+                />
+              </Pressable>
             ))}
           </ScrollView>
+          {photos.length > 1 ? (
+            <View className="absolute inset-x-0 bottom-4 flex-row items-center justify-center gap-2">
+              {photos.map((_, index) => {
+                const isActive = index === currentPhotoIndex;
+
+                return (
+                  <View
+                    key={`photo-dot-${index}`}
+                    className={`rounded-full ${isActive ? 'bg-primary-500' : 'bg-white/45'}`}
+                    style={{
+                      width: isActive ? 10 : 7,
+                      height: isActive ? 10 : 7,
+                    }}
+                  />
+                );
+              })}
+            </View>
+          ) : null}
         </View>
 
         <View className="gap-5 px-5 pt-5">
@@ -497,20 +619,11 @@ export function EventDetailScreen() {
                 Katilimci: {data.participantCount}/{data.capacity}
               </Text>
             </View>
-          </View>
-
-          {hasCustomLocationDetail ? (
-            <View className="rounded-2xl border border-slate-200 bg-white p-4">
-              <Text className="text-base font-semibold text-slate-900">Konum Detayi</Text>
-              <Text className="mt-2 text-sm leading-6 text-slate-700">{locationLabel}</Text>
+            <View className="border-t border-slate-100 pt-3">
+              <Text className="text-lg font-bold text-[#357c1c]">
+                {formatEventPrice(data.price, data.isPaid)}
+              </Text>
             </View>
-          ) : null}
-
-          <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-base font-semibold text-slate-900">Fiyat</Text>
-            <Text className="mt-2 text-lg font-bold text-blue-700">
-              {formatEventPrice(data.price, data.isPaid)}
-            </Text>
           </View>
 
           <View className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -518,12 +631,84 @@ export function EventDetailScreen() {
             <Text className="mt-2 text-sm leading-6 text-slate-700">{data.description}</Text>
           </View>
 
-          <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-base font-semibold text-slate-900">Sahibi</Text>
-            <Text className="mt-2 text-sm text-slate-700">{data.organizerName}</Text>
-            {data.organizerType ? (
-              <Text className="mt-1 text-xs uppercase text-slate-500">{data.organizerType}</Text>
-            ) : null}
+          {mapPreviewRegion ? (
+            <Pressable
+              className="rounded-2xl border border-slate-200 bg-white p-4"
+              onPress={handleOpenExternalMap}>
+              <View className="flex-row items-center justify-between gap-3">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-slate-900">Haritadaki Konum</Text>
+                  <Text className="mt-1 text-sm text-slate-500">Dokununca harita uygulamasinda acilir</Text>
+                </View>
+                <View className="self-start rounded-full bg-[#f0fce8] px-2.5 py-1">
+                  <Text className="text-xs font-semibold text-[#357c1c]">Haritada Aç</Text>
+                </View>
+              </View>
+              <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" pointerEvents="none">
+                <MapView
+                  style={{ height: 220 }}
+                  initialRegion={mapPreviewRegion}
+                  region={mapPreviewRegion}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}>
+                  <Marker
+                    coordinate={{
+                      latitude: latitude as number,
+                      longitude: longitude as number,
+                    }}
+                    pinColor="#5bcc2a"
+                  />
+                </MapView>
+              </View>
+              {hasCustomLocationDetail ? (
+                <Text className="mt-3 text-sm leading-6 text-slate-700">{locationLabel}</Text>
+              ) : null}
+            </Pressable>
+          ) : null}
+
+          <View className="gap-2">
+            <View className="flex-row items-center gap-2 px-1 pb-1">
+              <UserCheck size={16} color="#334155" />
+              <Text className="text-sm font-semibold text-slate-700">Etkinlik Sahibi</Text>
+            </View>
+            <View className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <Pressable
+                className="flex-row items-center"
+                disabled={!organizerAccountId}
+                onPress={() => {
+                  if (!organizerAccountId) {
+                    return;
+                  }
+
+                  router.push(`/user/${organizerAccountId}`);
+                }}>
+                <Image
+                  source={{ uri: organizerAvatarUri }}
+                  style={{ width: 44, height: 44, borderRadius: 22 }}
+                  contentFit="cover"
+                  transition={120}
+                />
+                <View className="ml-3 flex-1">
+                  <Text className="flex-shrink text-sm font-semibold text-slate-900">
+                    {data.organizerName}
+                  </Text>
+                  {organizerUsername ? (
+                    <Text className="text-xs text-slate-500">@{organizerUsername}</Text>
+                  ) : null}
+                </View>
+                {organizerReputation ? (
+                  <View
+                    className={`ml-3 rounded border px-2 py-1 ${organizerReputation.bg} ${organizerReputation.border}`}>
+                    <Text className={`text-[10px] font-bold ${organizerReputation.color}`}>
+                      {organizerReputation.label}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            </View>
           </View>
 
           <Pressable
@@ -535,8 +720,8 @@ export function EventDetailScreen() {
               } as never)
             }>
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                <Users size={18} color="#2563eb" />
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-[#f0fce8]">
+                <Users size={18} color="#357c1c" />
               </View>
               <View>
                 <Text className="text-base font-semibold text-slate-900">
@@ -558,7 +743,6 @@ export function EventDetailScreen() {
                     label="Etkinlige Katil"
                     isLoading={joinMutation.isPending}
                     disabled={joinButtonDisabled}
-                    className="bg-blue-600"
                     onPress={() => joinMutation.mutate()}
                   />
                 ) : null
@@ -586,6 +770,60 @@ export function EventDetailScreen() {
           ) : null}
         </View>
       </ScrollView>
+      {isPhotoViewerOpen ? (
+        <Modal
+          visible
+          animationType="fade"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setIsPhotoViewerOpen(false)}>
+          <View className="flex-1 bg-black">
+            <ScrollView
+              horizontal
+              pagingEnabled
+              contentOffset={{ x: viewerPhotoIndex * windowWidth, y: 0 }}
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(event) => {
+                const nextIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+                setViewerPhotoIndex(Math.max(0, Math.min(nextIndex, photos.length - 1)));
+              }}>
+              {photos.map((url, index) => (
+                <View
+                  key={`viewer-${url}-${index}`}
+                  style={{ width: windowWidth, height: '100%' }}
+                  className="items-center justify-center bg-black">
+                  <Image
+                    source={{ uri: url }}
+                    style={{ width: windowWidth, height: '100%' }}
+                    contentFit="contain"
+                    transition={180}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            {photos.length > 1 ? (
+              <View
+                className="absolute inset-x-0 flex-row items-center justify-center gap-2"
+                style={{ bottom: Math.max(insets.bottom, 24) }}>
+                {photos.map((_, index) => {
+                  const isActive = index === viewerPhotoIndex;
+
+                  return (
+                    <View
+                      key={`viewer-dot-${index}`}
+                      className={`rounded-full ${isActive ? 'bg-primary-500' : 'bg-white/45'}`}
+                      style={{
+                        width: isActive ? 10 : 7,
+                        height: isActive ? 10 : 7,
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        </Modal>
+      ) : null}
       {isRecommendationFlow ? (
         <View
           className="absolute inset-x-0 flex-row items-center justify-center gap-4"
@@ -602,7 +840,7 @@ export function EventDetailScreen() {
           </Pressable>
           <Pressable
             accessibilityLabel="Etkinlige katil"
-            className="h-16 w-16 items-center justify-center rounded-full bg-blue-600"
+            className="h-16 w-16 items-center justify-center rounded-full bg-primary-500"
             disabled={recommendationJoinDisabled || joinMutation.isPending}
             onPress={() => joinMutation.mutate()}
             style={{

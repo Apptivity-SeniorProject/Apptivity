@@ -16,10 +16,11 @@ public static class DataSeeder
 
         if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
         {
-            if (!await dbContext.Accounts.AnyAsync(a => a.Email == adminEmail))
+            var adminAccount = await dbContext.Accounts.FirstOrDefaultAsync(a => a.Email == adminEmail);
+            if (adminAccount is null)
             {
                 var adminAccountId = Guid.NewGuid();
-                var adminAccount = new Account
+                adminAccount = new Account
                 {
                     Id = adminAccountId,
                     Username = "system.admin",
@@ -55,6 +56,16 @@ public static class DataSeeder
                 await dbContext.Reputations.AddAsync(adminReputation);
                 
                 await dbContext.SaveChangesAsync();
+            }
+            else
+            {
+                // Sync the password with configuration if it has changed
+                if (string.IsNullOrEmpty(adminAccount.Password) || !passwordHasher.Verify(adminPassword, adminAccount.Password))
+                {
+                    adminAccount.Password = passwordHasher.Hash(adminPassword);
+                    adminAccount.UpdatedAt = DateTime.UtcNow;
+                    await dbContext.SaveChangesAsync();
+                }
             }
         }
     }

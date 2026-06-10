@@ -187,6 +187,8 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
   const participantCount = Math.max(0, dto.capacity - dto.remainingParticipationCount);
   const eventDateTime = toEventDateTime(dto.date, dto.time);
   const participationStatus = normalizeParticipationStatus(dto.currentUserParticipationStatus);
+  const organizerType =
+    dto.ownerType !== undefined && dto.ownerType !== null ? String(dto.ownerType).trim() : undefined;
 
   return {
     id: dto.id,
@@ -199,7 +201,8 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     price,
     isPaid: price > 0,
     organizerName: dto.ownerName ?? 'Organizator',
-    organizerType: dto.ownerType !== undefined && dto.ownerType !== null ? String(dto.ownerType) : undefined,
+    organizerType:
+      organizerType && !/^\d+$/.test(organizerType) ? organizerType : undefined,
     organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
     bannerImageUrl: getFullImageUrl(dto.bannerImage ?? location.imageUrls?.[0] ?? extractBannerImageUrl(dto.description)),
     status: dto.status,

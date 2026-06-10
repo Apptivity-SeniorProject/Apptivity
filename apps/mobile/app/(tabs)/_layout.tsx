@@ -107,6 +107,7 @@ export default function TabLayout() {
         name="notifications"
         options={{
           href: null,
+          header: () => <TopBar hideNotification />,
         }}
       />
       <Tabs.Screen

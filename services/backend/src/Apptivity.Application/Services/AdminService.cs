@@ -13,6 +13,7 @@ public sealed class AdminService : IAdminService
     private readonly IUserRepository _userRepository;
     private readonly IReputationRepository _reputationRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IReportRepository _reportRepository;
     private readonly IChatReportRepository _chatReportRepository;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -21,6 +22,7 @@ public sealed class AdminService : IAdminService
         IUserRepository userRepository,
         IReputationRepository reputationRepository,
         IPasswordHasher passwordHasher,
+        IReportRepository reportRepository,
         IChatReportRepository chatReportRepository,
         IUnitOfWork unitOfWork)
     {
@@ -28,6 +30,7 @@ public sealed class AdminService : IAdminService
         _userRepository = userRepository;
         _reputationRepository = reputationRepository;
         _passwordHasher = passwordHasher;
+        _reportRepository = reportRepository;
         _chatReportRepository = chatReportRepository;
         _unitOfWork = unitOfWork;
     }
@@ -304,6 +307,36 @@ public sealed class AdminService : IAdminService
         return Result<PagedResult<AdminReportDto>>.Success(new PagedResult<AdminReportDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
 
+    public async Task<Result<AdminReportStatusDto>> IgnoreReportAsync(Guid reportId, UserContext adminContext, CancellationToken cancellationToken)
+    {
+        if (!IsAdmin(adminContext))
+        {
+            return Result<AdminReportStatusDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can moderate reports.");
+        }
+
+        var report = await _reportRepository.GetByIdAsync(reportId, cancellationToken);
+        if (report is null)
+        {
+            return Result<AdminReportStatusDto>.Failure(ErrorCodes.ReportNotFound, "Report not found.");
+        }
+
+        if (report.Status != ReportStatus.Resolved)
+        {
+            report.Status = ReportStatus.Ignored;
+        }
+
+        await AddAuditLogAsync(
+            adminContext.AccountId,
+            "ReportIgnored",
+            "Report",
+            report.Id,
+            $"targetType={report.TargetType};targetId={report.TargetId}",
+            cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result<AdminReportStatusDto>.Success(new AdminReportStatusDto(report.Id, report.Status));
+    }
+
     public async Task<Result<PagedResult<AdminChatReportDto>>> GetChatReportsAsync(ChatReportsFilterRequest request, CancellationToken cancellationToken)
     {
         var paging = new PagedRequest
@@ -375,6 +408,12 @@ public sealed class AdminService : IAdminService
         eventEntity.Status = EventStatus.Cancelled;
         eventEntity.IsDeleted = true;
         eventEntity.DeletedAt = DateTime.UtcNow;
+
+        var openReports = await _reportRepository.GetNonResolvedByTargetAsync(ReportTargetType.Event, eventId, cancellationToken);
+        foreach (var report in openReports)
+        {
+            report.Status = ReportStatus.Resolved;
+        }
 
         await AddAuditLogAsync(adminContext.AccountId, "EventForceDeleted", "Event", eventEntity.Id, $"eventName={eventEntity.Name}", cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

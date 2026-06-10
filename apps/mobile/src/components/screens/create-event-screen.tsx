@@ -42,6 +42,16 @@ interface CreateEventMutationResult {
 
 const MIN_EVENT_TAGS = 1;
 const MAX_EVENT_TAGS = 5;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value?: string): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return UUID_PATTERN.test(value);
+}
 
 function createInitialScheduledAt() {
   const now = new Date();
@@ -313,6 +323,13 @@ export function CreateEventScreen() {
       };
     }
 
+    if (selectedTagIds.some((tagId) => !isUuid(tagId))) {
+      return {
+        isValid: false,
+        message: 'Kategori listesi gecerli degil. Lutfen sayfayi yenileyip tekrar deneyin.',
+      };
+    }
+
     if (selectedImages.length < 1 || selectedImages.length > 3) {
       return { isValid: false, message: 'En az 1, en fazla 3 fotograf secmelisiniz.' };
     }
@@ -333,6 +350,11 @@ export function CreateEventScreen() {
         lat: selectedCoordinate.latitude,
         lng: selectedCoordinate.longitude,
       });
+      const validTagIds = selectedTagIds.filter(isUuid);
+
+      if (!validTagIds.length) {
+        throw new Error('Kategori listesi gecerli degil. Lutfen sayfayi yenileyip tekrar deneyin.');
+      }
 
       const payload: CreateEventPayload = {
         name: name.trim(),
@@ -343,8 +365,8 @@ export function CreateEventScreen() {
         capacity: Number(capacity),
         price: Number(price),
         locationData,
-        primaryTagId: selectedTagIds[0],
-        tagIds: selectedTagIds.length ? selectedTagIds : undefined,
+        primaryTagId: validTagIds[0],
+        tagIds: validTagIds,
       };
 
       const event = await createEvent(payload);
@@ -410,7 +432,7 @@ export function CreateEventScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView edges={['left', 'right', 'bottom']} className="flex-1 bg-slate-50">
       <ScrollView contentContainerClassName="px-4 pb-16 pt-6">
         <Text className="text-xl font-sans-bold text-gray-900 tracking-tight">Yeni Etkinlik</Text>
         <Text className="mt-0.5 text-xs text-gray-400 font-sans">
@@ -668,7 +690,9 @@ export function CreateEventScreen() {
                 onRegionChangeComplete={setMapRegion}
                 onPress={handleMapPress}
                 showsUserLocation>
-                {mapDraftCoordinate ? <Marker coordinate={mapDraftCoordinate} /> : null}
+                {mapDraftCoordinate ? (
+                  <Marker coordinate={mapDraftCoordinate} anchor={{ x: 0.5, y: 1 }} />
+                ) : null}
               </MapView>
 
               {isResolvingLocation ? (

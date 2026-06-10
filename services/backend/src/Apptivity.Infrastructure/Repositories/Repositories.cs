@@ -1484,6 +1484,18 @@ public sealed class ReportRepository : IReportRepository
     {
         await _db.Reports.AddAsync(report, cancellationToken);
     }
+
+    public Task<Report?> GetByIdAsync(Guid reportId, CancellationToken cancellationToken)
+    {
+        return _db.Reports.FirstOrDefaultAsync(x => x.Id == reportId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Report>> GetNonResolvedByTargetAsync(ReportTargetType targetType, Guid targetId, CancellationToken cancellationToken)
+    {
+        return await _db.Reports
+            .Where(x => x.TargetType == targetType && x.TargetId == targetId && x.Status != ReportStatus.Resolved)
+            .ToListAsync(cancellationToken);
+    }
 }
 
 public sealed class NotificationRepository : INotificationRepository

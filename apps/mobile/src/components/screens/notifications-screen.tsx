@@ -7,7 +7,6 @@ import { router } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useEventDetail } from '@/src/hooks/useEvents';
 import {
-  useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useNotifications,
 } from '@/src/hooks/useNotifications';
@@ -68,7 +67,6 @@ export function NotificationsScreen() {
   const toast = useToast();
   const notificationsQuery = useNotifications(50);
   const markAsReadMutation = useMarkNotificationAsRead();
-  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const notifications = notificationsQuery.data?.items ?? [];
   const unreadCount = notifications.filter((item) => !item.isRead).length;
@@ -81,18 +79,6 @@ export function NotificationsScreen() {
     markAsReadMutation.mutate(notificationId, {
       onError: (error) => {
         toast.error(getApiErrorMessage(error, 'Bildirim guncellenemedi.'));
-      },
-    });
-  };
-
-  const handleMarkAllAsRead = () => {
-    if (unreadCount === 0 || markAllAsReadMutation.isPending) {
-      return;
-    }
-
-    markAllAsReadMutation.mutate(undefined, {
-      onError: (error) => {
-        toast.error(getApiErrorMessage(error, 'Bildirimler guncellenemedi.'));
       },
     });
   };
@@ -113,29 +99,13 @@ export function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8 pt-3"
         ListHeaderComponent={
-          <View className="mb-4 mt-2 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <Text className="text-3xl font-extrabold text-slate-900">Bildirimler</Text>
-              {unreadCount > 0 && (
-                <View className="rounded-full bg-[#f0fce8] border border-[#bbf09e] px-2.5 py-1">
-                  <Text className="text-xs font-semibold text-[#357c1c]">{unreadCount} yeni</Text>
-                </View>
-              )}
-            </View>
-            <Pressable 
-              disabled={unreadCount === 0 || markAllAsReadMutation.isPending}
-              className={`h-10 w-10 items-center justify-center rounded-xl border ${
-                unreadCount === 0
-                  ? 'bg-slate-200 border-slate-300 opacity-50'
-                  : 'bg-primary-50 border-primary-200'
-              }`}
-              onPress={handleMarkAllAsRead}>
-              <IconSymbol
-                name="checkmark.circle.fill"
-                size={20}
-                color={unreadCount === 0 ? '#94a3b8' : '#357c1c'}
-              />
-            </Pressable>
+          <View className="mb-4 mt-2 flex-row items-center gap-3">
+            <Text className="text-3xl font-extrabold text-slate-900">Bildirimler</Text>
+            {unreadCount > 0 && (
+              <View className="rounded-full border border-[#bbf09e] bg-[#f0fce8] px-2.5 py-1">
+                <Text className="text-xs font-semibold text-[#357c1c]">{unreadCount} yeni</Text>
+              </View>
+            )}
           </View>
         }
         renderItem={({ item }) => (

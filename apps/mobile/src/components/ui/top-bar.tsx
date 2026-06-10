@@ -29,7 +29,7 @@ export function TopBar({ leftContent, rightContent, hideNotification }: TopBarPr
 
   return (
     <View
-      className="bg-white border-b border-gray-100"
+      className="bg-white"
       style={{ paddingTop: insets.top }}>
       <View
         className="flex-row items-center justify-between px-4"

@@ -181,6 +181,12 @@ export async function deleteAdminEvent(eventId) {
     })
 }
 
+export async function ignoreAdminReport(reportId) {
+    return apiRequest(`/admin/reports/${reportId}/ignore`, {
+        method: 'PATCH',
+    })
+}
+
 export async function updateEventStatus(eventId, statusOrPayload) {
     const payload = typeof statusOrPayload === 'object' && statusOrPayload !== null
         ? statusOrPayload

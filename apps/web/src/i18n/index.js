@@ -428,6 +428,9 @@ const resources = {
                         event: {
                             title: 'Etkinlik Raporları',
                             searchPlaceholder: 'Etkinlik ara',
+                            ignore: 'Yoksay',
+                            ignoreSuccess: 'Rapor yoksayıldı.',
+                            ignoreError: 'Rapor yoksayılamadı.',
                             delete: 'Etkinliği Sil',
                             deleteSuccess: 'Etkinlik silindi.',
                             deleteError: 'Etkinlik silinemedi.',
@@ -1196,6 +1199,9 @@ const resources = {
                         event: {
                             title: 'Event Reports',
                             searchPlaceholder: 'Search event',
+                            ignore: 'Ignore',
+                            ignoreSuccess: 'Report ignored.',
+                            ignoreError: 'Report could not be ignored.',
                             delete: 'Delete Event',
                             deleteSuccess: 'Event deleted.',
                             deleteError: 'Event could not be deleted.',

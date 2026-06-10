@@ -98,6 +98,10 @@ public sealed record AdminReportDto(
     string? RelatedUserFullName,
     string? RelatedOrganizationName);
 
+public sealed record AdminReportStatusDto(
+    Guid ReportId,
+    ReportStatus Status);
+
 public sealed record ChatReportsFilterRequest(
     ReportStatus? Status,
     int PageNumber = 1,
@@ -140,6 +144,7 @@ public interface IAdminService
     Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminReportDto>>> GetReportsAsync(ReportsFilterRequest request, CancellationToken cancellationToken);
+    Task<Result<AdminReportStatusDto>> IgnoreReportAsync(Guid reportId, UserContext adminContext, CancellationToken cancellationToken);
     Task<Result<PagedResult<AdminChatReportDto>>> GetChatReportsAsync(ChatReportsFilterRequest request, CancellationToken cancellationToken);
     Task<Result<AdminChatReportDetailDto>> GetChatReportDetailAsync(Guid reportId, CancellationToken cancellationToken);
     Task<Result<AdminEventModerationDto>> DeleteEventAsync(Guid eventId, UserContext adminContext, CancellationToken cancellationToken);

@@ -2,7 +2,7 @@ import { Button, Descriptions, Drawer, Grid, Input, InputNumber, Modal, Radio, S
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataGrid from '../common/DataGrid'
-import { deleteAdminEvent, getAdminReports, getProfileById, updateAdminAccountStatus } from '../../services/adminService'
+import { deleteAdminEvent, getAdminReports, getProfileById, ignoreAdminReport, updateAdminAccountStatus } from '../../services/adminService'
 
 const REPORT_STATUS_QUERY = {
     all: undefined,
@@ -71,6 +71,18 @@ function getAccountStatusLabel(status, t) {
     return t('admin.reports.accountModeration.statuses.inactive')
 }
 
+function matchesEventReport(row, eventId) {
+    return Boolean(row?.eventId) && String(row.eventId) === String(eventId)
+}
+
+function matchesReport(row, reportId) {
+    return Boolean(row?.reportId) && String(row.reportId) === String(reportId)
+}
+
+function normalizeReportStatus(value) {
+    return String(value || '').toLowerCase()
+}
+
 function ReportsSection({ mode = 'all' }) {
     const { t } = useTranslation()
     const screens = Grid.useBreakpoint()
@@ -95,6 +107,7 @@ function ReportsSection({ mode = 'all' }) {
     const [moderationAction, setModerationAction] = useState('suspend')
     const [suspensionDays, setSuspensionDays] = useState(7)
     const [isStatusSubmitting, setIsStatusSubmitting] = useState(false)
+    const [isReportIgnoring, setIsReportIgnoring] = useState(false)
     const [isEventDeleting, setIsEventDeleting] = useState(false)
     const isFixedMode = mode === 'event' || mode === 'account'
     const currentReportType = mode === 'event' || mode === 'account' ? mode : reportType
@@ -314,6 +327,87 @@ function ReportsSection({ mode = 'all' }) {
     const selectedReportIsAccount = selectedReport?.targetType === 'Account' || Number(selectedReport?.targetType) === 2
     const normalizedAccountStatus = normalizeAccountStatus(selectedAccount?.status ?? selectedAccount?.Status)
     const canUnban = normalizedAccountStatus === 'Banned'
+    const selectedReportStatus = normalizeReportStatus(selectedReport?.status)
+
+    const filterMatchesStatus = useCallback((nextStatus) => {
+        if (statusFilter === 'all') {
+            return true
+        }
+
+        return statusFilter === normalizeReportStatus(nextStatus)
+    }, [statusFilter])
+
+    const replaceEventReportStatus = useCallback((eventId, nextStatus) => {
+        const affectedCount = rows.filter((row) => matchesEventReport(row, eventId)).length
+        const nextRows = rows.reduce((accumulator, row) => {
+            if (!matchesEventReport(row, eventId)) {
+                accumulator.push(row)
+                return accumulator
+            }
+
+            if (!filterMatchesStatus(nextStatus)) {
+                return accumulator
+            }
+
+            accumulator.push({
+                ...row,
+                status: nextStatus,
+            })
+            return accumulator
+        }, [])
+
+        setRows(nextRows)
+        setSelectedReport((previousReport) => {
+            if (!matchesEventReport(previousReport, eventId)) {
+                return previousReport
+            }
+
+            return {
+                ...previousReport,
+                status: nextStatus,
+            }
+        })
+
+        if (affectedCount > 0 && !filterMatchesStatus(nextStatus)) {
+            setTotalCount((previousTotalCount) => Math.max(0, previousTotalCount - affectedCount))
+        }
+    }, [filterMatchesStatus, rows])
+
+    const replaceSingleReportStatus = useCallback((reportId, nextStatus) => {
+        const existsInRows = rows.some((row) => matchesReport(row, reportId))
+        const nextRows = rows.reduce((accumulator, row) => {
+            if (!matchesReport(row, reportId)) {
+                accumulator.push(row)
+                return accumulator
+            }
+
+            if (!filterMatchesStatus(nextStatus)) {
+                return accumulator
+            }
+
+            accumulator.push({
+                ...row,
+                status: nextStatus,
+            })
+            return accumulator
+        }, [])
+
+        setRows(nextRows)
+        setSelectedReport((previousReport) => {
+            if (!matchesReport(previousReport, reportId)) {
+                return previousReport
+            }
+
+            return {
+                ...previousReport,
+                status: nextStatus,
+            }
+        })
+
+        if (existsInRows && !filterMatchesStatus(nextStatus)) {
+            setTotalCount((previousTotalCount) => Math.max(0, previousTotalCount - 1))
+        }
+    }, [filterMatchesStatus, rows])
 
     const onOpenDetail = async (row) => {
         setSelectedReport(row)
@@ -371,9 +465,27 @@ function ReportsSection({ mode = 'all' }) {
         }
 
         messageApi.success(t('admin.reports.sections.event.deleteSuccess'))
+        replaceEventReportStatus(selectedReport.eventId, 'Resolved')
         setIsEventDeleting(false)
         setIsDetailOpen(false)
-        await loadReports()
+    }
+
+    const onIgnoreReport = async () => {
+        if (!selectedReport?.reportId) {
+            return
+        }
+
+        setIsReportIgnoring(true)
+        const result = await ignoreAdminReport(selectedReport.reportId)
+        if (!result.isSuccess) {
+            messageApi.error(result.errors?.[0]?.message || t('admin.reports.sections.event.ignoreError'))
+            setIsReportIgnoring(false)
+            return
+        }
+
+        messageApi.success(t('admin.reports.sections.event.ignoreSuccess'))
+        replaceSingleReportStatus(selectedReport.reportId, 'Ignored')
+        setIsReportIgnoring(false)
     }
 
     return (
@@ -476,13 +588,17 @@ function ReportsSection({ mode = 'all' }) {
                 width={isMobile ? '100%' : 720}
                 extra={(
                     <Space>
-                        <Button onClick={() => setIsDetailOpen(false)}>
-                            {t('admin.events.close')}
-                        </Button>
                         {selectedReport?.eventId ? (
-                            <Button danger loading={isEventDeleting} onClick={onDeleteEvent}>
-                                {t('admin.reports.sections.event.delete')}
-                            </Button>
+                            <>
+                                {selectedReportStatus !== 'ignored' && selectedReportStatus !== 'resolved' ? (
+                                    <Button loading={isReportIgnoring} onClick={onIgnoreReport}>
+                                        {t('admin.reports.sections.event.ignore')}
+                                    </Button>
+                                ) : null}
+                                <Button danger loading={isEventDeleting} onClick={onDeleteEvent}>
+                                    {t('admin.reports.sections.event.delete')}
+                                </Button>
+                            </>
                         ) : selectedReportIsAccount ? (
                             canUnban ? (
                                 <Button type="primary" loading={isStatusSubmitting} onClick={() => onModerateAccount('Active')}>
@@ -498,6 +614,9 @@ function ReportsSection({ mode = 'all' }) {
                                 </Button>
                             )
                         ) : null}
+                        <Button onClick={() => setIsDetailOpen(false)}>
+                            {t('admin.events.close')}
+                        </Button>
                     </Space>
                 )}
             >

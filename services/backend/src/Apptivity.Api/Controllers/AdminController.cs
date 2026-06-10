@@ -116,6 +116,19 @@ public sealed class AdminController : ApiControllerBase
         return FromResult(result);
     }
 
+    [HttpPatch("reports/{id:guid}/ignore")]
+    public async Task<IActionResult> IgnoreReport(Guid id, CancellationToken cancellationToken)
+    {
+        var context = _userContextAccessor.GetCurrentUser();
+        if (context is null)
+        {
+            return UnauthorizedResponse();
+        }
+
+        var result = await _adminService.IgnoreReportAsync(id, context, cancellationToken);
+        return FromResult(result);
+    }
+
     [HttpGet("chat-reports")]
     public async Task<IActionResult> GetChatReports(
         [FromQuery] ReportStatus? status,
