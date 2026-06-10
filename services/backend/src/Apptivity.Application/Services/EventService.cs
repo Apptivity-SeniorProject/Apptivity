@@ -1928,7 +1928,7 @@ public sealed class EventService : IEventService
         return tags
             .Where(x => x.IsActive && !x.IsDeleted)
             .OrderBy(x => x.Name)
-            .Select(x => new TagDto(x.Id, x.Name, x.IconName, x.ColorCode))
+            .Select(x => new TagDto(x.Id, x.Name))
             .ToArray();
     }
 

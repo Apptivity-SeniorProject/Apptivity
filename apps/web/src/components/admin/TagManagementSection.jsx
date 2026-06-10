@@ -1,4 +1,4 @@
-import { Button, ColorPicker, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, message } from 'antd'
+import { Button, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -56,8 +56,6 @@ function TagManagementSection() {
         setEditingTag(record)
         form.setFieldsValue({
             name: record.name,
-            iconName: record.iconName,
-            colorCode: record.colorCode,
             isActive: record.isActive,
         })
         setIsModalVisible(true)
@@ -80,15 +78,8 @@ function TagManagementSection() {
             const values = await form.validateFields()
             setIsSubmitting(true)
 
-            // Convert ColorPicker value to string if it's an object
-            const colorCode = typeof values.colorCode === 'object' && values.colorCode?.toHexString
-                ? values.colorCode.toHexString()
-                : values.colorCode
-
             const payload = {
                 ...values,
-                colorCode: colorCode || null,
-                iconName: values.iconName || null,
             }
 
             let result
@@ -122,28 +113,14 @@ function TagManagementSection() {
                 title: t('admin.tags.columns.name'),
                 dataIndex: 'name',
                 key: 'name',
+                width: '60%',
                 render: (text) => <strong>{text}</strong>,
-            },
-            {
-                title: t('admin.tags.columns.iconName'),
-                dataIndex: 'iconName',
-                key: 'iconName',
-            },
-            {
-                title: t('admin.tags.columns.colorCode'),
-                dataIndex: 'colorCode',
-                key: 'colorCode',
-                render: (color) => color ? (
-                    <Space>
-                        <div style={{ width: 20, height: 20, backgroundColor: color, borderRadius: 4, border: '1px solid #d9d9d9' }} />
-                        {color}
-                    </Space>
-                ) : '-',
             },
             {
                 title: t('admin.tags.columns.isActive'),
                 dataIndex: 'isActive',
                 key: 'isActive',
+                width: '20%',
                 render: (isActive) => (
                     <Tag color={isActive ? 'success' : 'error'}>
                         {isActive ? t('admin.tags.form.isActive') : 'Pasif'}
@@ -153,6 +130,7 @@ function TagManagementSection() {
             {
                 title: t('admin.tags.columns.actions'),
                 key: 'actions',
+                width: '20%',
                 render: (_, record) => (
                     <Space size="middle">
                         <Button
@@ -180,7 +158,7 @@ function TagManagementSection() {
     )
 
     return (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
             {contextHolder}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
@@ -221,20 +199,6 @@ function TagManagementSection() {
                         <Input />
                     </Form.Item>
 
-                    <Form.Item
-                        name="iconName"
-                        label={t('admin.tags.form.iconName')}
-                    >
-                        <Input placeholder="örn: Activity" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="colorCode"
-                        label={t('admin.tags.form.colorCode')}
-                    >
-                        <ColorPicker showText />
-                    </Form.Item>
-
                     {editingTag && (
                         <Form.Item
                             name="isActive"
@@ -246,7 +210,7 @@ function TagManagementSection() {
                     )}
                 </Form>
             </Modal>
-        </Space>
+        </div>
     )
 }
 

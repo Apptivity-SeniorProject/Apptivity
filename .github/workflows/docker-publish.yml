@@ -76,3 +76,19 @@ jobs:
           echo "| \`${{ env.IMAGE_PREFIX }}/api\` | \`${{ steps.tag.outputs.VERSION }}\`, \`latest\` |" >> $GITHUB_STEP_SUMMARY
           echo "| \`${{ env.IMAGE_PREFIX }}/web\` | \`${{ steps.tag.outputs.VERSION }}\`, \`latest\` |" >> $GITHUB_STEP_SUMMARY
           echo "| \`${{ env.IMAGE_PREFIX }}/nginx\` | \`${{ steps.tag.outputs.VERSION }}\`, \`latest\` |" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to Production
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/apptivity
+            docker compose pull
+            docker compose up -d

@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace Apptivity.Infrastructure.Migrations
 {
     /// <inheritdoc />
@@ -63,8 +61,6 @@ namespace Apptivity.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: false),
-                    IconName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ColorCode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -700,21 +696,6 @@ namespace Apptivity.Infrastructure.Migrations
                         principalTable: "chats",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.InsertData(
-                table: "tags",
-                columns: new[] { "Id", "ColorCode", "CreatedAt", "DeletedAt", "IconName", "IsActive", "IsDeleted", "Name", "UpdatedAt" },
-                values: new object[,]
-                {
-                    { new Guid("29b5f84d-6e7f-4d71-88c8-e0c91e84ae7b"), "#EF4444", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "heart-pulse", true, false, "Health", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("2f1769f1-0c31-4915-b9cc-d0cf79d5a5f3"), "#F59E0B", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "palette", true, false, "Art", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("40fd6d4c-0f95-49d5-bb6a-7a6419d15231"), "#3B82F6", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "cpu", true, false, "Technology", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("65558f2c-8d3e-4e47-88b5-c2a87d5a0a7f"), "#8B5CF6", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "gamepad-2", true, false, "Gaming", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("8ba4efa4-9f4a-4a56-8646-644a8e3f079d"), "#EC4899", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "music-note", true, false, "Music", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("91b95171-08eb-4c09-a511-61ef9e6a2d5d"), "#14B8A6", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "briefcase", true, false, "Business", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("96a9f6b2-40d7-4e15-9f8e-cb7596ed59f1"), "#10B981", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "football", true, false, "Sports", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("d4e42a0d-6a4d-4d35-84d1-86e4b7e7e122"), "#0EA5E9", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "book-open", true, false, "Education", new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
                 });
 
             migrationBuilder.CreateIndex(

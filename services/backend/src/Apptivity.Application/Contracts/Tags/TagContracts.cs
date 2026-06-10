@@ -4,26 +4,18 @@ namespace Apptivity.Application.Contracts.Tags;
 
 public sealed record TagDto(
     Guid Id,
-    string Name,
-    string? IconName,
-    string? ColorCode);
+    string Name);
 
 public sealed record TagListItemDto(
     Guid Id,
     string Name,
-    string? IconName,
-    string? ColorCode,
     bool IsActive);
 
 public sealed record CreateTagRequest(
-    string Name,
-    string? IconName,
-    string? ColorCode);
+    string Name);
 
 public sealed record UpdateTagRequest(
     string Name,
-    string? IconName,
-    string? ColorCode,
     bool? IsActive);
 
 public interface ITagService
