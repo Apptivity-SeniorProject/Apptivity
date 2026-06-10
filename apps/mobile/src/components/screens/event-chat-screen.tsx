@@ -17,6 +17,7 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
 import { getEventMessages, mapRawMessage, type RawMessageDto } from '@/src/api/chatService';
 import { Button } from '@/src/components/ui/button';
 import { TopBar } from '@/src/components/ui/top-bar';
@@ -244,16 +245,7 @@ export function ChatScreen() {
                   <Pressable onPress={() => router.back()} hitSlop={hitSlop.md} className="flex-row items-center justify-center pl-2">
                     <IconSymbol name="chevron.left" size={28} color="#111827" />
                   </Pressable>
-                  <View className="flex-row items-center gap-2">
-                    <Image
-                      source={require('@/assets/apptivity/apptivity_logo.svg')}
-                      style={{ width: 26, height: 26 }}
-                      contentFit="contain"
-                    />
-                    <Text className="font-sans-bold text-lg text-primary-600">
-                      Apptivity
-                    </Text>
-                  </View>
+                  <ApptivityLogo />
                 </View>
               }
               rightContent={
