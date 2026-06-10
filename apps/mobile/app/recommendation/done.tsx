@@ -14,7 +14,7 @@ export default function RecommendationDoneScreen() {
   const setRecommendationCurrentIndex = useRecommendationFlowStore((state) => state.setCurrentIndex);
   const resetRecommendationFlow = useRecommendationFlowStore((state) => state.reset);
   const screenOptions = useMemo(() => ({ headerShown: false }), []);
-  const message = params.message?.trim() || 'Simdilik bu kadar onerimiz var senin icin.';
+  const message = params.message?.trim() || 'Şimdilik bu kadar önerimiz var senin için.';
   const returnEventIndex =
     recommendationEventIds.length === 0
       ? -1
@@ -65,7 +65,7 @@ export default function RecommendationDoneScreen() {
           style={{ backgroundColor: colors.surfaceTertiary }}>
           <Home size={34} color={colors.textSecondary} />
         </View>
-        <Text className="text-center text-2xl font-bold text-slate-900">Simdilik bu kadar</Text>
+        <Text className="text-center text-2xl font-bold text-slate-900">Şimdilik bu kadar</Text>
         <Text className="mt-3 text-center text-sm leading-6 text-slate-500">{message}</Text>
         <View className="mt-8 flex-row items-center gap-3">
           {returnEventId ? (
@@ -75,7 +75,7 @@ export default function RecommendationDoneScreen() {
               onPress={goBackToRecommendation}>
               <ArrowLeft size={18} color={colors.textSecondary} />
               <Text className="ml-2 text-base font-semibold" style={{ color: colors.textSecondary }}>
-                Geri don
+                Geri dön
               </Text>
             </Pressable>
           ) : null}
@@ -84,7 +84,7 @@ export default function RecommendationDoneScreen() {
             style={{ backgroundColor: colors.primary }}
             onPress={goHome}>
             <Text className="text-base font-semibold" style={{ color: colors.primaryForeground }}>
-              Ana sayfaya don
+              Ana sayfaya dön
             </Text>
           </Pressable>
         </View>

@@ -89,7 +89,7 @@ export default function RecommendationLoadingScreen() {
           params: {
             message:
               result.message ??
-              'Simdilik bu kadar onerimiz var senin icin.',
+              'Şimdilik bu kadar önerimiz var senin için.',
           },
         });
       } catch {
@@ -100,7 +100,7 @@ export default function RecommendationLoadingScreen() {
         router.replace({
           pathname: '/recommendation/done',
           params: {
-            message: 'Etkinlik onerileri su anda hazirlanamiyor. Lutfen daha sonra tekrar dene.',
+            message: 'Etkinlik önerileri şu anda hazırlanamıyor. Lütfen daha sonra tekrar dene.',
           },
         });
       }
@@ -122,9 +122,9 @@ export default function RecommendationLoadingScreen() {
           style={{ backgroundColor: colors.primaryLight }}>
           <Sparkles size={34} color={colors.primaryDark} />
         </View>
-        <Text className="text-center text-2xl font-bold text-slate-900">Oneriler hazirlaniyor</Text>
+        <Text className="text-center text-2xl font-bold text-slate-900">Öneriler hazırlanıyor</Text>
         <Text className="mt-3 text-center text-sm leading-6 text-slate-500">
-          AI senin icin en iyi etkinlikleri seciyor. Bir kac saniye icinde hazir olacak.
+          AI senin için en iyi etkinlikleri seçiyor. Birkaç saniye içinde hazır olacak.
         </Text>
         <View className="mt-8">
           <ActivityIndicator size="large" color={colors.primaryDark} />

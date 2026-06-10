@@ -97,7 +97,7 @@ async function refreshTokens(): Promise<VerifyOtpResponseDto> {
     return response.data.data;
   }
 
-  throw new Error(response.data.errors?.[0]?.message ?? 'Token yenileme basarisiz.');
+  throw new Error(response.data.errors?.[0]?.message ?? 'Token yenileme başarısız.');
 }
 
 export const apiClient = createAxios({

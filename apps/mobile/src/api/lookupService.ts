@@ -1,11 +1,12 @@
 import { apiClient } from '@/src/api/apiClient';
 import type { ApiEnvelope } from '@/src/types/api';
 import type { TagDto } from '@/src/types/lookup';
+import { normalizePossiblyMojibakeText } from '@/src/utils/text';
 
 const MOCK_TAGS: TagDto[] = [
   { id: 'sports-mock-tag', name: 'Spor' },
   { id: 'technology-mock-tag', name: 'Teknoloji' },
-  { id: 'music-mock-tag', name: 'Muzik' },
+  { id: 'music-mock-tag', name: 'Müzik' },
   { id: 'art-mock-tag', name: 'Sanat' },
 ];
 
@@ -21,7 +22,7 @@ interface RawTagDto {
 
 function mapRawTag(raw: RawTagDto): TagDto | null {
   const id = raw.id?.trim();
-  const name = (raw.name ?? raw.label)?.trim();
+  const name = normalizePossiblyMojibakeText((raw.name ?? raw.label)?.trim() ?? '');
 
   if (!id || !name) {
     return null;

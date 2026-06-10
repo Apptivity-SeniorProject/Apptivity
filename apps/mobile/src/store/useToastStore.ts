@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { useErrorModalStore } from '@/src/store/useErrorModalStore';
+
 type ToastType = 'success' | 'error' | 'info';
 
 interface ToastState {
@@ -22,6 +24,12 @@ export const useToastStore = create<ToastState>((set, get) => ({
     const currentTimer = get().timer;
     if (currentTimer) {
       clearTimeout(currentTimer);
+    }
+
+    if (type === 'error') {
+      set({ visible: false, timer: null });
+      useErrorModalStore.getState().showError(message);
+      return;
     }
 
     const timer = setTimeout(() => {

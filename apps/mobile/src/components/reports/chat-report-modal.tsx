@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react-native';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { createChatReport } from '@/src/api/chatService';
 import { Button } from '@/src/components/ui/button';
@@ -17,11 +17,11 @@ interface ChatReportModalProps {
 
 const REASONS: ReportReasonOption[] = [
   { label: 'Spam', value: 1 },
-  { label: 'Uygunsuz Icerik', value: 2 },
-  { label: 'Sahte Icerik', value: 3 },
+  { label: 'Uygunsuz İçerik', value: 2 },
+  { label: 'Sahte İçerik', value: 3 },
   { label: 'Taciz', value: 4 },
-  { label: 'Siddet', value: 5 },
-  { label: 'Diger', value: 6 },
+  { label: 'Şiddet', value: 5 },
+  { label: 'Diğer', value: 6 },
 ];
 
 export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalProps) {
@@ -45,7 +45,7 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
     onClose();
   };
 
-  const selectedReasonLabel = REASONS.find((reason) => reason.value === selectedReason)?.label ?? 'Sebep sec';
+  const selectedReasonLabel = REASONS.find((reason) => reason.value === selectedReason)?.label ?? 'Sebep seç';
 
   const reportMutation = useMutation({
     mutationFn: async () => {
@@ -56,7 +56,7 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
       });
     },
     onSuccess: () => {
-      toast.success('Sohbet basariyla raporlandi. Sizin isminizle mevcut mesaj gecmisi kaydedildi.');
+      toast.success('Sohbet başarıyla raporlandı. Sizin isminizle mevcut mesaj geçmişi kaydedildi.');
       resetForm();
       onClose();
     },
@@ -68,11 +68,12 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={closeModal}>
       <View className="flex-1 justify-end bg-black/30">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="rounded-t-3xl bg-white px-5 pb-6 pt-5" style={{ maxHeight: '88%' }}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text className="text-lg font-semibold text-slate-900">Sohbeti Rapor Et</Text>
             <Text className="mt-2 text-sm text-slate-500">
-              Bu sohbeti raporladiginizda, su ana kadar gonderilen tüm mesajlar incelenmesi icin raporunuza eklenecektir.
+              Bu sohbeti raporladığınızda, şu ana kadar gönderilen tüm mesajlar incelenmesi için raporunuza eklenecektir.
             </Text>
 
             <Text className="mt-4 text-sm font-medium text-slate-700">Sebep</Text>
@@ -109,7 +110,7 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
               multiline
               numberOfLines={4}
               className="mt-2 min-h-28 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900"
-              placeholder="Isterseniz detay ekleyin..."
+              placeholder="İsterseniz detay ekleyin..."
               placeholderTextColor="#94A3B8"
               value={description}
               onChangeText={setDescription}
@@ -118,13 +119,13 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
 
             <View className="mt-5 flex-row gap-3">
               <Button
-                label="Vazgec"
+                label="Vazgeç"
                 className="flex-1 bg-slate-200"
                 textClassName="text-slate-700"
                 onPress={closeModal}
               />
               <Button
-                label="Gonder"
+                label="Gönder"
                 className="flex-1 bg-rose-600"
                 isLoading={reportMutation.isPending}
                 onPress={() => reportMutation.mutate()}
@@ -132,6 +133,7 @@ export function ChatReportModal({ visible, onClose, eventId }: ChatReportModalPr
             </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

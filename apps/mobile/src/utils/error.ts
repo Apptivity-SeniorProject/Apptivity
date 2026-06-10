@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios';
 import { ERROR_CODE_MESSAGES } from '@/src/constants/error-codes';
 import type { ApiEnvelope, ApiErrorResponse } from '@/src/types/api';
 
-const DEFAULT_ERROR_MESSAGE = 'Bir hata olustu. Lutfen tekrar deneyin.';
+const DEFAULT_ERROR_MESSAGE = 'Bir hata oluştu. Lütfen tekrar deneyin.';
 
 interface EnvelopeLike {
   errors?: { code?: string; message?: string }[];

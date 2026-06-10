@@ -124,8 +124,8 @@ export function PublicProfileScreen() {
   const visibleTabs = useMemo<{ key: ProfileTab; label: string }[]>(
     () =>
       isIndividualProfile
-        ? [{ key: 'participated-events', label: 'Katiligi etkinlikler' }]
-        : [{ key: 'organized-events', label: 'Duzenledigi etkinlikler' }],
+        ? [{ key: 'participated-events', label: 'Katıldığı etkinlikler' }]
+        : [{ key: 'organized-events', label: 'Düzenlediği etkinlikler' }],
     [isIndividualProfile]
   );
 
@@ -175,7 +175,7 @@ export function PublicProfileScreen() {
   }, [activeTab, organizerName, profileEventsQuery.data?.items]);
 
   const isListRefetching = profileEventsQuery.isRefetching;
-  const eventCountLabel = isIndividualProfile ? 'Katilim' : 'Duzenlenen';
+  const eventCountLabel = isIndividualProfile ? 'Katılım' : 'Düzenlenen';
   const primaryTabLabel = visibleTabs[0]?.label ?? 'Etkinlikler';
 
   if (isLoading) {
@@ -250,7 +250,7 @@ export function PublicProfileScreen() {
               <View className="flex-row items-center gap-1.5">
                 <IconSymbol name="star.fill" size={13} color="#5bcc2a" />
                 <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                  Itibar
+                  İtibar
                 </Text>
               </View>
               <View className={`${badgeBg} rounded-full border ${badgeBorder} px-2.5 py-[3px]`}>
@@ -280,7 +280,7 @@ export function PublicProfileScreen() {
             style={{ borderWidth: 1, borderColor: colors.primaryMuted, backgroundColor: colors.primaryLight }}>
 
             <Text className="mb-2 text-[12px] leading-5" style={{ color: colors.primaryDark }}>
-              {statsQuery.data?.totalReviews ?? 0} degerlendirme uzerinden ortalama puan
+              {statsQuery.data?.totalReviews ?? 0} değerlendirme üzerinden ortalama puan
             </Text>
 
             <View className="flex-row items-center gap-1">
@@ -368,7 +368,7 @@ export function PublicProfileScreen() {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           <View className="mx-4 mb-4 mt-2 items-center rounded-[14px] border border-gray-200 bg-white p-4">
-            <Text className="text-[13px] text-gray-500">Bu profil icin etkinlik bulunmuyor.</Text>
+            <Text className="text-[13px] text-gray-500">Bu profil için etkinlik bulunmuyor.</Text>
           </View>
         }
         contentContainerClassName="pb-24"

@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ChevronDown, ImagePlus, X } from 'lucide-react-native';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { createReport, uploadReportEvidence } from '@/src/api/reportService';
 import { Button } from '@/src/components/ui/button';
@@ -20,11 +20,11 @@ interface ReportModalProps {
 
 const REASONS: ReportReasonOption[] = [
   { label: 'Spam', value: 1 },
-  { label: 'Uygunsuz Icerik', value: 2 },
-  { label: 'Sahte Icerik', value: 3 },
+  { label: 'Uygunsuz İçerik', value: 2 },
+  { label: 'Sahte İçerik', value: 3 },
   { label: 'Taciz', value: 4 },
-  { label: 'Siddet', value: 5 },
-  { label: 'Diger', value: 6 },
+  { label: 'Şiddet', value: 5 },
+  { label: 'Diğer', value: 6 },
 ];
 
 export function ReportModal({ visible, onClose, targetId, targetType }: ReportModalProps) {
@@ -50,12 +50,12 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
     onClose();
   };
 
-  const selectedReasonLabel = REASONS.find((reason) => reason.value === selectedReason)?.label ?? 'Sebep sec';
+  const selectedReasonLabel = REASONS.find((reason) => reason.value === selectedReason)?.label ?? 'Sebep seç';
 
   const selectImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      toast.error('Gorsel secmek icin galeri izni vermelisiniz.');
+      toast.error('Görsel seçmek için galeri izni vermelisiniz.');
       return;
     }
 
@@ -95,7 +95,7 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
       });
     },
     onSuccess: () => {
-      toast.success('Raporunuz alindi.');
+      toast.success('Raporunuz alındı.');
       resetForm();
       onClose();
     },
@@ -107,8 +107,9 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={closeModal}>
       <View className="flex-1 justify-end bg-black/30">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="rounded-t-3xl bg-white px-5 pb-6 pt-5" style={{ maxHeight: '88%' }}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text className="text-lg font-semibold text-slate-900">Rapor Et</Text>
 
             <Text className="mt-4 text-sm font-medium text-slate-700">Sebep</Text>
@@ -145,16 +146,16 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
               multiline
               numberOfLines={4}
               className="mt-2 min-h-28 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900"
-              placeholder="Isterseniz detay ekleyin..."
+              placeholder="İsterseniz detay ekleyin..."
               placeholderTextColor="#94A3B8"
               value={description}
               onChangeText={setDescription}
               textAlignVertical="top"
             />
 
-            <Text className="mt-4 text-sm font-medium text-slate-700">Gorsel (Opsiyonel)</Text>
+            <Text className="mt-4 text-sm font-medium text-slate-700">Görsel (Opsiyonel)</Text>
             <Button
-              label={selectedImage ? 'Gorseli Degistir' : 'Gorsel Sec'}
+              label={selectedImage ? 'Görseli Değiştir' : 'Görsel Seç'}
               variant="secondary"
               className="mt-2"
               onPress={selectImage}
@@ -165,7 +166,7 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
                 <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-center gap-2">
                     <ImagePlus size={16} color="#475569" />
-                    <Text className="text-sm text-slate-700">Secilen gorsel</Text>
+                    <Text className="text-sm text-slate-700">Seçilen görsel</Text>
                   </View>
                   <Pressable onPress={() => setSelectedImage(null)}>
                     <X size={18} color="#ef4444" />
@@ -182,13 +183,13 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
 
             <View className="mt-5 flex-row gap-3">
               <Button
-                label="Vazgec"
+                label="Vazgeç"
                 className="flex-1 bg-slate-200"
                 textClassName="text-slate-700"
                 onPress={closeModal}
               />
               <Button
-                label="Gonder"
+                label="Gönder"
                 className="flex-1 bg-rose-600"
                 isLoading={reportMutation.isPending}
                 onPress={() => reportMutation.mutate()}
@@ -196,6 +197,7 @@ export function ReportModal({ visible, onClose, targetId, targetType }: ReportMo
             </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

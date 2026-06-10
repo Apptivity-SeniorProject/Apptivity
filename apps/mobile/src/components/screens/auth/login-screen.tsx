@@ -1,20 +1,17 @@
 import { useMutation } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { loginWithPhoneNumber } from '@/src/api/authService';
 import { Button } from '@/src/components/ui/button';
@@ -47,10 +44,10 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [inputError, setInputError] = useState('');
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
 
   const toast = useToast();
-  const insets = useSafeAreaInsets();
+
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -61,19 +58,7 @@ export function LoginScreen() {
     [countryCode, phoneInput]
   );
 
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setIsKeyboardVisible(false);
-    });
 
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   const loginMutation = useMutation({
     mutationFn: ({ identifier, pass }: { identifier: string; pass: string }) =>
@@ -121,10 +106,6 @@ export function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top}>
         <Pressable
           className="absolute left-8 top-3 z-10 flex-row items-center gap-1"
           hitSlop={hitSlop.md}
@@ -133,17 +114,7 @@ export function LoginScreen() {
           <Text className="font-sans-medium text-sm text-primary-600">Geri Dön</Text>
         </Pressable>
 
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-grow px-8"
-          contentContainerStyle={{
-            justifyContent: isKeyboardVisible ? 'flex-start' : 'center',
-            paddingTop: isKeyboardVisible ? 48 : 0,
-            paddingBottom: 24 + insets.bottom,
-          }}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+        <View className="flex-1 justify-center px-8">
           <View className="flex-1 justify-center">
             <View className="items-center">
               <View className="mb-3 h-20 w-20 items-center justify-center rounded-3xl bg-primary-50">
@@ -217,8 +188,7 @@ export function LoginScreen() {
               </View>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
 
       <Modal animationType="slide" transparent visible={isCountryModalOpen}>
         <Pressable

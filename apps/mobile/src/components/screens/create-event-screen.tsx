@@ -10,7 +10,9 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -22,7 +24,7 @@ import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-m
 import { Calendar, Clock, MapPin, ImagePlus } from 'lucide-react-native';
 
 import { createEvent, uploadEventPhoto } from '@/src/api/eventService';
-import { CategorySelector } from '@/src/components/events/category-selector';
+import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useToast } from '@/src/hooks/useToast';
@@ -91,6 +93,7 @@ export function CreateEventScreen() {
     longitude: number;
   } | null>(null);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
 
   const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -99,9 +102,9 @@ export function CreateEventScreen() {
   const toast = useToast();
   const { data: tags } = useTags();
 
-  const categories = useMemo(
-    () => (tags ?? []).map((tag) => ({ id: tag.id, name: tag.name })),
-    [tags]
+  const selectedTagsPreview = useMemo(
+    () => (tags ?? []).filter((tag) => selectedTagIds.includes(tag.id)).slice(0, 4),
+    [selectedTagIds, tags]
   );
 
   const formattedDate = useMemo(() => format(scheduledAt, 'dd.MM.yyyy'), [scheduledAt]);
@@ -114,7 +117,7 @@ export function CreateEventScreen() {
       }
 
       if (current.length >= MAX_EVENT_TAGS) {
-        toast.error(`En fazla ${MAX_EVENT_TAGS} kategori secebilirsiniz.`);
+        toast.error(`En fazla ${MAX_EVENT_TAGS} kategori seçebilirsiniz.`);
         return current;
       }
 
@@ -139,6 +142,7 @@ export function CreateEventScreen() {
     setMapRegion(DEFAULT_REGION);
     setMapDraftCoordinate(null);
     setIsResolvingLocation(false);
+    setIsTagModalOpen(false);
     setSelectedImages([]);
     setSelectedTagIds([]);
   };
@@ -147,7 +151,7 @@ export function CreateEventScreen() {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
-      toast.error('Fotograf secimi icin galeri izni vermelisiniz.');
+      toast.error('Fotoğraf seçimi için galeri izni vermelisiniz.');
       return;
     }
 
@@ -218,7 +222,7 @@ export function CreateEventScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
 
       if (permission.status !== 'granted') {
-        toast.error('Haritadan konum secmek icin konum izni vermelisiniz.');
+        toast.error('Haritadan konum seçmek için konum izni vermelisiniz.');
         return;
       }
 
@@ -239,7 +243,7 @@ export function CreateEventScreen() {
         longitudeDelta: 0.04,
       });
     } catch {
-      toast.error('Konum bilgisi alinamadi. Haritadan manuel isaretleyebilirsiniz.');
+      toast.error('Konum bilgisi alınamadı. Haritadan manuel işaretleyebilirsiniz.');
     } finally {
       setIsResolvingLocation(false);
     }
@@ -288,30 +292,30 @@ export function CreateEventScreen() {
   };
 
   const validate = (): ValidationResult => {
-    if (!name.trim()) return { isValid: false, message: 'Etkinlik basligi zorunludur.' };
-    if (!description.trim()) return { isValid: false, message: 'Etkinlik aciklamasi zorunludur.' };
+    if (!name.trim()) return { isValid: false, message: 'Etkinlik başlığı zorunludur.' };
+    if (!description.trim()) return { isValid: false, message: 'Etkinlik açıklaması zorunludur.' };
 
     if (scheduledAt.getTime() <= Date.now()) {
-      return { isValid: false, message: 'Etkinlik tarihi ve saati gelecekte olmalidir.' };
+      return { isValid: false, message: 'Etkinlik tarihi ve saati gelecekte olmalıdır.' };
     }
 
     const duration = Number(durationMinutes);
     if (!Number.isInteger(duration) || duration <= 0) {
-      return { isValid: false, message: 'Sure dakikasi 0dan buyuk olmali.' };
+      return { isValid: false, message: 'Süre dakikası 0\'dan büyük olmalı.' };
     }
 
     const cap = Number(capacity);
     if (!Number.isInteger(cap) || cap <= 0) {
-      return { isValid: false, message: 'Kontenjan 0dan buyuk olmali.' };
+      return { isValid: false, message: 'Kontenjan 0\'dan büyük olmalı.' };
     }
 
     const priceValue = Number(price);
     if (!Number.isFinite(priceValue) || priceValue < 0) {
-      return { isValid: false, message: 'Ucret 0 veya daha buyuk olmali.' };
+      return { isValid: false, message: 'Ücret 0 veya daha büyük olmalı.' };
     }
 
     if (!selectedCoordinate) {
-      return { isValid: false, message: 'Konumu harita uzerinden secmelisiniz.' };
+      return { isValid: false, message: 'Konumu harita üzerinden seçmelisiniz.' };
     }
 
 
@@ -319,7 +323,7 @@ export function CreateEventScreen() {
     if (selectedTagIds.length < MIN_EVENT_TAGS || selectedTagIds.length > MAX_EVENT_TAGS) {
       return {
         isValid: false,
-        message: `En az ${MIN_EVENT_TAGS}, en fazla ${MAX_EVENT_TAGS} kategori secmelisiniz.`,
+        message: `En az ${MIN_EVENT_TAGS}, en fazla ${MAX_EVENT_TAGS} kategori seçmelisiniz.`,
       };
     }
 
@@ -331,7 +335,7 @@ export function CreateEventScreen() {
     }
 
     if (selectedImages.length < 1 || selectedImages.length > 3) {
-      return { isValid: false, message: 'En az 1, en fazla 3 fotograf secmelisiniz.' };
+      return { isValid: false, message: 'En az 1, en fazla 3 fotoğraf seçmelisiniz.' };
     }
 
     return { isValid: true };
@@ -340,7 +344,7 @@ export function CreateEventScreen() {
   const createMutation = useMutation({
     mutationFn: async (): Promise<CreateEventMutationResult> => {
       if (!selectedCoordinate) {
-        throw new Error('Konum secilmedi.');
+        throw new Error('Konum seçilmedi.');
       }
 
       const locationData = JSON.stringify({
@@ -372,7 +376,7 @@ export function CreateEventScreen() {
       const event = await createEvent(payload);
 
       if (selectedImages.length === 0) {
-        throw new Error('Fotograf secimi zorunludur.');
+        throw new Error('Fotoğraf seçimi zorunludur.');
       }
 
       try {
@@ -407,7 +411,7 @@ export function CreateEventScreen() {
       if (bannerUploadErrorMessage) {
         toast.info(bannerUploadErrorMessage);
       } else {
-        toast.success('Etkinlik olusturuldu.');
+        toast.success('Etkinlik oluşturuldu.');
       }
 
       resetForm();
@@ -417,14 +421,14 @@ export function CreateEventScreen() {
       });
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Etkinlik olusturulamadi.'));
+      toast.error(getApiErrorMessage(error, 'Etkinlik oluşturulamadı.'));
     },
   });
 
   const onSubmit = () => {
     const result = validate();
     if (!result.isValid) {
-      toast.error(result.message ?? 'Lutfen formu kontrol edin.');
+      toast.error(result.message ?? 'Lütfen formu kontrol edin.');
       return;
     }
 
@@ -433,7 +437,12 @@ export function CreateEventScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} className="flex-1 bg-slate-50">
-      <ScrollView contentContainerClassName="px-4 pb-16 pt-6">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+      <ScrollView contentContainerClassName="px-4 pb-16 pt-6" keyboardShouldPersistTaps="handled">
         <Text className="text-xl font-sans-bold text-gray-900 tracking-tight">Yeni Etkinlik</Text>
         <Text className="mt-0.5 text-xs text-gray-400 font-sans">
           Tarih ve saat seçimi takvimden yapılır, konum haritadan işaretlenir.
@@ -612,12 +621,33 @@ export function CreateEventScreen() {
                 {selectedTagIds.length} / {MAX_EVENT_TAGS} seçildi
               </Text>
             </View>
-            {categories.length ? (
-              <CategorySelector
-                categories={categories}
-                selectedIds={selectedTagIds}
-                onToggle={(category) => toggleTag(category.id)}
-              />
+            {selectedTagsPreview.length > 0 ? (
+              <View className="mb-3 flex-row flex-wrap gap-2">
+                {selectedTagsPreview.map((tag) => (
+                  <View
+                    key={tag.id}
+                    className="rounded-full border border-[#5bcc2a] bg-[#5bcc2a] px-3 py-1.5">
+                    <Text className="text-xs font-semibold text-white">{tag.name}</Text>
+                  </View>
+                ))}
+                {selectedTagIds.length > selectedTagsPreview.length ? (
+                  <View className="rounded-full border border-surface-tertiary bg-surface-secondary px-3 py-1.5">
+                    <Text className="text-xs font-semibold text-gray-600">
+                      +{selectedTagIds.length - selectedTagsPreview.length}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {tags?.length ? (
+              <Pressable
+                className="rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary py-3 items-center justify-center"
+                onPress={() => setIsTagModalOpen(true)}>
+                <Text className="text-sm font-sans-semibold text-gray-700">
+                  {selectedTagIds.length > 0 ? 'Kategorileri Düzenle' : '+ Kategori Seç'}
+                </Text>
+              </Pressable>
             ) : (
               <View className="rounded-button border-[1.5px] border-surface-tertiary bg-surface-secondary p-3.5">
                 <Text className="text-sm text-gray-500 font-sans">Kategori listesi yükleniyor...</Text>
@@ -676,6 +706,21 @@ export function CreateEventScreen() {
         </View>
       </ScrollView>
 
+      <TagSelectionModal
+        visible={isTagModalOpen}
+        onClose={() => setIsTagModalOpen(false)}
+        tags={tags ?? []}
+        selectedTagIds={selectedTagIds}
+        onToggleTag={toggleTag}
+        title="Kategorileri Seç"
+        description={`Etkinliğini doğru kişilere ulaştırmak için en az ${MIN_EVENT_TAGS}, en fazla ${MAX_EVENT_TAGS} kategori seç.`}
+        searchPlaceholder="Kategori ara"
+        selectedSectionTitle="Seçtiklerin"
+        allTagsSectionTitle="Tüm Kategoriler"
+        emptyStateText="Aramana uyan kategori bulunamadı."
+        primaryActionLabel="Uygula"
+      />
+
       <Modal visible={isMapModalOpen} transparent animationType="slide" onRequestClose={() => setIsMapModalOpen(false)}>
         <View className="flex-1 justify-end bg-black/35">
           <View className="rounded-t-3xl bg-white px-4 pb-5 pt-4">
@@ -719,6 +764,7 @@ export function CreateEventScreen() {
           </View>
         </View>
       </Modal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

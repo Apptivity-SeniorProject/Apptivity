@@ -126,7 +126,7 @@ export default function MapScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         setLocationDenied(true);
-        toast.error('Yakin etkinlikler icin konum izni vermelisiniz.');
+        toast.error('Yakın etkinlikler için konum izni vermelisiniz.');
         return;
       }
 
@@ -150,7 +150,7 @@ export default function MapScreen() {
       setRegion(nextRegion);
       mapRef.current?.animateToRegion(nextRegion, 450);
     } catch {
-      toast.error('Konum bilgisi alinamadi.');
+      toast.error('Konum bilgisi alınamadı.');
     } finally {
       setIsLocating(false);
     }
@@ -401,9 +401,9 @@ export default function MapScreen() {
     <View className="flex-1 bg-slate-50">
       <ScrollView ref={scrollViewRef} className="flex-1" contentContainerClassName="pb-6">
         <View className="px-4 pb-3 pt-5">
-          <Text className="text-3xl font-extrabold text-slate-900">Kesfet</Text>
+          <Text className="text-3xl font-extrabold text-slate-900">Keşfet</Text>
           <Text className="mt-1 text-[13px] font-medium text-slate-500">
-            Haritada goruntulenen alandaki etkinlikler
+            Haritada görüntülenen alandaki etkinlikler
           </Text>
         </View>
 
@@ -497,19 +497,19 @@ export default function MapScreen() {
         {locationDenied ? (
           <View className="mx-4 mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
             <Text className="text-[13px] font-medium text-orange-800">
-              Konum izni kapali. Harita mevcut konumunuza odaklanamiyor.
+              Konum izni kapalı. Harita mevcut konumunuza odaklanamıyor.
             </Text>
             <Pressable
               className="mt-3 self-start rounded-xl bg-orange-200/50 px-3 py-1.5"
               onPress={requestLocationPermission}>
-              <Text className="text-[12px] font-semibold text-orange-900">Izin Ver</Text>
+              <Text className="text-[12px] font-semibold text-orange-900">İzin Ver</Text>
             </Pressable>
           </View>
         ) : null}
 
         <View className="mt-4 px-4">
           <View className="mb-2 flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-slate-900">Yakin Konumlar</Text>
+            <Text className="text-base font-semibold text-slate-900">Yakın Konumlar</Text>
             {isLocating ? <ActivityIndicator size="small" color="#0f172a" /> : null}
           </View>
 
@@ -546,7 +546,7 @@ export default function MapScreen() {
           ) : (
             <View className="rounded-xl border border-slate-200 bg-white p-4">
               <Text className="text-sm text-slate-500">
-                Yakinda konum bilgisi olan etkinlik bulunamadi.
+                Yakınında konum bilgisi olan etkinlik bulunamadı.
               </Text>
             </View>
           )}
@@ -584,7 +584,7 @@ export default function MapScreen() {
           ) : (
             <View className="rounded-xl border border-slate-200 bg-white p-4">
               <Text className="text-sm text-slate-500">
-                Konumuna 30 km icinde etkinlik bulunamadi.
+                Konumuna 30 km içinde etkinlik bulunamadı.
               </Text>
             </View>
           )}

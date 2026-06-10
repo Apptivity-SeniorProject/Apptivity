@@ -78,7 +78,7 @@ export function NotificationsScreen() {
 
     markAsReadMutation.mutate(notificationId, {
       onError: (error) => {
-        toast.error(getApiErrorMessage(error, 'Bildirim guncellenemedi.'));
+        toast.error(getApiErrorMessage(error, 'Bildirim güncellenemedi.'));
       },
     });
   };

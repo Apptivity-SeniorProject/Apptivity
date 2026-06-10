@@ -142,7 +142,7 @@ function mapEventSummary(dto: EventSummaryDto): EventListItem {
     location,
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
-    organizerName: dto.ownerName ?? 'Organizator',
+    organizerName: dto.ownerName ?? 'Organizatör',
     organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
     bannerImageUrl,
     status: dto.status,
@@ -168,7 +168,7 @@ function mapMyParticipation(dto: MyParticipationDto): EventListItem {
     location,
     price: Number(dto.price ?? 0),
     isPaid: Number(dto.price ?? 0) > 0,
-    organizerName: dto.ownerName ?? 'Organizator',
+    organizerName: dto.ownerName ?? 'Organizatör',
     organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
     bannerImageUrl,
     status: dto.eventStatus,
@@ -200,7 +200,7 @@ function mapEventDetail(dto: EventDetailsDto): EventDetail {
     location,
     price,
     isPaid: price > 0,
-    organizerName: dto.ownerName ?? 'Organizator',
+    organizerName: dto.ownerName ?? 'Organizatör',
     organizerType:
       organizerType && !/^\d+$/.test(organizerType) ? organizerType : undefined,
     organizerProfilePhoto: getFullImageUrl(dto.ownerProfilePhoto),
@@ -224,7 +224,7 @@ function unwrapEnvelope<T>(responseData: ApiEnvelope<T>): T {
     return responseData.data;
   }
 
-  throw new Error(responseData.errors?.[0]?.message ?? 'Istek basarisiz.');
+  throw new Error(responseData.errors?.[0]?.message ?? 'İstek başarısız.');
 }
 
 function buildEventQueryParams(
@@ -453,7 +453,7 @@ export async function uploadEventPhoto(
 ): Promise<string | undefined> {
   const normalizedUri = asset.uri.trim();
   if (!normalizedUri) {
-    throw new Error('Fotograf URI bos olamaz.');
+    throw new Error('Fotoğraf URI boş olamaz.');
   }
 
   const normalizedMeta = normalizeBannerFileMeta(asset);
@@ -521,7 +521,7 @@ export async function cancelEvent(eventId: string): Promise<void> {
 export async function toggleEventBookmark(eventId: string): Promise<void> {
   const response = await apiClient.post<ApiEnvelope<null>>(`/api/events/${eventId}/bookmark`);
   if (!response.data.isSuccess) {
-    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik begeni durumu guncellenemedi.');
+    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik beğeni durumu güncellenemedi.');
   }
 }
 

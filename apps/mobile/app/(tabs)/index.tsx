@@ -61,7 +61,7 @@ function getProfileSubtitle(profile: ProfileDto): string {
   if (normalizeAccountType(profile.type) === 'organization') {
     return profile.clubProfile?.city?.trim() || 'Organizasyon';
   }
-  return profile.userProfile?.bio?.trim() || 'Kullanici';
+  return profile.userProfile?.bio?.trim() || 'Kullanıcı';
 }
 
 function getProfileInitials(displayName: string): string {
@@ -101,7 +101,7 @@ export default function HomeScreen() {
       id: tag.id,
       name: tag.name,
     }));
-    return [{ id: ALL_CATEGORY_ID, name: 'Tumu' }, ...dynamicCategories];
+    return [{ id: ALL_CATEGORY_ID, name: 'Tümü' }, ...dynamicCategories];
   }, [tags]);
 
   useEffect(() => {
@@ -183,7 +183,7 @@ export default function HomeScreen() {
     (profile) => normalizeAccountType(profile.type) !== 'admin'
   );
   const hasSearchText = searchInput.trim().length > 0;
-  const searchPlaceholder = searchMode === 'events' ? 'Etkinlik ara...' : 'Kullanici ara...';
+  const searchPlaceholder = searchMode === 'events' ? 'Etkinlik ara...' : 'Kullanıcı ara...';
   const isSearchLoading = hasSearchText && (debouncedSearchTerm !== searchInput.trim() || (searchMode === 'events' ? isSearchEventsPending : profileSearchQuery.isPending));
 
   const closeSearchOverlay = () => {
@@ -310,12 +310,12 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', marginTop: 6, gap: 5 }}>
             {isFree ? (
               <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ucretsiz</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
               </View>
             ) : spotsLeft !== null ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldi</Text>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
               </View>
             ) : null}
           </View>
@@ -335,7 +335,7 @@ export default function HomeScreen() {
             borderColor: colors.border, borderRadius: radius.lg, height: 40, paddingHorizontal: 12
           }}>
             <Ionicons name="search" size={18} color={colors.textTertiary} />
-            <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik veya kullanici ara...</Text>
+            <Text style={{ fontSize: 14, color: colors.textTertiary, flex: 1 }}>Etkinlik veya kullanıcı ara...</Text>
           </Pressable>
         </View>
 
@@ -359,11 +359,11 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Senin Icin Section */}
+      {/* Senin İçin Section */}
       {recommendedQuery.data?.items && recommendedQuery.data.items.length > 0 && (
         <View style={{ marginTop: 8, backgroundColor: colors.background, paddingVertical: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Senin Icin</Text>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Senin İçin</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingBottom: 4 }}>
             {recommendedQuery.data.items.map(renderFeatCard)}
@@ -371,10 +371,10 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Genel Akis Header */}
+      {/* Genel Akış Header */}
       <View style={{ marginTop: 8, backgroundColor: colors.background, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Genel Akis</Text>
-        <Text style={{ fontSize: 12, color: colors.textSecondary }}>{events.length} sonuc</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Genel Akış</Text>
+        <Text style={{ fontSize: 12, color: colors.textSecondary }}>{events.length} sonuç</Text>
       </View>
     </View>
   );
@@ -418,13 +418,13 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
               {isFree && (
                 <View style={{ backgroundColor: colors.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, borderWidth: 0.5, borderColor: '#bbf09e' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ucretsiz</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primaryDark }}>Ücretsiz</Text>
                 </View>
               )}
               {spotsLeft !== null && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Ionicons name="people" size={12} color={spotsLeft <= 5 ? colors.error : colors.textSecondary} />
-                  <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldi</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '500', color: spotsLeft <= 5 ? colors.error : colors.textSecondary }}>{spotsLeft} yer kaldı</Text>
                 </View>
               )}
             </View>
@@ -499,7 +499,7 @@ export default function HomeScreen() {
                     <Text
                       className="text-xs font-semibold uppercase tracking-[1.5px]"
                       style={{ color: colors.textTertiary }}>
-                      Kesfet
+                      Keşfet
                     </Text>
                     <Pressable
                       className="rounded-full px-4 py-2"
@@ -536,7 +536,7 @@ export default function HomeScreen() {
                           color:
                             searchMode === 'profiles' ? colors.primaryForeground : colors.textSecondary,
                         }}>
-                        Kullanici
+                        Kullanıcı
                       </Text>
                     </Pressable>
                     <Pressable
@@ -565,14 +565,14 @@ export default function HomeScreen() {
                       className="items-center justify-center rounded-[24px] px-6 py-10"
                       style={{ backgroundColor: colors.surfaceSecondary }}>
                       <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                        {searchMode === 'events' ? 'Etkinlik ara' : 'Kullanici ara'}
+                        {searchMode === 'events' ? 'Etkinlik ara' : 'Kullanıcı ara'}
                       </Text>
                       <Text
                         className="mt-2 text-center text-sm leading-6"
                         style={{ color: colors.textSecondary }}>
                         {searchMode === 'events'
-                          ? 'Secilen filtrelere gore etkinlik sonuclari bu panelde listelenir.'
-                          : 'Kullanici sonuclari burada tek bir akista gorunur.'}
+                          ? 'Seçilen filtrelere göre etkinlik sonuçları bu panelde listelenir.'
+                          : 'Kullanıcı sonuçları burada tek bir akışta görünür.'}
                       </Text>
                     </View>
                   ) : isSearchLoading ? (
@@ -589,10 +589,10 @@ export default function HomeScreen() {
                         <View className="gap-3">
                         <View className="flex-row items-center justify-between">
                           <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                            Kullanicilar
+                            Kullanıcılar
                           </Text>
                           <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                            {profileResults.length} sonuc
+                            {profileResults.length} sonuç
                           </Text>
                         </View>
 
@@ -656,7 +656,7 @@ export default function HomeScreen() {
                                 backgroundColor: colors.surfaceSecondary,
                               }}>
                               <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                                Kullanici bulunamadi.
+                                Kullanıcı bulunamadı.
                               </Text>
                             </View>
                           )}
@@ -668,7 +668,7 @@ export default function HomeScreen() {
                             Etkinlikler
                           </Text>
                           <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                            {searchedEvents.length} sonuc
+                            {searchedEvents.length} sonuç
                           </Text>
                         </View>
 
@@ -693,7 +693,7 @@ export default function HomeScreen() {
                                 backgroundColor: colors.surfaceSecondary,
                               }}>
                               <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                                Etkinlik bulunamadi.
+                                Etkinlik bulunamadı.
                               </Text>
                             </View>
                           )}
