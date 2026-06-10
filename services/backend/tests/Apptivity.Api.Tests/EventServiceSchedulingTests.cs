@@ -381,6 +381,9 @@ public sealed class EventServiceSchedulingTests
 
         public Task CloseExpiredVotingsAsync(CancellationToken cancellationToken)
             => Task.CompletedTask;
+
+        public Task<Result> CloseVotingAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+            => Task.FromResult(Result.Success());
     }
 
     private sealed class FakeNotificationService : INotificationService

@@ -16,6 +16,7 @@ public sealed class EventService : IEventService
 {
     private const string DailyRecommendationDepletedMessage =
         "Bugunluk buralardaki tum paslari tukettin kral. Yeni etkinlikler eklendiginde ilk senin haberin olacak!";
+    private static readonly TimeSpan RecommendationSignalRetention = TimeSpan.FromHours(24);
 
     private readonly IEventRepository _eventRepository;
     private readonly IEventBookmarkRepository _eventBookmarkRepository;
@@ -898,26 +899,21 @@ public sealed class EventService : IEventService
 
         if (hasSignals && allowedTags.Length >= 2)
         {
-            var predictedTags = await _tagPredictorService.PredictAsync(
-                new TagPredictionInput(allowedTags, interestTagNames, approvedHistoryTagNames),
+            var predictedTagIds = await GetPredictedTagIdsAsync(
+                account.Id,
+                allowedTags,
+                interestTagNames,
+                approvedHistoryTagNames,
                 cancellationToken);
 
-            if (predictedTags is not null)
+            if (predictedTagIds.Count > 0)
             {
-                var tagIds = predictedTags.TagIds
-                    .Where(activeTagById.ContainsKey)
-                    .Distinct()
-                    .ToArray();
+                primaryTagId = predictedTagIds[0];
+            }
 
-                if (tagIds.Length > 0)
-                {
-                    primaryTagId = tagIds[0];
-                }
-
-                if (tagIds.Length > 1 && tagIds[1] != primaryTagId)
-                {
-                    fallbackTagId = tagIds[1];
-                }
+            if (predictedTagIds.Count > 1 && predictedTagIds[1] != primaryTagId)
+            {
+                fallbackTagId = predictedTagIds[1];
             }
         }
 
@@ -946,7 +942,9 @@ public sealed class EventService : IEventService
             .Where(x => x.Priority is >= 1 and <= 3)
             .ToArray() ?? Array.Empty<OrderedHotZoneRequest>();
 
-        var activeEvents = await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken);
+        var activeEvents = (await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken))
+            .Where(x => x.OwnerId != userContext.AccountId)
+            .ToArray();
 
         var stage1 = !hasSignals || primaryTagId == Guid.Empty || stage12Zones.Length == 0
             ? Array.Empty<RecommendationCandidate>()
@@ -1114,7 +1112,9 @@ public sealed class EventService : IEventService
                 .Where(x => x != Guid.Empty)
                 .ToHashSet();
 
-            var activeEvents = await _eventRepository.GetPublishedAndOngoingAsync(txToken);
+            var activeEvents = (await _eventRepository.GetPublishedAndOngoingAsync(txToken))
+                .Where(x => x.OwnerId != userContext.AccountId)
+                .ToArray();
             var hasLiveLocation = request.Latitude.HasValue && request.Longitude.HasValue;
             var fallbackCity = hasLiveLocation
                 ? null
@@ -1243,6 +1243,11 @@ public sealed class EventService : IEventService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var approvedHistoryTagIds = MapTagNamesToIds(activeTagById.Values, approvedHistoryTagNames);
+        var recentServedTagIds = await GetRecentServedTagIdsAsync(account.Id, activeTagById, nowUtc, cancellationToken);
+        var historyTagIds = recentServedTagIds
+            .Concat(approvedHistoryTagIds)
+            .Distinct()
+            .ToArray();
 
         var hasSignals = interestTagNames.Length > 0 || approvedHistoryTagNames.Length > 0;
         var allowedTags = activeTagById.Values
@@ -1253,32 +1258,25 @@ public sealed class EventService : IEventService
 
         if (hasSignals && allowedTags.Length > 0)
         {
-            try
-            {
-                var predicted = await _tagPredictorService.PredictAsync(
-                    new TagPredictionInput(allowedTags, interestTagNames, approvedHistoryTagNames),
-                    cancellationToken);
+            var predictedTagIds = await GetPredictedTagIdsAsync(
+                account.Id,
+                allowedTags,
+                interestTagNames,
+                approvedHistoryTagNames,
+                cancellationToken);
 
-                if (predicted is not null)
+            foreach (var tagId in predictedTagIds.Where(activeTagById.ContainsKey))
+            {
+                if (selected.Any(x => x.TagId == tagId))
                 {
-                    foreach (var tagId in predicted.TagIds.Where(activeTagById.ContainsKey).Distinct())
-                    {
-                        if (selected.Any(x => x.TagId == tagId))
-                        {
-                            continue;
-                        }
-
-                        selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Llm));
-                        if (selected.Count == 5)
-                        {
-                            break;
-                        }
-                    }
+                    continue;
                 }
-            }
-            catch
-            {
-                // LLM failure is intentionally swallowed; profile/deterministic fallback continues.
+
+                selected.Add(new SelectedTag(tagId, DailyRecommendationTagSource.Llm));
+                if (selected.Count == 5)
+                {
+                    break;
+                }
             }
         }
 
@@ -1296,7 +1294,7 @@ public sealed class EventService : IEventService
             }
         }
 
-        foreach (var tagId in approvedHistoryTagIds)
+        foreach (var tagId in historyTagIds)
         {
             if (selected.Any(x => x.TagId == tagId))
             {
@@ -1362,6 +1360,113 @@ public sealed class EventService : IEventService
         }
 
         return new DailyPlanBuildResult(plan);
+    }
+
+    private async Task<IReadOnlyList<Guid>> GetPredictedTagIdsAsync(
+        Guid accountId,
+        IReadOnlyCollection<TagPredictionAllowedTag> allowedTags,
+        IReadOnlyCollection<string> interestTagNames,
+        IReadOnlyCollection<string> approvedHistoryTagNames,
+        CancellationToken cancellationToken)
+    {
+        if (allowedTags.Count == 0 || (interestTagNames.Count == 0 && approvedHistoryTagNames.Count == 0))
+        {
+            return Array.Empty<Guid>();
+        }
+
+        var allowedTagIds = allowedTags
+            .Select(x => x.Id)
+            .Distinct()
+            .ToHashSet();
+
+        var cachedPrediction = await _tagPredictionCacheService.GetAsync(accountId, cancellationToken);
+        var normalizedCachedTagIds = NormalizePredictedTagIds(cachedPrediction, allowedTagIds);
+        if (normalizedCachedTagIds.Count > 0)
+        {
+            return normalizedCachedTagIds;
+        }
+
+        try
+        {
+            var predicted = await _tagPredictorService.PredictAsync(
+                new TagPredictionInput(allowedTags, interestTagNames, approvedHistoryTagNames),
+                cancellationToken);
+
+            var normalizedPredictedTagIds = NormalizePredictedTagIds(predicted, allowedTagIds);
+            if (normalizedPredictedTagIds.Count == 0)
+            {
+                return Array.Empty<Guid>();
+            }
+
+            await _tagPredictionCacheService.SetAsync(
+                accountId,
+                new TagPredictionResult(normalizedPredictedTagIds),
+                cancellationToken);
+
+            return normalizedPredictedTagIds;
+        }
+        catch
+        {
+            // LLM failure is intentionally swallowed; profile/deterministic fallback continues.
+            return Array.Empty<Guid>();
+        }
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetRecentServedTagIdsAsync(
+        Guid accountId,
+        IReadOnlyDictionary<Guid, Tag> activeTagById,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var recentServedEvents = await _dailyRecommendationRepository.GetRecentServedEventsAsync(
+            accountId,
+            nowUtc.Subtract(RecommendationSignalRetention),
+            cancellationToken);
+
+        return recentServedEvents
+            .OrderByDescending(x => x.ServedAtUtc)
+            .SelectMany(x => GetEventTagIds(x.Event))
+            .Where(activeTagById.ContainsKey)
+            .Distinct()
+            .ToArray();
+    }
+
+    private static IReadOnlyList<Guid> NormalizePredictedTagIds(
+        TagPredictionResult? prediction,
+        IReadOnlySet<Guid> allowedTagIds)
+    {
+        if (prediction is null)
+        {
+            return Array.Empty<Guid>();
+        }
+
+        return prediction.TagIds
+            .Where(allowedTagIds.Contains)
+            .Distinct()
+            .Take(5)
+            .ToArray();
+    }
+
+    private static IReadOnlyCollection<Guid> GetEventTagIds(Event eventEntity)
+    {
+        var tagIds = new List<Guid>();
+
+        if (eventEntity.PrimaryTagId.HasValue && eventEntity.PrimaryTagId.Value != Guid.Empty)
+        {
+            tagIds.Add(eventEntity.PrimaryTagId.Value);
+        }
+
+        foreach (var tagId in eventEntity.Tags
+                     .Select(x => x.Id)
+                     .Where(x => x != Guid.Empty))
+        {
+            if (!tagIds.Contains(tagId))
+            {
+                tagIds.Add(tagId);
+            }
+        }
+
+        return tagIds;
     }
 
     private static IReadOnlyCollection<Guid> MapTagNamesToIds(

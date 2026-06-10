@@ -655,6 +655,8 @@ public sealed class DailyRecommendationRepository : IDailyRecommendationReposito
     {
         return await _db.DailyRecommendationServedEvents
             .AsNoTracking()
+            .Include(x => x.Event)
+            .ThenInclude(x => x.Tags)
             .Where(x => x.Plan.UserId == userId && x.ServedAtUtc >= sinceUtc)
             .ToListAsync(cancellationToken);
     }

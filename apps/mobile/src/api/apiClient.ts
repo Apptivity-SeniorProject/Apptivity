@@ -164,7 +164,10 @@ apiClient.interceptors.response.use(
     }
 
     if (ENABLE_API_LOGS) {
-      console.error(
+      const statusCode = error.response?.status;
+      const log = statusCode && statusCode < 500 ? console.warn : console.error;
+
+      log(
         `[API Error] ${error.response?.status || 'Network Error'} ${error.config?.url}`,
         error.response?.data || error.message
       );

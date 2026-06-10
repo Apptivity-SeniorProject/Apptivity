@@ -530,7 +530,7 @@ export async function updateEventParticipationStatus(
 export async function cancelEvent(eventId: string): Promise<void> {
   const response = await apiClient.delete<ApiEnvelope<EventSummaryDto>>(`/api/events/${eventId}`);
   if (!response.data.isSuccess) {
-    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik silinemedi.');
+    throw new Error(response.data.errors?.[0]?.message ?? 'Etkinlik iptal edilemedi.');
   }
 }
 

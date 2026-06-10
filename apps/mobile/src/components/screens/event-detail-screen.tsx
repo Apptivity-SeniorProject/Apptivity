@@ -86,6 +86,18 @@ function isCancelledStatus(status: string | number | null | undefined): boolean 
   return false;
 }
 
+function isCompletedStatus(status: string | number | null | undefined): boolean {
+  if (typeof status === 'string') {
+    return status.toLowerCase() === 'completed';
+  }
+
+  if (typeof status === 'number') {
+    return status === 4;
+  }
+
+  return false;
+}
+
 function getReputationDisplay(level: string | null | undefined) {
   if (!level) return null;
 
@@ -289,11 +301,17 @@ export function EventDetailScreen() {
         queryClient.invalidateQueries({ queryKey: ['my-bookmarks'] }),
         queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] }),
       ]);
-      toast.success('Etkinlik silindi.');
+      toast.success('Etkinlik iptal edildi.');
       router.replace('/(tabs)');
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Etkinlik silinemedi.'));
+      if (getApiErrorCode(error) === 'EVENT_409') {
+        void queryClient.invalidateQueries({ queryKey: ['event-detail', eventId] });
+        toast.info(getApiErrorMessage(error, 'Bu etkinlik artık iptal edilemez.'));
+        return;
+      }
+
+      toast.error(getApiErrorMessage(error, 'Etkinlik iptal edilemedi.'));
     },
   });
 
@@ -371,6 +389,8 @@ export function EventDetailScreen() {
   const participationBadge = getParticipationBadge(data.currentUserParticipationStatus);
   const isOwner = Boolean(myAccountId && data.ownerId && myAccountId === data.ownerId);
   const isCancelledEvent = isCancelledStatus(data.status as string | number | null | undefined);
+  const isCompletedEvent = isCompletedStatus(data.status as string | number | null | undefined);
+  const isCancellationLocked = isCancelledEvent || isCompletedEvent;
   const canJoin = !data.isPast && !data.isFull;
   const joinButtonDisabled = !canJoin;
   const isJoined =
@@ -763,9 +783,9 @@ export function EventDetailScreen() {
                     onPress={() => joinMutation.mutate()}
                   />
                 ) : null
-              ) : !isCancelledEvent ? (
+              ) : !isCancellationLocked ? (
                 <Button
-                  label="Etkinliği Sil"
+                  label="Etkinliği İptal Et"
                   isLoading={cancelEventMutation.isPending}
                   className="bg-rose-700"
                   onPress={() => cancelEventMutation.mutate()}
@@ -775,6 +795,12 @@ export function EventDetailScreen() {
               {isOwner && isCancelledEvent ? (
                 <Text className="text-center text-xs text-slate-500">
                   Bu etkinlik zaten iptal edilmiş.
+                </Text>
+              ) : null}
+
+              {isOwner && isCompletedEvent ? (
+                <Text className="text-center text-xs text-slate-500">
+                  Tamamlanan etkinlikler iptal edilemez.
                 </Text>
               ) : null}
 

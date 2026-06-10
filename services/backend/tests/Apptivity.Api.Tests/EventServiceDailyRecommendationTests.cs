@@ -13,6 +13,7 @@ public sealed class EventServiceDailyRecommendationTests
     public async Task GetDailyRecommendedNextAsync_FillsMissingSlotsFromHistoryBeforeDeterministicTags()
     {
         var accountId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000001");
         var profileTagId = Guid.Parse("20000000-0000-0000-0000-000000000010");
         var historyTagId = Guid.Parse("F0000000-0000-0000-0000-000000000010");
         var otherTag1Id = Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -41,12 +42,12 @@ public sealed class EventServiceDailyRecommendationTests
             ApprovedHistoryTagNames = new[] { "History" },
             PublishedEvents = new[]
             {
-                CreateEvent(accountId, profileTag, 1),
-                CreateEvent(accountId, historyTag, 2),
-                CreateEvent(accountId, otherTag1, 3),
-                CreateEvent(accountId, otherTag2, 4),
-                CreateEvent(accountId, otherTag3, 5),
-                CreateEvent(accountId, otherTag4, 6),
+                CreateEvent(eventOwnerId, profileTag, 1),
+                CreateEvent(eventOwnerId, historyTag, 2),
+                CreateEvent(eventOwnerId, otherTag1, 3),
+                CreateEvent(eventOwnerId, otherTag2, 4),
+                CreateEvent(eventOwnerId, otherTag3, 5),
+                CreateEvent(eventOwnerId, otherTag4, 6),
             }
         };
 
@@ -82,6 +83,7 @@ public sealed class EventServiceDailyRecommendationTests
     public async Task GetDailyRecommendedNextAsync_AdvancesToNextTagOrder_OnSequentialCalls()
     {
         var accountId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000002");
         var profileTagId = Guid.Parse("30000000-0000-0000-0000-000000000010");
         var historyTagId = Guid.Parse("40000000-0000-0000-0000-000000000010");
 
@@ -102,9 +104,9 @@ public sealed class EventServiceDailyRecommendationTests
             ApprovedHistoryTagNames = new[] { "History" },
             PublishedEvents = new[]
             {
-                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
-                CreateEvent(accountId, profileTag, 2, "Profile Event 2"),
-                CreateEvent(accountId, historyTag, 3, "History Event 1"),
+                CreateEvent(eventOwnerId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(eventOwnerId, profileTag, 2, "Profile Event 2"),
+                CreateEvent(eventOwnerId, historyTag, 3, "History Event 1"),
             }
         };
 
@@ -140,6 +142,7 @@ public sealed class EventServiceDailyRecommendationTests
     public async Task GetDailyRecommendedNextAsync_CanServeMoreThanFiveRecommendations_ByCyclingAcrossPlanTags()
     {
         var accountId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000003");
         var profileTagId = Guid.Parse("50000000-0000-0000-0000-000000000010");
         var historyTagId = Guid.Parse("60000000-0000-0000-0000-000000000010");
 
@@ -160,12 +163,12 @@ public sealed class EventServiceDailyRecommendationTests
             ApprovedHistoryTagNames = new[] { "History" },
             PublishedEvents = new[]
             {
-                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
-                CreateEvent(accountId, historyTag, 2, "History Event 1"),
-                CreateEvent(accountId, profileTag, 3, "Profile Event 2"),
-                CreateEvent(accountId, historyTag, 4, "History Event 2"),
-                CreateEvent(accountId, profileTag, 5, "Profile Event 3"),
-                CreateEvent(accountId, historyTag, 6, "History Event 3"),
+                CreateEvent(eventOwnerId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(eventOwnerId, historyTag, 2, "History Event 1"),
+                CreateEvent(eventOwnerId, profileTag, 3, "Profile Event 2"),
+                CreateEvent(eventOwnerId, historyTag, 4, "History Event 2"),
+                CreateEvent(eventOwnerId, profileTag, 5, "Profile Event 3"),
+                CreateEvent(eventOwnerId, historyTag, 6, "History Event 3"),
             }
         };
 
@@ -211,6 +214,7 @@ public sealed class EventServiceDailyRecommendationTests
     public async Task GetDailyRecommendedNextAsync_AllowsSameDayRepeatAcrossDifferentSessions()
     {
         var accountId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000004");
         var profileTagId = Guid.Parse("70000000-0000-0000-0000-000000000010");
         var profileTag = CreateTag(profileTagId, "Profile");
 
@@ -227,8 +231,8 @@ public sealed class EventServiceDailyRecommendationTests
         {
             PublishedEvents = new[]
             {
-                CreateEvent(accountId, profileTag, 1, "Profile Event 1"),
-                CreateEvent(accountId, profileTag, 2, "Profile Event 2"),
+                CreateEvent(eventOwnerId, profileTag, 1, "Profile Event 1"),
+                CreateEvent(eventOwnerId, profileTag, 2, "Profile Event 2"),
             }
         };
 
@@ -257,9 +261,247 @@ public sealed class EventServiceDailyRecommendationTests
     }
 
     [Fact]
+    public async Task GetDailyRecommendedNextAsync_FillsMissingSlotsFromRecentServedTagsBeforeDeterministicTags()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000006");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000006");
+        var profileTagId = Guid.Parse("81000000-0000-0000-0000-000000000010");
+        var recentTagId = Guid.Parse("82000000-0000-0000-0000-000000000010");
+        var otherTag1Id = Guid.Parse("83000000-0000-0000-0000-000000000010");
+        var otherTag2Id = Guid.Parse("84000000-0000-0000-0000-000000000010");
+        var otherTag3Id = Guid.Parse("85000000-0000-0000-0000-000000000010");
+        var otherTag4Id = Guid.Parse("86000000-0000-0000-0000-000000000010");
+
+        var profileTag = CreateTag(profileTagId, "Profile");
+        var recentTag = CreateTag(recentTagId, "Recent");
+        var otherTag1 = CreateTag(otherTag1Id, "Art");
+        var otherTag2 = CreateTag(otherTag2Id, "Gaming");
+        var otherTag3 = CreateTag(otherTag3Id, "Travel");
+        var otherTag4 = CreateTag(otherTag4Id, "Music");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "recent-served-user",
+            Phone = "+905551112288",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var recentEvent = CreateEvent(eventOwnerId, recentTag, 1, "Recent Event 1");
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[]
+            {
+                CreateEvent(eventOwnerId, profileTag, 2, "Profile Event 1"),
+                recentEvent,
+                CreateEvent(eventOwnerId, otherTag1, 3, "Other Event 1"),
+                CreateEvent(eventOwnerId, otherTag2, 4, "Other Event 2"),
+                CreateEvent(eventOwnerId, otherTag3, 5, "Other Event 3"),
+                CreateEvent(eventOwnerId, otherTag4, 6, "Other Event 4"),
+            }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository
+        {
+            RecentServedEvents = new[]
+            {
+                new DailyRecommendationServedEvent
+                {
+                    PlanId = Guid.NewGuid(),
+                    EventId = recentEvent.Id,
+                    Event = recentEvent,
+                    TagOrder = 1,
+                    ServedAtUtc = DateTime.UtcNow.AddHours(-2)
+                }
+            }
+        };
+
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag, recentTag, otherTag1, otherTag2, otherTag3, otherTag4),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository);
+
+        var result = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data);
+
+        var plan = Assert.Single(dailyRecommendationRepository.AddedPlans);
+        var orderedTags = plan.Tags.OrderBy(x => x.TagOrder).ToArray();
+
+        Assert.Equal(5, orderedTags.Length);
+        Assert.Equal(profileTagId, orderedTags[0].TagId);
+        Assert.Equal(DailyRecommendationTagSource.Profile, orderedTags[0].Source);
+        Assert.Equal(recentTagId, orderedTags[1].TagId);
+        Assert.Equal(DailyRecommendationTagSource.History, orderedTags[1].Source);
+        Assert.All(orderedTags.Skip(2), tag => Assert.Equal(DailyRecommendationTagSource.Deterministic, tag.Source));
+    }
+
+    [Fact]
+    public async Task GetDailyRecommendedNextAsync_UsesCachedLlmPrediction_WhenLivePredictionIsUnavailable()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000007");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000007");
+        var cachedTag1Id = Guid.Parse("87000000-0000-0000-0000-000000000010");
+        var cachedTag2Id = Guid.Parse("88000000-0000-0000-0000-000000000010");
+        var profileTagId = Guid.Parse("89000000-0000-0000-0000-000000000010");
+
+        var cachedTag1 = CreateTag(cachedTag1Id, "Cached One");
+        var cachedTag2 = CreateTag(cachedTag2Id, "Cached Two");
+        var profileTag = CreateTag(profileTagId, "Profile");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "cached-llm-user",
+            Phone = "+905551112299",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[]
+            {
+                CreateEvent(eventOwnerId, cachedTag1, 1, "Cached Event 1"),
+                CreateEvent(eventOwnerId, cachedTag2, 2, "Cached Event 2"),
+                CreateEvent(eventOwnerId, profileTag, 3, "Profile Event 1"),
+            }
+        };
+
+        var dailyRecommendationRepository = new FakeDailyRecommendationRepository();
+        var cacheService = new FakeTagPredictionCacheService(
+            new TagPredictionResult(new[] { cachedTag1Id, cachedTag2Id }));
+
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(cachedTag1, cachedTag2, profileTag),
+            new FakeTagPredictorService(null),
+            dailyRecommendationRepository,
+            cacheService);
+
+        var result = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data);
+
+        var plan = Assert.Single(dailyRecommendationRepository.AddedPlans);
+        var orderedTags = plan.Tags.OrderBy(x => x.TagOrder).ToArray();
+
+        Assert.Equal(cachedTag1Id, orderedTags[0].TagId);
+        Assert.Equal(DailyRecommendationTagSource.Llm, orderedTags[0].Source);
+        Assert.Equal(cachedTag2Id, orderedTags[1].TagId);
+        Assert.Equal(DailyRecommendationTagSource.Llm, orderedTags[1].Source);
+        Assert.Equal(1, cacheService.GetCalls);
+        Assert.Equal(0, cacheService.SetCalls);
+    }
+
+    [Fact]
+    public async Task GetDailyRecommendedNextAsync_DoesNotServeEventsOwnedByRequester()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000008");
+        var foreignOwnerId = Guid.Parse("20000000-0000-0000-0000-000000000008");
+        var profileTagId = Guid.Parse("8A000000-0000-0000-0000-000000000010");
+        var profileTag = CreateTag(profileTagId, "Profile");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "self-owned-daily-user",
+            Phone = "+905551112300",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var ownEvent = CreateEvent(accountId, profileTag, 1, "Own Event");
+        var foreignEvent = CreateEvent(foreignOwnerId, profileTag, 2, "Foreign Event");
+
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[] { ownEvent, foreignEvent }
+        };
+
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag),
+            new FakeTagPredictorService(null),
+            new FakeDailyRecommendationRepository());
+
+        var result = await service.GetDailyRecommendedNextAsync(
+            new UserContext(accountId, AccountType.Individual),
+            new DailyRecommendedNextRequest(null, null, null, "session-a", Array.Empty<Guid>(), null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data?.Event);
+        Assert.Equal(foreignEvent.Id, result.Data!.Event!.Id);
+    }
+
+    [Fact]
+    public async Task GetRecommendedV6Async_DoesNotReturnEventsOwnedByRequester()
+    {
+        var accountId = Guid.Parse("10000000-0000-0000-0000-000000000009");
+        var foreignOwnerId = Guid.Parse("20000000-0000-0000-0000-000000000009");
+        var profileTagId = Guid.Parse("8B000000-0000-0000-0000-000000000010");
+        var profileTag = CreateTag(profileTagId, "Profile");
+
+        var account = new Account
+        {
+            Id = accountId,
+            Type = AccountType.Individual,
+            Username = "self-owned-v6-user",
+            Phone = "+905551112301",
+            InterestTags = new List<Tag> { profileTag }
+        };
+
+        var ownEvent = CreateLocatedEvent(accountId, profileTag, 1, "Own AI Event", 41.0082m, 28.9784m);
+        var foreignEvent = CreateLocatedEvent(foreignOwnerId, profileTag, 2, "Foreign AI Event", 41.0083m, 28.9785m);
+
+        var eventRepository = new FakeEventRepository
+        {
+            PublishedEvents = new[] { ownEvent, foreignEvent }
+        };
+
+        var service = CreateService(
+            eventRepository,
+            new FakeUserRepository(account),
+            new FakeTagRepository(profileTag),
+            new FakeTagPredictorService(new TagPredictionResult(new[] { profileTagId })),
+            new FakeDailyRecommendationRepository());
+
+        var result = await service.GetRecommendedV6Async(
+            new UserContext(accountId, AccountType.Individual),
+            new RecommendedEventsRequest(
+                new[]
+                {
+                    new OrderedHotZoneRequest(1, 41.0082m, 28.9784m)
+                },
+                1,
+                10),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var items = result.Data!.Items.ToArray();
+        Assert.Single(items);
+        Assert.Equal(foreignEvent.Id, items[0].Id);
+    }
+
+    [Fact]
     public async Task GetDailyRecommendedNextAsync_ReturnsDepleted_WhenSessionExcludesAllCandidates()
     {
         var accountId = Guid.Parse("10000000-0000-0000-0000-000000000005");
+        var eventOwnerId = Guid.Parse("90000000-0000-0000-0000-000000000005");
         var profileTagId = Guid.Parse("80000000-0000-0000-0000-000000000010");
         var profileTag = CreateTag(profileTagId, "Profile");
 
@@ -272,7 +514,7 @@ public sealed class EventServiceDailyRecommendationTests
             InterestTags = new List<Tag> { profileTag }
         };
 
-        var matchingEvent = CreateEvent(accountId, profileTag, 1, "Profile Event 1");
+        var matchingEvent = CreateEvent(eventOwnerId, profileTag, 1, "Profile Event 1");
         var eventRepository = new FakeEventRepository
         {
             PublishedEvents = new[] { matchingEvent }
@@ -335,12 +577,27 @@ public sealed class EventServiceDailyRecommendationTests
         };
     }
 
+    private static Event CreateLocatedEvent(
+        Guid ownerId,
+        Tag tag,
+        int dayOffset,
+        string name,
+        decimal latitude,
+        decimal longitude)
+    {
+        var eventEntity = CreateEvent(ownerId, tag, dayOffset, name);
+        eventEntity.LocationLat = latitude;
+        eventEntity.LocationLng = longitude;
+        return eventEntity;
+    }
+
     private static EventService CreateService(
         FakeEventRepository eventRepository,
         FakeUserRepository userRepository,
         FakeTagRepository tagRepository,
         FakeTagPredictorService tagPredictorService,
-        FakeDailyRecommendationRepository dailyRecommendationRepository)
+        FakeDailyRecommendationRepository dailyRecommendationRepository,
+        FakeTagPredictionCacheService? tagPredictionCacheService = null)
     {
         return new EventService(
             eventRepository,
@@ -350,7 +607,7 @@ public sealed class EventServiceDailyRecommendationTests
             new FakeReviewRepository(),
             tagRepository,
             tagPredictorService,
-            new FakeTagPredictionCacheService(),
+            tagPredictionCacheService ?? new FakeTagPredictionCacheService(),
             null!,
             dailyRecommendationRepository,
             new FakeRecommendationTransactionManager(),
@@ -578,16 +835,35 @@ public sealed class EventServiceDailyRecommendationTests
 
     private sealed class FakeTagPredictionCacheService : ITagPredictionCacheService
     {
+        private TagPredictionResult? _prediction;
+
+        public FakeTagPredictionCacheService(TagPredictionResult? prediction = null)
+        {
+            _prediction = prediction;
+        }
+
+        public int GetCalls { get; private set; }
+        public int SetCalls { get; private set; }
+
         public Task<TagPredictionResult?> GetAsync(Guid accountId, CancellationToken cancellationToken)
-            => Task.FromResult<TagPredictionResult?>(null);
+        {
+            GetCalls++;
+            return Task.FromResult(_prediction);
+        }
 
         public Task SetAsync(Guid accountId, TagPredictionResult prediction, CancellationToken cancellationToken)
-            => Task.CompletedTask;
+        {
+            SetCalls++;
+            _prediction = prediction;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeDailyRecommendationRepository : IDailyRecommendationRepository
     {
         public List<DailyRecommendationPlan> AddedPlans { get; } = new();
+        public IReadOnlyCollection<DailyRecommendationServedEvent> RecentServedEvents { get; init; } =
+            Array.Empty<DailyRecommendationServedEvent>();
         private DailyRecommendationPlan? _storedPlan;
 
         public Task AcquireUserRecommendationLockAsync(Guid userId, CancellationToken cancellationToken)
@@ -630,7 +906,8 @@ public sealed class EventServiceDailyRecommendationTests
         }
 
         public Task<IReadOnlyCollection<DailyRecommendationServedEvent>> GetRecentServedEventsAsync(Guid userId, DateTime sinceUtc, CancellationToken cancellationToken)
-            => Task.FromResult<IReadOnlyCollection<DailyRecommendationServedEvent>>(Array.Empty<DailyRecommendationServedEvent>());
+            => Task.FromResult<IReadOnlyCollection<DailyRecommendationServedEvent>>(
+                RecentServedEvents.Where(x => x.ServedAtUtc >= sinceUtc).ToArray());
 
         public Task<string?> GetMostFrequentServedClubCityAsync(Guid userId, CancellationToken cancellationToken)
             => Task.FromResult<string?>(null);
@@ -661,6 +938,9 @@ public sealed class EventServiceDailyRecommendationTests
 
         public Task CloseExpiredVotingsAsync(CancellationToken cancellationToken)
             => Task.CompletedTask;
+
+        public Task<Result> CloseVotingAsync(Guid eventId, UserContext userContext, CancellationToken cancellationToken)
+            => Task.FromResult(Result.Success());
     }
 
     private sealed class FakeNotificationService : INotificationService

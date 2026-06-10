@@ -9,4 +9,5 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   IMG_CONFIG_MISSING: 'Görsel servisi şu an hazır değil. Etkinlik oluştu ama fotoğraf yüklenemedi.',
   EVENT_400_FULL: 'Etkinliğin kontenjanı dolu.',
   EVENT_404: 'Etkinlik bulunamadı.',
+  EVENT_409: 'Bu etkinlik artık iptal edilemez.',
 };
