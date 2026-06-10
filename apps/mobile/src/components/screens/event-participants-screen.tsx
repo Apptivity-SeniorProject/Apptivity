@@ -36,7 +36,7 @@ const OWNER_TABS: TabConfig[] = [
   {
     key: 'approved',
     label: 'Kabul Edildi',
-    emptyText: 'Hen�z kabul edilen kat1l1mc1 yok.',
+    emptyText: 'Henüz kabul edilen katılımcı yok.',
     statusFilter: 'Approved',
     activeColor: 'border-emerald-600',
     activeBg: 'bg-emerald-600',
@@ -149,7 +149,7 @@ function ParticipantVoting({
   return (
     <View className="mt-3 border-t border-slate-100 pt-3">
       <Text className="mb-2 text-xs font-semibold text-slate-500">
-        {isOrganizationTarget ? 'Organizasyonu Deerlendir' : 'Katılımcıyı Değerlendir'}
+        {isOrganizationTarget ? 'Organizasyonu Değerlendir' : 'Katılımcıyı Değerlendir'}
       </Text>
 
       {isOrganizationTarget ? (
@@ -517,7 +517,7 @@ export function EventParticipantsScreen() {
           {filteredParticipants.length === 0 ? (
             <View className="items-center py-8">
               <Text className="text-sm text-slate-400">
-                {isOwner ? activeTabConfig.emptyText : 'Hen�z kabul edilen kat1l1mc1 yok.'}
+                {isOwner ? activeTabConfig.emptyText : 'Henüz kabul edilen katılımcı yok.'}
               </Text>
             </View>
           ) : (

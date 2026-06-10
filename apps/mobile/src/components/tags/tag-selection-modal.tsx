@@ -30,10 +30,10 @@ export function TagSelectionModal({
   onToggleTag,
   title,
   description,
-  searchPlaceholder = 'Tag ara',
+  searchPlaceholder = 'İlgi alanı ara',
   selectedSectionTitle = 'Seçtiklerin',
-  allTagsSectionTitle = 'Tüm Taglar',
-  emptyStateText = 'Aramana uyan tag bulunamadı.',
+  allTagsSectionTitle = 'Tüm ilgi alanları',
+  emptyStateText = 'Aramana uyan ilgi alanı bulunamadı.',
   primaryActionLabel = 'Tamam',
 }: TagSelectionModalProps) {
   const [searchText, setSearchText] = useState('');

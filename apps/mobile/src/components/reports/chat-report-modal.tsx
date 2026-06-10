@@ -16,7 +16,7 @@ interface ChatReportModalProps {
 }
 
 const REASONS: ReportReasonOption[] = [
-  { label: 'Spam', value: 1 },
+  { label: 'İstenmeyen İçerik', value: 1 },
   { label: 'Uygunsuz İçerik', value: 2 },
   { label: 'Sahte İçerik', value: 3 },
   { label: 'Taciz', value: 4 },

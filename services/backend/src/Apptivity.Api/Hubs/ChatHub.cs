@@ -72,6 +72,12 @@ public sealed class ChatHub : Hub
             throw new HubException("Only event owner or approved participants can send messages.");
         }
 
+        var eventEntity = await _eventRepository.GetByIdAsync(eventId, Context.ConnectionAborted);
+        if (eventEntity is null)
+        {
+            throw new HubException("Event not found.");
+        }
+
         var chat = await _chatRepository.GetOrCreateForEventAsync(eventId, accountId, Context.ConnectionAborted);
 
         var message = new Message
@@ -104,7 +110,11 @@ public sealed class ChatHub : Hub
         await Clients.Group(BuildEventGroup(eventId)).SendAsync("ReceiveMessage", payload, Context.ConnectionAborted);
 
         var joinedAccounts = await _participationRepository.GetChatParticipantAccountIdsAsync(eventId, Context.ConnectionAborted);
-        var targetAccounts = joinedAccounts.Where(x => x != accountId).Distinct().ToArray();
+        var targetAccounts = joinedAccounts
+            .Append(eventEntity.OwnerId)
+            .Where(x => x != accountId)
+            .Distinct()
+            .ToArray();
 
         if (targetAccounts.Length > 0)
         {

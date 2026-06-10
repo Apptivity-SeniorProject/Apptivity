@@ -255,7 +255,7 @@ export function CreateEventScreen() {
 
   const confirmMapSelection = async () => {
     if (!mapDraftCoordinate) {
-      toast.error('Lutfen haritadan bir konum secin.');
+      toast.error('Lütfen haritadan bir konum seçin.');
       return;
     }
 
@@ -287,7 +287,7 @@ export function CreateEventScreen() {
         setResolvedAddress(address);
       }
     } catch {
-      // Reverse geocode basarisiz olsa da koordinat secimi gecerli.
+      // Reverse geocode başarısız olsa da koordinat seçimi geçerli.
     }
   };
 
@@ -330,7 +330,7 @@ export function CreateEventScreen() {
     if (selectedTagIds.some((tagId) => !isUuid(tagId))) {
       return {
         isValid: false,
-        message: 'Kategori listesi gecerli degil. Lutfen sayfayi yenileyip tekrar deneyin.',
+        message: 'Kategori listesi geçerli değil. Lütfen sayfayı yenileyip tekrar deneyin.',
       };
     }
 
@@ -357,7 +357,7 @@ export function CreateEventScreen() {
       const validTagIds = selectedTagIds.filter(isUuid);
 
       if (!validTagIds.length) {
-        throw new Error('Kategori listesi gecerli degil. Lutfen sayfayi yenileyip tekrar deneyin.');
+        throw new Error('Kategori listesi geçerli değil. Lütfen sayfayı yenileyip tekrar deneyin.');
       }
 
       const payload: CreateEventPayload = {
@@ -395,7 +395,7 @@ export function CreateEventScreen() {
           eventId: event.id,
           bannerUploadErrorMessage: getApiErrorMessage(
             error,
-            'Etkinlik olusturuldu fakat bazi fotograflar yuklenemedi.'
+            'Etkinlik oluşturuldu fakat bazı fotoğraflar yüklenemedi.'
           ),
         };
       }

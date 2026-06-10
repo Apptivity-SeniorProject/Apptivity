@@ -67,7 +67,7 @@ export async function sendOtp(payload: SendOtpRequestDto): Promise<void> {
   });
 
   if (!response.data.isSuccess) {
-    throw new Error(response.data.errors?.[0]?.message ?? 'OTP gönderimi başarısız.');
+    throw new Error(response.data.errors?.[0]?.message ?? 'Doğrulama kodu gönderilemedi.');
   }
 }
 

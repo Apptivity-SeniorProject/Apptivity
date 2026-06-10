@@ -116,7 +116,7 @@ export function NotificationsScreen() {
             <View className="h-16 w-16 rounded-3xl bg-slate-100 border border-slate-200 items-center justify-center mb-4">
               <IconSymbol name="bell.slash.fill" size={28} color="#94a3b8" />
             </View>
-            <Text className="text-base font-semibold text-slate-800 mb-1">Bildirim Yok</Text>
+            <Text className="text-base font-semibold text-slate-800 mb-1">Bildirim yok</Text>
             <Text className="text-sm text-slate-500 text-center">Henüz sana ulaşan yeni bir bildirim bulunmuyor.</Text>
           </View>
         }

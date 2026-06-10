@@ -89,8 +89,7 @@ function getReputationDisplay(level: string | null | undefined) {
   if (!level) return null;
 
   if (
-    level.includes('YÄ±ldÄ±z') ||
-    level.includes('YÃ„Â±ldÃ„Â±z') ||
+    level.includes('Yıldız') ||
     level.toLowerCase().includes('yildiz')
   ) {
     return { label: level, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' };
@@ -313,7 +312,7 @@ export function EventDetailScreen() {
         queryClient.setQueryData(['event-detail', eventId], context.previous);
       }
 
-      toast.error(getApiErrorMessage(error, 'Begeni durumu guncellenemedi.'));
+      toast.error(getApiErrorMessage(error, 'Beğeni durumu güncellenemedi.'));
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['my-bookmarks'] });
@@ -452,9 +451,9 @@ export function EventDetailScreen() {
         return;
       }
 
-      toast.error(result.message ?? 'Su anda yeni oneri alinamadi.');
+      toast.error(result.message ?? 'Şu anda yeni öneri alınamadı.');
     } catch {
-      toast.error('Siradaki oneri alinamadi.');
+      toast.error('Sıradaki öneri alınamadı.');
     }
   };
 
@@ -622,7 +621,7 @@ export function EventDetailScreen() {
           </View>
 
           <View className="rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="text-base font-semibold text-slate-900">Aciklama</Text>
+            <Text className="text-base font-semibold text-slate-900">Açıklama</Text>
             <Text className="mt-2 text-sm leading-6 text-slate-700">{data.description}</Text>
           </View>
 
@@ -835,7 +834,7 @@ export function EventDetailScreen() {
             bottom: insets.bottom + 12,
           }}>
           <Pressable
-            accessibilityLabel="Onceki oneri"
+            accessibilityLabel="Önceki öneri"
             className="h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-slate-100"
             disabled={!previousRecommendationEventId}
             onPress={handlePreviousRecommendationPress}
@@ -857,7 +856,7 @@ export function EventDetailScreen() {
             )}
           </Pressable>
           <Pressable
-            accessibilityLabel="Siradaki oneri"
+            accessibilityLabel="Sıradaki öneri"
             className="h-14 w-14 items-center justify-center rounded-full bg-emerald-600"
             disabled={dailyRecommendationMutation.isPending}
             onPress={handleNextRecommendationPress}

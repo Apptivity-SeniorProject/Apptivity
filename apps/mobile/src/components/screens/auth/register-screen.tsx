@@ -248,7 +248,7 @@ export function RegisterScreen() {
               Kullanıcı Adı
             </Text>
             <Input
-              placeholder="kullanici_adiniz"
+              placeholder="kullanıcı_adınız"
               autoCapitalize="none"
               value={form.username}
               onChangeText={(value) => updateField('username', value)}
@@ -394,7 +394,7 @@ export function RegisterScreen() {
               disabled={tagsQuery.isPending}
               onPress={() => setIsInterestsModalOpen(true)}>
               <Text className="text-[13.5px] font-semibold text-[#44a31e]">
-                {selectedTagIds.length > 0 ? 'Tagları Düzenle' : '+ Tag Seç'}
+                {selectedTagIds.length > 0 ? 'İlgi Alanlarını Düzenle' : '+ İlgi Alanı Seç'}
               </Text>
             </Pressable>
           </View>

@@ -54,7 +54,7 @@ export function OtpScreen() {
       router.replace('/(tabs)');
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'OTP doğrulanamadı.'));
+      toast.error(getApiErrorMessage(error, 'Doğrulama kodu doğrulanamadı.'));
     },
   });
 
