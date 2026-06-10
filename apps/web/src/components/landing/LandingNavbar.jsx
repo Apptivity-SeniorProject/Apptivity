@@ -1,4 +1,4 @@
-﻿import { MenuOutlined } from '@ant-design/icons'
+import { MenuOutlined } from '@ant-design/icons'
 import { Button, Drawer, Flex, Grid, Layout, Space, Typography } from 'antd'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -44,9 +44,10 @@ function LandingNavbar() {
                 <Flex style={{ ...contentStyle, minHeight: 64 }} justify="space-between" align="center" gap={12}>
                     <Typography.Title
                         level={4}
-                        style={{ margin: 0, color: '#111111', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ margin: 0, color: '#111111', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}
                         onClick={() => navigate('/')}
                     >
+                        <img src="/logo-monochrome.png" alt="Apptivity" style={{ height: 24, width: 'auto' }} />
                         {t('landing.brand')}
                     </Typography.Title>
 
@@ -102,9 +103,10 @@ function LandingNavbar() {
             <Flex style={contentStyle} justify="space-between" align="center" gap={16}>
                 <Typography.Title
                     level={4}
-                    style={{ margin: 0, color: '#111111', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    style={{ margin: 0, color: '#111111', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}
                     onClick={() => navigate('/')}
                 >
+                    <img src="/logo-monochrome.png" alt="Apptivity" style={{ height: 24, width: 'auto' }} />
                     {t('landing.brand')}
                 </Typography.Title>
 
