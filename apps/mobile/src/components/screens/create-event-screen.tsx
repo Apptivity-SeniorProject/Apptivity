@@ -20,10 +20,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, type MapPressEvent, type Region } from 'react-native-maps';
 import { Calendar, Clock, MapPin, ImagePlus } from 'lucide-react-native';
 
 import { createEvent, uploadEventPhoto } from '@/src/api/eventService';
+import {
+  OpenStreetMap,
+  type MapCoordinate,
+  type MapRegion,
+  type OpenStreetMapMarker,
+} from '@/src/components/maps/open-street-map';
 import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -61,7 +66,7 @@ function createInitialScheduledAt() {
   return now;
 }
 
-const DEFAULT_REGION: Region = {
+const DEFAULT_REGION: MapRegion = {
   latitude: 41.015137,
   longitude: 28.97953,
   latitudeDelta: 0.1,
@@ -81,17 +86,13 @@ export function CreateEventScreen() {
   const [locationDescription, setLocationDescription] = useState('');
   const [resolvedCity, setResolvedCity] = useState('');
   const [resolvedAddress, setResolvedAddress] = useState('');
-  const [selectedCoordinate, setSelectedCoordinate] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+  const [selectedCoordinate, setSelectedCoordinate] = useState<MapCoordinate | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<MapCoordinate | null>(null);
 
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [mapRegion, setMapRegion] = useState<Region>(DEFAULT_REGION);
-  const [mapDraftCoordinate, setMapDraftCoordinate] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+  const [mapRegion, setMapRegion] = useState<MapRegion>(DEFAULT_REGION);
+  const [mapDraftCoordinate, setMapDraftCoordinate] = useState<MapCoordinate | null>(null);
+  const [mapViewportKey, setMapViewportKey] = useState(0);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
 
@@ -138,9 +139,11 @@ export function CreateEventScreen() {
     setResolvedCity('');
     setResolvedAddress('');
     setSelectedCoordinate(null);
+    setCurrentLocation(null);
     setIsMapModalOpen(false);
     setMapRegion(DEFAULT_REGION);
     setMapDraftCoordinate(null);
+    setMapViewportKey(0);
     setIsResolvingLocation(false);
     setIsTagModalOpen(false);
     setSelectedImages([]);
@@ -206,17 +209,6 @@ export function CreateEventScreen() {
   const openMapPicker = async () => {
     setIsMapModalOpen(true);
 
-    if (selectedCoordinate) {
-      setMapDraftCoordinate(selectedCoordinate);
-      setMapRegion({
-        latitude: selectedCoordinate.latitude,
-        longitude: selectedCoordinate.longitude,
-        latitudeDelta: 0.04,
-        longitudeDelta: 0.04,
-      });
-      return;
-    }
-
     setIsResolvingLocation(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -235,22 +227,66 @@ export function CreateEventScreen() {
         longitude: currentPosition.coords.longitude,
       };
 
-      setMapDraftCoordinate(coordinate);
+      setCurrentLocation(coordinate);
+      const nextDraftCoordinate = selectedCoordinate ?? coordinate;
+      setMapDraftCoordinate(nextDraftCoordinate);
       setMapRegion({
-        latitude: coordinate.latitude,
-        longitude: coordinate.longitude,
+        latitude: nextDraftCoordinate.latitude,
+        longitude: nextDraftCoordinate.longitude,
         latitudeDelta: 0.04,
         longitudeDelta: 0.04,
       });
+      setMapViewportKey((current) => current + 1);
     } catch {
       toast.error('Konum bilgisi alınamadı. Haritadan manuel işaretleyebilirsiniz.');
+      if (selectedCoordinate) {
+        setMapDraftCoordinate(selectedCoordinate);
+        setMapRegion({
+          latitude: selectedCoordinate.latitude,
+          longitude: selectedCoordinate.longitude,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        });
+        setMapViewportKey((current) => current + 1);
+      }
     } finally {
       setIsResolvingLocation(false);
     }
   };
 
-  const handleMapPress = (event: MapPressEvent) => {
-    setMapDraftCoordinate(event.nativeEvent.coordinate);
+  const mapMarkers = useMemo<OpenStreetMapMarker[]>(
+    () => {
+      const markers: OpenStreetMapMarker[] = [];
+
+      if (currentLocation) {
+        markers.push({
+          id: 'current-location',
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          title: 'Konumun',
+          subtitle: 'Şu an bulunduğun nokta',
+          variant: 'current-location',
+        });
+      }
+
+      if (mapDraftCoordinate) {
+        markers.push({
+          id: 'selected-location',
+          latitude: mapDraftCoordinate.latitude,
+          longitude: mapDraftCoordinate.longitude,
+          title: 'Seçilen Konum',
+          subtitle: 'Etkinlik burada oluşturulacak',
+          variant: 'selection',
+        });
+      }
+
+      return markers;
+    },
+    [currentLocation, mapDraftCoordinate]
+  );
+
+  const handleMapPress = (coordinate: MapCoordinate) => {
+    setMapDraftCoordinate(coordinate);
   };
 
   const confirmMapSelection = async () => {
@@ -728,17 +764,13 @@ export function CreateEventScreen() {
             <Text className="mt-1 text-sm text-slate-500">Haritada istediğin noktaya dokunup pin bırak.</Text>
 
             <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" style={{ height: 320 }}>
-              <MapView
+              <OpenStreetMap
                 style={{ flex: 1 }}
-                initialRegion={mapRegion}
                 region={mapRegion}
-                onRegionChangeComplete={setMapRegion}
-                onPress={handleMapPress}
-                showsUserLocation>
-                {mapDraftCoordinate ? (
-                  <Marker coordinate={mapDraftCoordinate} anchor={{ x: 0.5, y: 1 }} />
-                ) : null}
-              </MapView>
+                markers={mapMarkers}
+                onMapPress={handleMapPress}
+                viewportKey={mapViewportKey}
+              />
 
               {isResolvingLocation ? (
                 <View className="absolute inset-0 items-center justify-center bg-white/70">
