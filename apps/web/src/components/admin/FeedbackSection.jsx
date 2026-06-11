@@ -1,7 +1,8 @@
-import { Descriptions, Drawer, Space, Typography } from 'antd'
+import { Descriptions, Drawer, Space, Typography, Button, Popconfirm, message } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
 import DataGrid from '../common/DataGrid'
-import { getAdminFeedback } from '../../services/feedbackService'
+import { getAdminFeedback, deleteAdminFeedback } from '../../services/feedbackService'
 
 function formatDateTime(value) {
     if (!value) {
@@ -33,6 +34,7 @@ function FeedbackSection() {
     const [pageSize, setPageSize] = useState(20)
     const [totalCount, setTotalCount] = useState(0)
     const [selectedFeedback, setSelectedFeedback] = useState(null)
+    const [refresh, setRefresh] = useState(0)
 
     useEffect(() => {
         let isCancelled = false
@@ -78,7 +80,19 @@ function FeedbackSection() {
         return () => {
             isCancelled = true
         }
-    }, [pageNumber, pageSize])
+    }, [pageNumber, pageSize, refresh])
+
+    const handleDelete = async (id) => {
+        setIsLoading(true)
+        const result = await deleteAdminFeedback(id)
+        if (result.isSuccess) {
+            message.success('Geri bildirim başarıyla silindi.')
+            setRefresh(prev => prev + 1)
+        } else {
+            message.error(result.errors?.[0]?.message || 'Geri bildirim silinemedi.')
+            setIsLoading(false)
+        }
+    }
 
     const columns = useMemo(() => [
         {
@@ -107,6 +121,21 @@ function FeedbackSection() {
             dataIndex: 'createdAt',
             key: 'createdAt',
             render: (value, row) => formatDateTime(value || row.CreatedAt),
+        },
+        {
+            title: 'İşlemler',
+            key: 'actions',
+            width: 100,
+            render: (_, row) => (
+                <Popconfirm
+                    title="Bu geri bildirimi silmek istediğinize emin misiniz?"
+                    onConfirm={() => handleDelete(row.feedbackId || row.FeedbackId)}
+                    okText="Evet"
+                    cancelText="Hayır"
+                >
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+                </Popconfirm>
+            ),
         },
     ], [])
 
@@ -148,6 +177,8 @@ function FeedbackSection() {
                     <Descriptions column={1} bordered size="small">
                         <Descriptions.Item label="Ad Soyad">{getFullName(selectedFeedback)}</Descriptions.Item>
                         <Descriptions.Item label="E-posta">{selectedFeedback.email || selectedFeedback.Email || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="IP Adresi">{selectedFeedback.ipAddress || selectedFeedback.IpAddress || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="Cihaz (User-Agent)">{selectedFeedback.userAgent || selectedFeedback.UserAgent || '-'}</Descriptions.Item>
                         <Descriptions.Item label="Tarih">{formatDateTime(selectedFeedback.createdAt || selectedFeedback.CreatedAt)}</Descriptions.Item>
                         <Descriptions.Item label="Mesaj">
                             <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>

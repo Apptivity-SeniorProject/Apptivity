@@ -32,7 +32,10 @@ public sealed record AdminAccountDto(
     string? DisplayName,
     string? OrganizationName,
     string? OrganizationCity,
-    DateTime? SuspendedUntilUtc);
+    DateTime? SuspendedUntilUtc,
+    string? RegistrationIpAddress,
+    string? RegistrationUserAgent,
+    string? RegistrationDeviceId);
 
 public sealed record CreateAdminOrganizationRequest(
     string Username,

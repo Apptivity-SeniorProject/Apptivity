@@ -14,19 +14,14 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Konumunuza yakın etkinlikleri gösterebilmek için konum izni gerekiyor.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Senin İçin önerilerini iyileştirmek ve arka planda konum özetini oluşturmak için konum izni gerekiyor.",
-        "NSPhotoLibraryUsageDescription": "Etkinlik oluştururken fotoğraf seçmek için galeri erişimi gerekiyor."
-      },
-      "uiBackgroundModes": [
-        "location"
-      ]
+        "NSPhotoLibraryUsageDescription": "Etkinlik oluştururken fotoğraf seçmek için galeri erişimi gerekiyor.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
     },
     "android": {
       "package": "com.apptivity.mobile",
-      "usesCleartextTraffic": true,
-      "notification": {
-        "icon": "./assets/apptivity/apptivity_logo_monochrome.png",
-        "color": "#77e349"
-      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/apptivity/apptivity_logo_monochrome.png",
@@ -37,12 +32,13 @@
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "READ_MEDIA_IMAGES"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -76,19 +72,40 @@
         "expo-font",
         {
           "fonts": [
-            "node_modules/@expo-google-fonts/inter/Inter_400Regular.ttf",
-            "node_modules/@expo-google-fonts/inter/Inter_500Medium.ttf",
-            "node_modules/@expo-google-fonts/inter/Inter_600SemiBold.ttf",
-            "node_modules/@expo-google-fonts/inter/Inter_700Bold.ttf",
-            "node_modules/@expo-google-fonts/inter/Inter_800ExtraBold.ttf"
+            "node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf",
+            "node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf",
+            "node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf",
+            "node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf",
+            "node_modules/@expo-google-fonts/inter/800ExtraBold/Inter_800ExtraBold.ttf"
           ]
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2aed00a7-490c-488c-b1fc-00afe6f261ec"
+      }
+    },
+    "owner": "alperents-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2aed00a7-490c-488c-b1fc-00afe6f261ec"
     }
   }
 }

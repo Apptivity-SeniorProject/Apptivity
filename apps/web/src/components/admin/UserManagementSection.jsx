@@ -384,6 +384,9 @@ function UserManagementSection({ mode = 'manage' }) {
                         <Descriptions.Item label={t('admin.users.manage.attributes.isActive')}>{String(selectedAccount.isActive ?? selectedAccount.IsActive ?? false)}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.users.manage.attributes.suspendedUntil')}>{String(suspendedUntilUtc || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('admin.users.manage.attributes.createdAt')}>{String(selectedAccount.createdAt || selectedAccount.CreatedAt || '-')}</Descriptions.Item>
+                        <Descriptions.Item label="Registration IP">{selectedAccount.registrationIpAddress || selectedAccount.RegistrationIpAddress || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="User Agent">{selectedAccount.registrationUserAgent || selectedAccount.RegistrationUserAgent || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="Device ID">{selectedAccount.registrationDeviceId || selectedAccount.RegistrationDeviceId || '-'}</Descriptions.Item>
                     </Descriptions>
                 ) : null}
             </Drawer>

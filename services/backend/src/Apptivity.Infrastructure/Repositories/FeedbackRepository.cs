@@ -36,4 +36,14 @@ public sealed class FeedbackRepository : IFeedbackRepository
 
         return (items, totalCount);
     }
+
+    public async Task<FeedbackSubmission?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await _db.FeedbackSubmissions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public void Remove(FeedbackSubmission submission)
+    {
+        _db.FeedbackSubmissions.Remove(submission);
+    }
 }

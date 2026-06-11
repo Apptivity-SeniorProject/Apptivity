@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 20.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://apptivity.com.tr"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

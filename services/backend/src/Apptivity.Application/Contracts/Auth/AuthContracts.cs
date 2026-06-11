@@ -39,8 +39,8 @@ public interface IAuthService
     Task<Result> SendOtpAsync(string phoneNumber, CancellationToken cancellationToken);
     Task<Result<AuthResponse>> VerifyOtpAsync(OtpVerifyRequest request, CancellationToken cancellationToken);
     Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
-    Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, CancellationToken cancellationToken);
-    Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken cancellationToken);
+    Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken);
+    Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken);
     Task<Result<AuthResponse>> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken);
     Task<Result> ChangePhoneAsync(ChangePhoneRequest request, UserContext userContext, CancellationToken cancellationToken);
 }

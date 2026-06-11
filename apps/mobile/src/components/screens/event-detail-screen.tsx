@@ -6,9 +6,9 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Clock3, Flag,
 import { ActivityIndicator, BackHandler, Dimensions, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { applyToEvent, cancelEvent, toggleEventBookmark } from '@/src/api/eventService';
+import { OpenStreetMap, type MapRegion } from '@/src/components/maps/open-street-map';
 import { ReportModal } from '@/src/components/report-modal';
 import { Button } from '@/src/components/ui/button';
 import { useDailyRecommendedNext, useEventDetail, useEventParticipants } from '@/src/hooks/useEvents';
@@ -377,7 +377,7 @@ export function EventDetailScreen() {
     normalizedLocationLabel !== city?.toLocaleLowerCase('tr-TR')
   );
   const hasMapCoordinate = Number.isFinite(latitude) && Number.isFinite(longitude);
-  const mapPreviewRegion: Region | null = hasMapCoordinate
+  const mapPreviewRegion: MapRegion | null = hasMapCoordinate
     ? {
         latitude: latitude as number,
         longitude: longitude as number,
@@ -503,7 +503,7 @@ export function EventDetailScreen() {
       Platform.OS === 'ios'
         ? `http://maps.apple.com/?ll=${lat},${lng}&q=${label}`
         : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
-    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    const webUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
 
     try {
       const canOpenNative = await Linking.canOpenURL(nativeUrl);
@@ -673,23 +673,16 @@ export function EventDetailScreen() {
                 </View>
               </View>
               <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" pointerEvents="none">
-                <MapView
+                <OpenStreetMap
                   style={{ height: 220 }}
-                  initialRegion={mapPreviewRegion}
+                  interactive={false}
                   region={mapPreviewRegion}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  rotateEnabled={false}
-                  pitchEnabled={false}
-                  toolbarEnabled={false}>
-                  <Marker
-                    coordinate={{
-                      latitude: latitude as number,
-                      longitude: longitude as number,
-                    }}
-                    pinColor="#5bcc2a"
-                  />
-                </MapView>
+                  selectedCoordinate={{
+                    latitude: latitude as number,
+                    longitude: longitude as number,
+                  }}
+                  viewportKey={`${latitude}-${longitude}`}
+                />
               </View>
               {hasCustomLocationDetail ? (
                 <Text className="mt-3 text-sm leading-6 text-slate-700">{locationLabel}</Text>

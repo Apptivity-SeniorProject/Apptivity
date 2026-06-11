@@ -76,7 +76,10 @@ public sealed class AdminService : IAdminService
             x.DisplayName,
             x.OrganizationName,
             x.OrganizationCity,
-            x.SuspendedUntilUtc)).ToArray();
+            x.Account.SuspendedUntilUtc,
+            x.Account.RegistrationIpAddress,
+            x.Account.RegistrationUserAgent,
+            x.Account.RegistrationDeviceId)).ToArray();
 
         return Result<PagedResult<AdminAccountDto>>.Success(new PagedResult<AdminAccountDto>(mapped, totalCount, paging.PageNumber, paging.PageSize));
     }
@@ -174,7 +177,10 @@ public sealed class AdminService : IAdminService
             club.Name,
             club.Name,
             club.LocationCity,
-            account.SuspendedUntilUtc));
+            account.SuspendedUntilUtc,
+            account.RegistrationIpAddress,
+            account.RegistrationUserAgent,
+            account.RegistrationDeviceId));
     }
 
     public async Task<Result<PagedResult<AdminEventModerationDto>>> GetEventsAsync(AdminEventsFilterRequest request, CancellationToken cancellationToken)
@@ -247,7 +253,10 @@ public sealed class AdminService : IAdminService
                 : account.ClubProfile?.Name,
             account.ClubProfile?.Name,
             account.ClubProfile?.LocationCity,
-            account.SuspendedUntilUtc));
+            account.SuspendedUntilUtc,
+            account.RegistrationIpAddress,
+            account.RegistrationUserAgent,
+            account.RegistrationDeviceId));
     }
 
     public async Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken)
