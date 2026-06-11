@@ -1739,7 +1739,7 @@ public sealed class EventService : IEventService
 
             var score = ComputeScore(minDistanceKm, maxDistanceKm, stage);
             var mapped = MapEventSummary(eventEntity);
-            var startUtc = eventEntity.Date.ToDateTime(eventEntity.Time, DateTimeKind.Utc);
+            var startUtc = ToUtcDateTime(eventEntity.Date, eventEntity.Time);
             list.Add(new RecommendationCandidate(mapped, stage, DecimalRound(minDistanceKm), score, reason, startUtc));
         }
 
@@ -1761,7 +1761,7 @@ public sealed class EventService : IEventService
                 null,
                 null,
                 "Popular and upcoming active events",
-                x.Date.ToDateTime(x.Time, DateTimeKind.Utc)))
+                ToUtcDateTime(x.Date, x.Time)))
             .ToArray();
     }
 
@@ -1777,9 +1777,16 @@ public sealed class EventService : IEventService
 
     private static bool IsActiveEvent(Event eventEntity, DateTime nowUtc)
     {
-        var startUtc = eventEntity.Date.ToDateTime(eventEntity.Time, DateTimeKind.Utc);
+        var startUtc = ToUtcDateTime(eventEntity.Date, eventEntity.Time);
 
         return eventEntity.Status == EventStatus.Published && startUtc >= nowUtc;
+    }
+
+    private static DateTime ToUtcDateTime(DateOnly date, TimeOnly time)
+    {
+        var localDateTime = date.ToDateTime(time, DateTimeKind.Unspecified);
+        var turkeyTimeZone = ResolveIstanbulTimeZone();
+        return TimeZoneInfo.ConvertTimeToUtc(localDateTime, turkeyTimeZone);
     }
 
     private static bool TryGetMinimumDistanceKm(
@@ -2093,8 +2100,8 @@ public sealed class EventService : IEventService
             return "Location data is not valid JSON.";
         }
 
-        var eventDateTime = request.Date.ToDateTime(request.Time);
-        if (eventDateTime <= DateTime.UtcNow)
+        var eventDateTimeUtc = ToUtcDateTime(request.Date, request.Time);
+        if (eventDateTimeUtc <= DateTime.UtcNow)
         {
             return "Event date and time must be in the future.";
         }
