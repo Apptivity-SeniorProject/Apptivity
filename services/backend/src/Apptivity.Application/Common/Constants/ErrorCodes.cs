@@ -51,4 +51,7 @@ public static class ErrorCodes
     // Tag
     public const string TagNotFound = "TAG_404";
     public const string TagAlreadyExists = "TAG_409";
+
+    // Feedback
+    public const string FeedbackNotFound = "FEEDBACK_404";
 }

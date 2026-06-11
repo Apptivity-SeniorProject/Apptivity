@@ -20,7 +20,10 @@ public sealed class FeedbackController : ApiControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Submit([FromBody] SubmitFeedbackRequest request, CancellationToken cancellationToken)
     {
-        var result = await _feedbackService.SubmitAsync(request, cancellationToken);
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+        var result = await _feedbackService.SubmitAsync(request, ipAddress, userAgent, cancellationToken);
         return FromResult(result);
     }
 }
