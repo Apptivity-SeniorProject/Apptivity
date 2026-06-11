@@ -6,6 +6,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TopBar } from '@/src/components/ui/top-bar';
 import { ApptivityLogo } from '@/src/components/ui/apptivity-logo';
@@ -320,12 +321,14 @@ export function EventParticipantsScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = params.id as string;
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const toast = useToast();
   const myAccountId = useAuthStore((state) => state.user?.id);
   const myRole = useAuthStore((state) => state.user?.role);
   const [activeTab, setActiveTab] = useState<TabKey>('approved');
   const [refreshing, setRefreshing] = useState(false);
   const [isCloseVotingConfirmVisible, setIsCloseVotingConfirmVisible] = useState(false);
+  const closeVotingSheetBottomPadding = Math.max(insets.bottom, 16);
 
   const { data: eventData, isPending: isEventPending, refetch: refetchEvent } = useEventDetail(eventId);
   const participantsQuery = useEventParticipants(eventId);
@@ -629,34 +632,41 @@ export function EventParticipantsScreen() {
             onPress={() => setIsCloseVotingConfirmVisible(false)}
           />
 
-          <View className="rounded-t-3xl bg-white px-5 pb-6 pt-5">
-            <Text className="text-lg font-semibold text-slate-900">Oylamayı Kapat</Text>
-            <Text className="mt-2 text-sm leading-6 text-slate-500">
-              Bu işlem oylamayı hemen kapatır ve puanları herkese yansıtır. Kapatıldıktan sonra yeniden açılamaz.
-            </Text>
-
-            <View className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <Text className="text-xs font-semibold uppercase tracking-[0.4px] text-amber-700">Dikkat</Text>
-              <Text className="mt-1 text-sm leading-5 text-amber-800">
-                Henüz oy vermemiş kullanıcılar varsa bu işlemden sonra değerlendirme yapamaz.
+          <View
+            className="rounded-t-3xl bg-white px-5 pt-5"
+            style={{ maxHeight: '80%', paddingBottom: closeVotingSheetBottomPadding }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 8 }}>
+              <Text className="text-lg font-semibold text-slate-900">Oylamayı Kapat</Text>
+              <Text className="mt-2 text-sm leading-6 text-slate-500">
+                Bu işlem oylamayı hemen kapatır ve puanları herkese yansıtır. Kapatıldıktan sonra yeniden açılamaz.
               </Text>
-            </View>
 
-            <View className="mt-5 flex-row gap-3">
-              <Button
-                label="Vazgeç"
-                variant="secondary"
-                className="flex-1"
-                disabled={closeVotingMutation.isPending}
-                onPress={() => setIsCloseVotingConfirmVisible(false)}
-              />
-              <Button
-                label="Oylamayı Kapat"
-                className={cn('flex-1', closeVotingMutation.isPending ? '' : 'bg-[#5bcc2a]')}
-                isLoading={closeVotingMutation.isPending}
-                onPress={() => closeVotingMutation.mutate()}
-              />
-            </View>
+              <View className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <Text className="text-xs font-semibold uppercase tracking-[0.4px] text-amber-700">Dikkat</Text>
+                <Text className="mt-1 text-sm leading-5 text-amber-800">
+                  Henüz oy vermemiş kullanıcılar varsa bu işlemden sonra değerlendirme yapamaz.
+                </Text>
+              </View>
+
+              <View className="mt-5 flex-row gap-3">
+                <Button
+                  label="Vazgeç"
+                  variant="secondary"
+                  className="flex-1"
+                  disabled={closeVotingMutation.isPending}
+                  onPress={() => setIsCloseVotingConfirmVisible(false)}
+                />
+                <Button
+                  label="Oylamayı Kapat"
+                  className={cn('flex-1', closeVotingMutation.isPending ? '' : 'bg-[#5bcc2a]')}
+                  isLoading={closeVotingMutation.isPending}
+                  onPress={() => closeVotingMutation.mutate()}
+                />
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

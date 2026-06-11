@@ -1,13 +1,14 @@
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -84,6 +85,16 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number, defaultValue: T): Pr
   });
 }
 
+function buildScheduledAt(eventDate: Date | null, eventTime: Date | null): Date | null {
+  if (!eventDate || !eventTime) {
+    return null;
+  }
+
+  const combined = new Date(eventDate);
+  combined.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
+  return combined;
+}
+
 const DEFAULT_REGION: MapRegion = {
   latitude: 41.015137,
   longitude: 28.97953,
@@ -94,12 +105,13 @@ const DEFAULT_REGION: MapRegion = {
 export function CreateEventScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [scheduledAt, setScheduledAt] = useState(() => createInitialScheduledAt());
+  const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [eventTime, setEventTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const [durationMinutes, setDurationMinutes] = useState('120');
-  const [capacity, setCapacity] = useState('20');
+  const [durationMinutes, setDurationMinutes] = useState('');
+  const [capacity, setCapacity] = useState('');
   const [price, setPrice] = useState('0');
   const [locationDescription, setLocationDescription] = useState('');
   const [resolvedCity, setResolvedCity] = useState('');
@@ -125,9 +137,16 @@ export function CreateEventScreen() {
     () => (tags ?? []).filter((tag) => selectedTagIds.includes(tag.id)).slice(0, 4),
     [selectedTagIds, tags]
   );
+  const pickerFallbackValue = useMemo(() => createInitialScheduledAt(), []);
 
-  const formattedDate = useMemo(() => format(scheduledAt, 'dd.MM.yyyy'), [scheduledAt]);
-  const formattedTime = useMemo(() => format(scheduledAt, 'HH:mm'), [scheduledAt]);
+  const formattedDate = useMemo(
+    () => (eventDate ? format(eventDate, 'dd.MM.yyyy') : 'Tarih seç'),
+    [eventDate]
+  );
+  const formattedTime = useMemo(
+    () => (eventTime ? format(eventTime, 'HH:mm') : 'Saat seç'),
+    [eventTime]
+  );
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((current) => {
@@ -144,14 +163,15 @@ export function CreateEventScreen() {
     });
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName('');
     setDescription('');
-    setScheduledAt(createInitialScheduledAt());
+    setEventDate(null);
+    setEventTime(null);
     setShowDatePicker(false);
     setShowTimePicker(false);
-    setDurationMinutes('120');
-    setCapacity('20');
+    setDurationMinutes('');
+    setCapacity('');
     setPrice('0');
     setLocationDescription('');
     setResolvedCity('');
@@ -166,7 +186,15 @@ export function CreateEventScreen() {
     setIsTagModalOpen(false);
     setSelectedImages([]);
     setSelectedTagIds([]);
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        resetForm();
+      };
+    }, [resetForm])
+  );
 
   const selectPhotos = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -203,11 +231,7 @@ export function CreateEventScreen() {
       return;
     }
 
-    setScheduledAt((previous) => {
-      const next = new Date(previous);
-      next.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-      return next;
-    });
+    setEventDate(selectedDate);
   };
 
   const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
@@ -217,11 +241,7 @@ export function CreateEventScreen() {
       return;
     }
 
-    setScheduledAt((previous) => {
-      const next = new Date(previous);
-      next.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
-      return next;
-    });
+    setEventTime(selectedTime);
   };
 
   const openMapPicker = async () => {
@@ -236,33 +256,14 @@ export function CreateEventScreen() {
         return;
       }
 
-      let coordinate = {
-        latitude: DEFAULT_REGION.latitude,
-        longitude: DEFAULT_REGION.longitude,
-      };
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
 
-      try {
-        const lastKnown = await Location.getLastKnownPositionAsync();
-        if (lastKnown) {
-          coordinate = {
-            latitude: lastKnown.coords.latitude,
-            longitude: lastKnown.coords.longitude,
-          };
-        } else {
-          const currentPositionPromise = Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          const currentPosition = await timeoutPromise(currentPositionPromise, 4000, null);
-          if (currentPosition) {
-            coordinate = {
-              latitude: currentPosition.coords.latitude,
-              longitude: currentPosition.coords.longitude,
-            };
-          }
-        }
-      } catch {
-        // Fallback to default
-      }
+      const coordinate = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
 
       setCurrentLocation(coordinate);
       const nextDraftCoordinate = selectedCoordinate ?? coordinate;
@@ -366,7 +367,16 @@ export function CreateEventScreen() {
     if (!name.trim()) return { isValid: false, message: 'Etkinlik başlığı zorunludur.' };
     if (!description.trim()) return { isValid: false, message: 'Etkinlik açıklaması zorunludur.' };
 
-    if (scheduledAt.getTime() <= Date.now()) {
+    if (!eventDate) {
+      return { isValid: false, message: 'Etkinlik tarihi zorunludur.' };
+    }
+
+    if (!eventTime) {
+      return { isValid: false, message: 'Etkinlik saati zorunludur.' };
+    }
+
+    const scheduledAt = buildScheduledAt(eventDate, eventTime);
+    if (!scheduledAt || scheduledAt.getTime() <= Date.now()) {
       return { isValid: false, message: 'Etkinlik tarihi ve saati gelecekte olmalıdır.' };
     }
 
@@ -416,6 +426,11 @@ export function CreateEventScreen() {
     mutationFn: async (): Promise<CreateEventMutationResult> => {
       if (!selectedCoordinate) {
         throw new Error('Konum seçilmedi.');
+      }
+
+      const scheduledAt = buildScheduledAt(eventDate, eventTime);
+      if (!scheduledAt) {
+        throw new Error('Etkinlik tarihi ve saati zorunludur.');
       }
 
       const locationData = JSON.stringify({
@@ -555,7 +570,10 @@ export function CreateEventScreen() {
                 <Text className="text-caption font-sans text-gray-400 mb-1">Tarih</Text>
                 <View className="flex-row items-center gap-1.5">
                   <Calendar size={16} color="#77e349" />
-                  <Text className="text-base font-sans text-gray-900">{formattedDate}</Text>
+                  <Text
+                    className={`text-base font-sans ${eventDate ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {formattedDate}
+                  </Text>
                 </View>
               </Pressable>
 
@@ -565,7 +583,10 @@ export function CreateEventScreen() {
                 <Text className="text-caption font-sans text-gray-400 mb-1">Saat</Text>
                 <View className="flex-row items-center gap-1.5">
                   <Clock size={16} color="#77e349" />
-                  <Text className="text-base font-sans text-gray-900">{formattedTime}</Text>
+                  <Text
+                    className={`text-base font-sans ${eventTime ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {formattedTime}
+                  </Text>
                 </View>
               </Pressable>
             </View>
@@ -573,7 +594,7 @@ export function CreateEventScreen() {
 
           {showDatePicker ? (
             <DateTimePicker
-              value={scheduledAt}
+              value={eventDate ?? pickerFallbackValue}
               mode="date"
               minimumDate={new Date()}
               onChange={handleDateChange}
@@ -582,7 +603,7 @@ export function CreateEventScreen() {
 
           {showTimePicker ? (
             <DateTimePicker
-              value={scheduledAt}
+              value={eventTime ?? pickerFallbackValue}
               mode="time"
               is24Hour
               onChange={handleTimeChange}
@@ -602,6 +623,7 @@ export function CreateEventScreen() {
                   value={durationMinutes}
                   onChangeText={setDurationMinutes}
                   keyboardType="numeric"
+
                 />
               </View>
 
