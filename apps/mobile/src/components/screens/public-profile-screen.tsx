@@ -219,7 +219,7 @@ export function PublicProfileScreen() {
           <Pressable
             className="relative mr-3.5 h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#77e349] bg-[#f0fce8]"
             disabled={!profile?.profilePhoto}
-            onLongPress={() => setIsPhotoViewerOpen(true)}>
+            onPress={() => setIsPhotoViewerOpen(true)}>
             {profile?.profilePhoto ? (
               <Image
                 source={{ uri: profile.profilePhoto }}

@@ -21,6 +21,10 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(x => x.IsActive).HasDefaultValue(true);
         builder.Property(x => x.SuspendedUntilUtc);
 
+        builder.Property(x => x.RegistrationIpAddress).HasMaxLength(45);
+        builder.Property(x => x.RegistrationUserAgent).HasMaxLength(1000);
+        builder.Property(x => x.RegistrationDeviceId).HasMaxLength(255);
+
         builder.HasIndex(x => x.Username).IsUnique();
         builder.HasIndex(x => x.Phone).IsUnique();
         builder.HasIndex(x => x.Email).IsUnique();

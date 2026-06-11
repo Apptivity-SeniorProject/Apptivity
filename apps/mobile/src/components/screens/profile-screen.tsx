@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   Text,
@@ -91,6 +93,7 @@ function getEmptyStateText(tab: ProfileTab): string {
 export function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('my-events');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPhotoViewerOpen, setIsPhotoViewerOpen] = useState(false);
 
   const profileQuery = useMyProfile();
   const profile = profileQuery.data;
@@ -146,6 +149,19 @@ export function ProfileScreen() {
 
   const isListRefetching = myEventsQuery.isRefetching || myParticipationsQuery.isRefetching || myBookmarksQuery.isRefetching;
 
+  useEffect(() => {
+    if (!isPhotoViewerOpen) {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setIsPhotoViewerOpen(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [isPhotoViewerOpen]);
+
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
@@ -185,14 +201,16 @@ export function ProfileScreen() {
       {/* Profil Header Kartı */}
       <View className="bg-white px-4 pb-4 pt-5 border-b border-gray-200">
         <View className="flex-row items-center mb-4">
-          <View 
+          <Pressable
+            disabled={!profile?.profilePhoto}
+            onPress={() => setIsPhotoViewerOpen(true)}
             className="h-16 w-16 rounded-full bg-[#f0fce8] border-2 border-[#77e349] items-center justify-center mr-3.5 shrink-0 overflow-hidden relative">
             {profile?.profilePhoto ? (
               <Image source={{ uri: profile.profilePhoto }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
             ) : (
               <Text className="text-[22px] font-semibold text-[#357c1c]">{initials}</Text>
             )}
-          </View>
+          </Pressable>
           <View className="flex-1 min-w-0 justify-center">
             <Text className="text-lg font-semibold text-gray-900 leading-tight mb-[3px]" numberOfLines={1}>
               {displayName}
@@ -357,6 +375,23 @@ export function ProfileScreen() {
         tags={tagsQuery.data ?? []}
         profile={profile}
       />
+      {profile?.profilePhoto && isPhotoViewerOpen ? (
+        <Modal
+          visible
+          animationType="fade"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setIsPhotoViewerOpen(false)}>
+          <Pressable className="flex-1 items-center justify-center bg-black" onPress={() => setIsPhotoViewerOpen(false)}>
+            <Image
+              source={{ uri: profile.profilePhoto }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={180}
+            />
+          </Pressable>
+        </Modal>
+      ) : null}
     </View>
   );
 }

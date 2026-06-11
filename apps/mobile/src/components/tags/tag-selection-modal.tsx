@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -50,11 +51,13 @@ export function TagSelectionModal({
   presentation = 'sheet',
   topOffset = 120,
 }: TagSelectionModalProps) {
+  const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const isPopover = presentation === 'popover';
   const screenHeight = Dimensions.get('screen').height;
   const popoverMaxHeight = Math.max(260, screenHeight - topOffset - keyboardHeight - 20);
+  const sheetBottomPadding = Math.max(insets.bottom, 16);
 
   useEffect(() => {
     if (!visible) {
@@ -113,48 +116,52 @@ export function TagSelectionModal({
 
       <View
         className={cn(
-          'bg-white px-5 pb-6 pt-5',
+          'bg-white px-5 pt-5',
           isPopover ? 'max-h-[72%] rounded-3xl' : 'max-h-[82%] rounded-t-3xl'
         )}
-        style={isPopover ? { maxHeight: popoverMaxHeight } : undefined}>
+        style={
+          isPopover
+            ? { maxHeight: popoverMaxHeight, paddingBottom: 24 }
+            : { paddingBottom: sheetBottomPadding }
+        }>
         <Text className="text-lg font-semibold text-slate-900">{title}</Text>
         <Text className="mt-2 text-sm leading-5 text-slate-500">{description}</Text>
 
-        <Input
-          containerClassName="mt-4"
-          placeholder={searchPlaceholder}
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-
-        {selectedTags.length > 0 ? (
-          <View className="mt-4">
-            <Text className="mb-2 text-sm font-medium text-slate-700">
-              {selectedSectionTitle} ({selectedTags.length})
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-2">
-                {selectedTags.map((tag) => (
-                  <Pressable
-                    key={tag.id}
-                    className="rounded-full border border-[#5bcc2a] bg-[#5bcc2a] px-3 py-2"
-                    onPress={() => onToggleTag(tag.id)}>
-                    <Text className="text-xs font-semibold text-white">{tag.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        ) : null}
-
-        <View style={isPopover ? { flexShrink: 1, minHeight: 0 } : undefined}>
-          <Text className="mb-3 mt-5 text-sm font-medium text-slate-700">
-            {allTagsSectionTitle}
-          </Text>
+        <View style={{ flexShrink: 1, minHeight: 0 }}>
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            style={isPopover ? { minHeight: 0 } : undefined}>
+            contentContainerStyle={{ paddingBottom: 8 }}>
+            <Input
+              containerClassName="mt-4"
+              placeholder={searchPlaceholder}
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+
+            {selectedTags.length > 0 ? (
+              <View className="mt-4">
+                <Text className="mb-2 text-sm font-medium text-slate-700">
+                  {selectedSectionTitle} ({selectedTags.length})
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className="flex-row gap-2">
+                    {selectedTags.map((tag) => (
+                      <Pressable
+                        key={tag.id}
+                        className="rounded-full border border-[#5bcc2a] bg-[#5bcc2a] px-3 py-2"
+                        onPress={() => onToggleTag(tag.id)}>
+                        <Text className="text-xs font-semibold text-white">{tag.name}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            ) : null}
+
+            <Text className="mb-3 mt-5 text-sm font-medium text-slate-700">
+              {allTagsSectionTitle}
+            </Text>
             <View className="flex-row flex-wrap gap-2 pb-2">
               {filteredTags.map((tag) => {
                 const isSelected = selectedTagIds.includes(tag.id);

@@ -20,8 +20,11 @@ public sealed class FeedbackController : ApiControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Submit([FromBody] SubmitFeedbackRequest request, CancellationToken cancellationToken)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        var ipAddress = HttpContext.Request.Headers["CF-Connecting-IP"].FirstOrDefault() 
+                        ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim()
+                        ?? HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
 
         var result = await _feedbackService.SubmitAsync(request, ipAddress, userAgent, cancellationToken);
         return FromResult(result);
