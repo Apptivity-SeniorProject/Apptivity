@@ -152,7 +152,7 @@ function AdminHomePage() {
         {
             key: 'feedback',
             icon: <MessageOutlined />,
-            label: 'Geri Bildirimler',
+            label: t('admin.menu.feedback'),
         },
     ]
 
@@ -172,7 +172,7 @@ function AdminHomePage() {
         'report-accounts': t('admin.menu.reports.account'),
         'report-chats': t('admin.menu.reports.chat'),
         'tag-management': t('admin.menu.tagManagement'),
-        'feedback': 'Geri Bildirimler',
+        'feedback': t('admin.menu.feedback'),
     }
 
     const pathByKey = {
@@ -225,7 +225,7 @@ function AdminHomePage() {
                                 type="text"
                                 icon={<MenuOutlined />}
                                 onClick={() => setIsMobileMenuOpen(true)}
-                                aria-label="Open admin menu"
+                                aria-label={t('admin.navigation.openMenu')}
                             />
                         ) : null}
                         <Typography.Title
@@ -312,7 +312,7 @@ function AdminHomePage() {
                                         paddingInline: 8,
                                         height: 28,
                                     }}
-                                    aria-label={isCollapsed ? 'Open admin menu' : 'Close admin menu'}
+                                    aria-label={isCollapsed ? t('admin.navigation.openMenu') : t('admin.navigation.closeMenu')}
                                 />
                             </div>
                         </Layout.Sider>

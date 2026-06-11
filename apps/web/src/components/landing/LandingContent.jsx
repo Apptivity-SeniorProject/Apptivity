@@ -12,6 +12,7 @@ import { Button, Card, Col, Divider, Flex, Form, Image, Input, Row, Space, Steps
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+
 import communityEventImg from '../../assets/images/community-event.jpg'
 import heroSocialImg from '../../assets/images/hero-social.jpg'
 import { submitFeedback } from '../../services/feedbackService'
@@ -106,13 +107,13 @@ function LandingContent() {
         })
 
         if (!result.isSuccess) {
-            messageApi.error(result.errors?.[0]?.message || 'Geri bildiriminiz gönderilemedi.')
+            messageApi.error(result.errors?.[0]?.message || t('landing.feedback.submitError'))
             setIsSubmittingFeedback(false)
             return
         }
 
         feedbackForm.resetFields()
-        messageApi.success('Geri bildiriminiz alındı. Teşekkür ederiz.')
+        messageApi.success(t('landing.feedback.submitSuccess'))
         setIsSubmittingFeedback(false)
     }
 
@@ -278,10 +279,10 @@ function LandingContent() {
                         style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
                         onClick={handleTestAppClick}
                     >
-                        Uygulamayı İndir
+                        {t('landing.cta.download')}
                     </Button>
                     <Typography.Text style={{ color: '#4b5563', textAlign: 'center' }}>
-                        Şu Anlık Sadece Android
+                        {t('landing.cta.availability')}
                     </Typography.Text>
                 </Flex>
             </Card>
@@ -290,10 +291,10 @@ function LandingContent() {
                 <Space direction="vertical" size={18} style={{ width: '100%' }}>
                     <div>
                         <Typography.Title level={3} style={sectionTitleStyle}>
-                            Geri Bildirim Bırakın
+                            {t('landing.feedback.title')}
                         </Typography.Title>
                         <Typography.Paragraph style={mutedTextStyle}>
-                            Deneyiminizi, önerilerinizi veya gördüğünüz eksikleri bize iletebilirsiniz.
+                            {t('landing.feedback.subtitle')}
                         </Typography.Paragraph>
                     </div>
 
@@ -301,42 +302,42 @@ function LandingContent() {
                         <Row gutter={[16, 0]}>
                             <Col xs={24} md={12}>
                                 <Form.Item
-                                    label="İsim"
+                                    label={t('landing.feedback.fields.firstName')}
                                     name="firstName"
-                                    rules={[{ required: true, message: 'İsim zorunludur.' }]}
+                                    rules={[{ required: true, message: t('landing.feedback.validation.firstNameRequired') }]}
                                 >
-                                    <Input placeholder="İsminizi girin" maxLength={100} />
+                                    <Input placeholder={t('landing.feedback.placeholders.firstName')} maxLength={100} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={12}>
                                 <Form.Item
-                                    label="Soyisim"
+                                    label={t('landing.feedback.fields.lastName')}
                                     name="lastName"
-                                    rules={[{ required: true, message: 'Soyisim zorunludur.' }]}
+                                    rules={[{ required: true, message: t('landing.feedback.validation.lastNameRequired') }]}
                                 >
-                                    <Input placeholder="Soyisminizi girin" maxLength={100} />
+                                    <Input placeholder={t('landing.feedback.placeholders.lastName')} maxLength={100} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24}>
                                 <Form.Item
-                                    label="E-posta (Opsiyonel)"
+                                    label={t('landing.feedback.fields.email')}
                                     name="email"
-                                    rules={[{ type: 'email', message: 'Geçerli bir e-posta girin.' }]}
+                                    rules={[{ type: 'email', message: t('landing.feedback.validation.emailInvalid') }]}
                                 >
-                                    <Input placeholder="ornek@mail.com" maxLength={320} />
+                                    <Input placeholder={t('landing.feedback.placeholders.email')} maxLength={320} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24}>
                                 <Form.Item
-                                    label="Geri Bildiriminiz"
+                                    label={t('landing.feedback.fields.message')}
                                     name="message"
-                                    rules={[{ required: true, message: 'Lütfen mesajınızı yazın.' }]}
+                                    rules={[{ required: true, message: t('landing.feedback.validation.messageRequired') }]}
                                 >
                                     <Input.TextArea
                                         rows={5}
                                         maxLength={2000}
                                         showCount
-                                        placeholder="Bize iletmek istediğiniz notu yazın"
+                                        placeholder={t('landing.feedback.placeholders.message')}
                                     />
                                 </Form.Item>
                             </Col>
@@ -349,7 +350,7 @@ function LandingContent() {
                                 loading={isSubmittingFeedback}
                                 style={{ ...ctaButtonStyle, backgroundColor: '#111111', borderColor: '#111111' }}
                             >
-                                Gonder
+                                {t('landing.feedback.submitButton')}
                             </Button>
                         </Flex>
                     </Form>
