@@ -1,23 +1,20 @@
 import { router } from 'expo-router';
-import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import MapView, { Callout, Marker, type Region } from 'react-native-maps';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { EventRowCard } from '@/src/components/events/event-row-card';
+import {
+  OpenStreetMap,
+  type MapCoordinate,
+  type MapRegion,
+  type OpenStreetMapMarker,
+} from '@/src/components/maps/open-street-map';
 import { useEvents } from '@/src/hooks/useEvents';
 import { useToast } from '@/src/hooks/useToast';
 import type { EventListItem } from '@/src/types/event';
-import { formatEventDate, formatEventPrice } from '@/src/utils/event-format';
-
-type Coordinate = {
-  latitude: number;
-  longitude: number;
-};
 
 type LocationCluster = {
   key: string;
@@ -38,7 +35,7 @@ type MapMarkerItem = {
   isCluster: boolean;
 };
 
-const DEFAULT_REGION: Region = {
+const DEFAULT_REGION: MapRegion = {
   latitude: 41.015137,
   longitude: 28.97953,
   latitudeDelta: 0.28,
@@ -49,19 +46,6 @@ const CLUSTER_ZOOM_THRESHOLD = 0.12;
 const CITY_CLUSTER_ZOOM_THRESHOLD = 0.28;
 const HIDE_MARKERS_ZOOM_THRESHOLD = 6;
 const SINGLE_EVENT_FOCUS_DELTA = 0.04;
-const CLUSTER_MARKER_WIDTH = 44;
-const CLUSTER_MARKER_HEIGHT = 44;
-const DEFAULT_EVENT_MARKER_WIDTH = 32;
-const DEFAULT_EVENT_MARKER_HEIGHT = 32;
-const SELECTED_EVENT_MARKER_WIDTH = 40;
-const SELECTED_EVENT_MARKER_HEIGHT = 40;
-const CLUSTER_EDGE_PADDING = {
-  top: 72,
-  right: 72,
-  bottom: 72,
-  left: 72,
-};
-
 function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const earthRadiusKm = 6371;
@@ -74,14 +58,14 @@ function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return earthRadiusKm * c;
 }
 
-function getEventCoordinate(event: EventListItem): Coordinate {
+function getEventCoordinate(event: EventListItem): MapCoordinate {
   return {
     latitude: event.location.lat as number,
     longitude: event.location.lng as number,
   };
 }
 
-function getCentroidCoordinate(events: EventListItem[]): Coordinate {
+function getCentroidCoordinate(events: EventListItem[]): MapCoordinate {
   const totals = events.reduce(
     (accumulator, event) => {
       const coordinate = getEventCoordinate(event);
@@ -98,7 +82,7 @@ function getCentroidCoordinate(events: EventListItem[]): Coordinate {
   };
 }
 
-function buildRegionForCoordinate(coordinate: Coordinate): Region {
+function buildRegionForCoordinate(coordinate: MapCoordinate): MapRegion {
   return {
     latitude: coordinate.latitude,
     longitude: coordinate.longitude,
@@ -107,12 +91,45 @@ function buildRegionForCoordinate(coordinate: Coordinate): Region {
   };
 }
 
+function getEventLocationText(event: EventListItem): string {
+  return event.location.locationLabel ?? event.location.city ?? 'Lokasyon belirtilmedi';
+}
+
+function buildRegionForCoordinates(coordinates: MapCoordinate[]): MapRegion {
+  if (!coordinates.length) {
+    return DEFAULT_REGION;
+  }
+
+  if (coordinates.length === 1) {
+    return buildRegionForCoordinate(coordinates[0]);
+  }
+
+  const latitudes = coordinates.map((coordinate) => coordinate.latitude);
+  const longitudes = coordinates.map((coordinate) => coordinate.longitude);
+  const minLatitude = Math.min(...latitudes);
+  const maxLatitude = Math.max(...latitudes);
+  const minLongitude = Math.min(...longitudes);
+  const maxLongitude = Math.max(...longitudes);
+  const latitudeDelta = Math.max((maxLatitude - minLatitude) * 1.4, SINGLE_EVENT_FOCUS_DELTA);
+  const longitudeDelta = Math.max((maxLongitude - minLongitude) * 1.4, SINGLE_EVENT_FOCUS_DELTA);
+
+  return {
+    latitude: (minLatitude + maxLatitude) / 2,
+    longitude: (minLongitude + maxLongitude) / 2,
+    latitudeDelta,
+    longitudeDelta,
+  };
+}
+
 export default function MapScreen() {
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [region, setRegion] = useState<MapRegion>(DEFAULT_REGION);
   const [isLocating, setIsLocating] = useState(false);
+  const [isMapInteracting, setIsMapInteracting] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [hasForegroundLocationPermission, setHasForegroundLocationPermission] = useState(false);
+  const [userLocation, setUserLocation] = useState<MapCoordinate | null>(null);
+  const [mapViewportKey, setMapViewportKey] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const mapRef = useRef<MapView>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -126,11 +143,14 @@ export default function MapScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         setLocationDenied(true);
+        setHasForegroundLocationPermission(false);
+        setUserLocation(null);
         toast.error('Yakın etkinlikler için konum izni vermelisiniz.');
         return;
       }
 
       setLocationDenied(false);
+      setHasForegroundLocationPermission(true);
 
       const currentPosition = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
@@ -140,15 +160,16 @@ export default function MapScreen() {
         latitude: currentPosition.coords.latitude,
         longitude: currentPosition.coords.longitude,
       };
+      setUserLocation(nextLocation);
 
-      const nextRegion: Region = {
+      const nextRegion: MapRegion = {
         ...nextLocation,
         latitudeDelta: 0.12,
         longitudeDelta: 0.12,
       };
 
       setRegion(nextRegion);
-      mapRef.current?.animateToRegion(nextRegion, 450);
+      setMapViewportKey((current) => current + 1);
     } catch {
       toast.error('Konum bilgisi alınamadı.');
     } finally {
@@ -199,18 +220,13 @@ export default function MapScreen() {
       const nextRegion = buildRegionForCoordinate(coordinate);
       setSelectedEventId(eventsToFocus[0].id);
       setRegion(nextRegion);
-      mapRef.current?.animateToRegion(nextRegion, 450);
+      setMapViewportKey((current) => current + 1);
       return;
     }
 
     setSelectedEventId(null);
-    mapRef.current?.fitToCoordinates(
-      eventsToFocus.map((event) => getEventCoordinate(event)),
-      {
-        edgePadding: CLUSTER_EDGE_PADDING,
-        animated: true,
-      }
-    );
+    setRegion(buildRegionForCoordinates(eventsToFocus.map((event) => getEventCoordinate(event))));
+    setMapViewportKey((current) => current + 1);
   }, []);
 
   const locationClusters = useMemo<LocationCluster[]>(() => {
@@ -354,6 +370,10 @@ export default function MapScreen() {
     return visibleEvents.slice(0, 10);
   }, [visibleEvents, selectedEventId]);
 
+  const shouldHideUserLocation =
+    region.latitudeDelta >= CITY_CLUSTER_ZOOM_THRESHOLD ||
+    region.longitudeDelta >= CITY_CLUSTER_ZOOM_THRESHOLD;
+
   const handleMarkerPress = useCallback(
     (marker: MapMarkerItem) => {
       if (marker.isCluster) {
@@ -367,39 +387,43 @@ export default function MapScreen() {
     [focusEvents]
   );
 
-  const renderCalloutContent = (event: EventListItem) => {
-    const locationText = event.location.locationLabel ?? event.location.city ?? 'Lokasyon belirtilmedi';
+  const openStreetMapMarkers = useMemo<OpenStreetMapMarker[]>(
+    () =>
+      mapMarkers.map((marker) => ({
+        id: marker.key,
+        latitude: marker.latitude,
+        longitude: marker.longitude,
+        title: marker.isCluster ? `${marker.count} etkinlik` : marker.primaryEvent.title,
+        subtitle: marker.isCluster
+          ? marker.events[0]?.location.city ?? 'Bu bölgede etkinlikler'
+          : getEventLocationText(marker.primaryEvent),
+        count: marker.count,
+        isCluster: marker.isCluster,
+        isSelected: marker.primaryEvent.id === selectedEventId,
+      })),
+    [mapMarkers, selectedEventId]
+  );
 
-    return (
-      <View className="min-w-56 max-w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <Image
-          source={{
-            uri:
-              event.bannerImageUrl ??
-              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80',
-          }}
-          style={{ width: '100%', height: 90 }}
-          contentFit="cover"
-        />
-        <View className="p-3">
-          <Text className="text-sm font-semibold text-slate-900">{event.title}</Text>
-          <Text className="mt-1 text-xs text-slate-600">
-            {formatEventDate(event.date)} - {event.time.slice(0, 5)}
-          </Text>
-          <Text className="mt-1 text-xs text-slate-500" numberOfLines={1}>
-            {locationText}
-          </Text>
-          <Text className="mt-1 text-xs font-semibold text-blue-700">
-            {formatEventPrice(event.price, event.isPaid)}
-          </Text>
-        </View>
-      </View>
-    );
-  };
+  const handleMapMarkerPress = useCallback(
+    (markerId: string) => {
+      const pressedMarker = mapMarkers.find((marker) => marker.key === markerId);
+      if (!pressedMarker) {
+        return;
+      }
+
+      handleMarkerPress(pressedMarker);
+    },
+    [handleMarkerPress, mapMarkers]
+  );
 
   return (
     <View className="flex-1 bg-slate-50">
-      <ScrollView ref={scrollViewRef} className="flex-1" contentContainerClassName="pb-6">
+      <ScrollView
+        ref={scrollViewRef}
+        className="flex-1"
+        contentContainerClassName="pb-6"
+        scrollEnabled={!isMapInteracting}
+        nestedScrollEnabled>
         <View className="px-4 pb-3 pt-5">
           <Text className="text-3xl font-extrabold text-slate-900">Keşfet</Text>
           <Text className="mt-1 text-[13px] font-medium text-slate-500">
@@ -409,88 +433,18 @@ export default function MapScreen() {
 
         <View className="mx-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <View style={{ height: 380 }}>
-            <MapView
-              ref={mapRef}
+            <OpenStreetMap
               style={{ flex: 1 }}
-              initialRegion={DEFAULT_REGION}
-              showsUserLocation
-              onRegionChangeComplete={setRegion}>
-              {mapMarkers.map((marker) => {
-                if (marker.isCluster) {
-                  return (
-                    <Marker
-                      key={marker.key}
-                      coordinate={{
-                        latitude: marker.latitude,
-                        longitude: marker.longitude,
-                      }}
-                      anchor={Platform.OS === 'ios' ? undefined : { x: 0.5, y: 1 }}
-                      centerOffset={
-                        Platform.OS === 'ios'
-                          ? { x: 0, y: -(CLUSTER_MARKER_HEIGHT / 2) }
-                          : undefined
-                      }
-                      tracksViewChanges={true}
-                      onPress={() => handleMarkerPress(marker)}>
-                      <View
-                        collapsable={false}
-                        style={{
-                          width: CLUSTER_MARKER_WIDTH,
-                          height: CLUSTER_MARKER_HEIGHT,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}>
-                        <View className="h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-[#357c1c] shadow-md">
-                          <Text className="font-sans-bold text-sm text-white">{marker.count}</Text>
-                        </View>
-                      </View>
-                    </Marker>
-                  );
-                }
-
-                const isSelected = marker.primaryEvent.id === selectedEventId;
-                const markerWidth = isSelected
-                  ? SELECTED_EVENT_MARKER_WIDTH
-                  : DEFAULT_EVENT_MARKER_WIDTH;
-                const markerHeight = isSelected
-                  ? SELECTED_EVENT_MARKER_HEIGHT
-                  : DEFAULT_EVENT_MARKER_HEIGHT;
-
-                return (
-                  <Marker
-                    key={marker.key}
-                    coordinate={{
-                      latitude: marker.latitude,
-                      longitude: marker.longitude,
-                    }}
-                    anchor={Platform.OS === 'ios' ? undefined : { x: 0.5, y: 1 }}
-                    centerOffset={
-                      Platform.OS === 'ios' ? { x: 0, y: -(markerHeight / 2) } : undefined
-                    }
-                    tracksViewChanges={true}
-                    zIndex={isSelected ? 100 : 1}
-                    onPress={() => handleMarkerPress(marker)}
-                    onCalloutPress={() => router.push(`/event/${marker.primaryEvent.id}`)}>
-                    <View
-                      collapsable={false}
-                      style={{
-                        width: markerWidth,
-                        height: markerHeight,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                      <View
-                        className={`items-center justify-center rounded-full border-2 border-white shadow-md ${
-                          isSelected ? 'h-10 w-10 bg-[#357c1c]' : 'h-8 w-8 bg-[#77e349]'
-                        }`}>
-                        <IconSymbol name="calendar" size={isSelected ? 18 : 14} color="#ffffff" />
-                      </View>
-                    </View>
-                    <Callout tooltip>{renderCalloutContent(marker.primaryEvent)}</Callout>
-                  </Marker>
-                );
-              })}
-            </MapView>
+              region={region}
+              markers={openStreetMapMarkers}
+              onRegionChange={setRegion}
+              onInteractionChange={setIsMapInteracting}
+              onMarkerPress={handleMapMarkerPress}
+              selectedCoordinate={
+                hasForegroundLocationPermission && !shouldHideUserLocation ? userLocation : null
+              }
+              viewportKey={mapViewportKey}
+            />
           </View>
         </View>
 
