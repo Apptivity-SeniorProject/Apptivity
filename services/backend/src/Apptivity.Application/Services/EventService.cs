@@ -942,8 +942,12 @@ public sealed class EventService : IEventService
             .Where(x => x.Priority is >= 1 and <= 3)
             .ToArray() ?? Array.Empty<OrderedHotZoneRequest>();
 
+        var participatedEventIds = await _participationRepository.GetActiveEventIdsByUserAsync(userContext.AccountId, cancellationToken);
+        var participatedEventIdSet = participatedEventIds.Count > 0 ? participatedEventIds.ToHashSet() : new HashSet<Guid>();
+
         var activeEvents = (await _eventRepository.GetPublishedAndOngoingAsync(cancellationToken))
             .Where(x => x.OwnerId != userContext.AccountId)
+            .Where(x => !participatedEventIdSet.Contains(x.Id))
             .ToArray();
 
         var stage1 = !hasSignals || primaryTagId == Guid.Empty || stage12Zones.Length == 0
@@ -1112,8 +1116,12 @@ public sealed class EventService : IEventService
                 .Where(x => x != Guid.Empty)
                 .ToHashSet();
 
+            var participatedEventIds = await _participationRepository.GetActiveEventIdsByUserAsync(userContext.AccountId, txToken);
+            var participatedEventIdSet = participatedEventIds.Count > 0 ? participatedEventIds.ToHashSet() : new HashSet<Guid>();
+
             var activeEvents = (await _eventRepository.GetPublishedAndOngoingAsync(txToken))
                 .Where(x => x.OwnerId != userContext.AccountId)
+                .Where(x => !participatedEventIdSet.Contains(x.Id))
                 .ToArray();
             var hasLiveLocation = request.Latitude.HasValue && request.Longitude.HasValue;
             var fallbackCity = hasLiveLocation

@@ -230,6 +230,9 @@ public sealed class EventServiceSchedulingTests
         public Task<IReadOnlyCollection<Guid>> GetChatParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
+        public Task<IReadOnlyCollection<Guid>> GetActiveEventIdsByUserAsync(Guid userId, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyCollection<Guid>>(Array.Empty<Guid>());
+
         public Task AddAsync(Participation entity, CancellationToken cancellationToken)
             => throw new NotSupportedException();
     }

@@ -14,5 +14,6 @@ public interface IParticipationRepository
     Task<bool> HasChatAccessParticipationAsync(Guid userId, Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Guid>> GetApprovedParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Guid>> GetChatParticipantAccountIdsAsync(Guid eventId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<Guid>> GetActiveEventIdsByUserAsync(Guid userId, CancellationToken cancellationToken);
     Task AddAsync(Participation entity, CancellationToken cancellationToken);
 }

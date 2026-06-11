@@ -885,6 +885,17 @@ public sealed class ParticipationRepository : IParticipationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<Guid>> GetActiveEventIdsByUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await _db.Participations
+            .AsNoTracking()
+            .Where(x => x.UserId == userId &&
+                        (x.Status == ParticipationStatus.Pending || x.Status == ParticipationStatus.Approved))
+            .Select(x => x.EventId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Participation entity, CancellationToken cancellationToken)
     {
         await _db.Participations.AddAsync(entity, cancellationToken);
