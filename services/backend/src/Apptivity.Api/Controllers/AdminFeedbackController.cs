@@ -26,4 +26,11 @@ public sealed class AdminFeedbackController : ApiControllerBase
         var result = await _feedbackService.GetPagedAsync(pageNumber, pageSize, cancellationToken);
         return FromResult(result);
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _feedbackService.DeleteAsync(id, cancellationToken);
+        return FromResult(result);
+    }
 }

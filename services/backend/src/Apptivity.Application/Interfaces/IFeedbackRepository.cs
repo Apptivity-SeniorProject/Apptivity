@@ -9,4 +9,6 @@ public interface IFeedbackRepository
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken);
+    Task<FeedbackSubmission?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    void Remove(FeedbackSubmission submission);
 }

@@ -19,6 +19,8 @@ public sealed class FeedbackServiceTests
                 "  Veli  ",
                 "  ali@example.com  ",
                 "  Uygulama gayet iyi ilerliyor.  "),
+            null,
+            null,
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -43,6 +45,8 @@ public sealed class FeedbackServiceTests
                 "Yilmaz",
                 null,
                 ""),
+            null,
+            null,
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -63,6 +67,16 @@ public sealed class FeedbackServiceTests
         public Task<(IReadOnlyCollection<FeedbackSubmission> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
         {
             return Task.FromResult(((IReadOnlyCollection<FeedbackSubmission>)Items, Items.Count));
+        }
+
+        public Task<FeedbackSubmission?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Items.FirstOrDefault(x => x.Id == id));
+        }
+
+        public void Remove(FeedbackSubmission submission)
+        {
+            Items.Remove(submission);
         }
     }
 

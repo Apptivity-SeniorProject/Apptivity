@@ -18,7 +18,7 @@ public sealed class FeedbackService : IFeedbackService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result> SubmitAsync(SubmitFeedbackRequest request, CancellationToken cancellationToken)
+    public async Task<Result> SubmitAsync(SubmitFeedbackRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         var firstName = request.FirstName?.Trim() ?? string.Empty;
         var lastName = request.LastName?.Trim() ?? string.Empty;
@@ -59,7 +59,9 @@ public sealed class FeedbackService : IFeedbackService
             FirstName = firstName,
             LastName = lastName,
             Email = email,
-            Message = message
+            Message = message,
+            IpAddress = ipAddress,
+            UserAgent = userAgent
         };
 
         await _feedbackRepository.AddAsync(submission, cancellationToken);
@@ -85,6 +87,8 @@ public sealed class FeedbackService : IFeedbackService
                 x.LastName,
                 x.Email,
                 x.Message,
+                x.IpAddress,
+                x.UserAgent,
                 x.CreatedAt))
             .ToArray();
 
@@ -103,5 +107,19 @@ public sealed class FeedbackService : IFeedbackService
         {
             return false;
         }
+    }
+
+    public async Task<Result> DeleteAsync(Guid feedbackId, CancellationToken cancellationToken)
+    {
+        var submission = await _feedbackRepository.GetByIdAsync(feedbackId, cancellationToken);
+        if (submission is null)
+        {
+            return Result.Failure(ErrorCodes.FeedbackNotFound, "Feedback not found.");
+        }
+
+        _feedbackRepository.Remove(submission);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 }

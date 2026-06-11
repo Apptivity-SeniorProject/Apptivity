@@ -237,8 +237,12 @@ function AdminHomePage() {
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 fontSize: isMobile ? 14 : undefined,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8
                             }}
                         >
+                            <img src="/logo-monochrome.png" alt="Apptivity" style={{ height: 20, width: 'auto' }} />
                             {t('admin.brand')}
                         </Typography.Title>
                     </Space>

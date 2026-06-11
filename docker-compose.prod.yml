@@ -88,7 +88,8 @@ services:
     container_name: apptivity-nginx
     restart: always
     ports:
-      - "80:80"
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
     networks:
       - apptivity-net
     depends_on:

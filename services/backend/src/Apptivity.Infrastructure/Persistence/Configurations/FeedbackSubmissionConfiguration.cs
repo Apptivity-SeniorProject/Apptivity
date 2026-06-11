@@ -15,6 +15,8 @@ public sealed class FeedbackSubmissionConfiguration : IEntityTypeConfiguration<F
         builder.Property(x => x.LastName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Email).HasMaxLength(320);
         builder.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+        builder.Property(x => x.IpAddress).HasMaxLength(45);
+        builder.Property(x => x.UserAgent).HasMaxLength(1000);
 
         builder.HasIndex(x => x.CreatedAt);
         builder.HasIndex(x => x.Email);

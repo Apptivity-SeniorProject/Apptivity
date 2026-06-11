@@ -19,3 +19,9 @@ export async function getAdminFeedback({ pageNumber = 1, pageSize = 20 } = {}) {
         method: 'GET',
     })
 }
+
+export async function deleteAdminFeedback(id) {
+    return apiRequest(`/admin/feedback/${id}`, {
+        method: 'DELETE',
+    })
+}

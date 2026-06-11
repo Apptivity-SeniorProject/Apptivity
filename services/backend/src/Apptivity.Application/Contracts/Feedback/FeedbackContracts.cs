@@ -14,10 +14,13 @@ public sealed record FeedbackItemDto(
     string LastName,
     string? Email,
     string Message,
+    string? IpAddress,
+    string? UserAgent,
     DateTime CreatedAt);
 
 public interface IFeedbackService
 {
-    Task<Result> SubmitAsync(SubmitFeedbackRequest request, CancellationToken cancellationToken);
+    Task<Result> SubmitAsync(SubmitFeedbackRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken);
     Task<Result<PagedResult<FeedbackItemDto>>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<Result> DeleteAsync(Guid feedbackId, CancellationToken cancellationToken);
 }
