@@ -92,11 +92,8 @@ function LandingContent() {
     ]
 
     const handleTestAppClick = () => {
-        if (!appDownloadUrl) {
-            return
-        }
-
-        window.location.assign(appDownloadUrl)
+        const url = appDownloadUrl || '/apptivity.apk'
+        window.location.assign(url)
     }
 
     const handleFeedbackSubmit = async (values) => {
