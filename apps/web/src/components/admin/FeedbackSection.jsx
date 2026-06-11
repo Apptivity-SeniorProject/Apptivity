@@ -60,6 +60,10 @@ function FeedbackSection() {
                 return
             }
 
+            const data = result.data || {}
+            setRows(data.items || data.Items || [])
+            setTotalCount(data.totalCount ?? data.TotalCount ?? 0)
+            setIsLoading(false)
         }
 
         loadFeedback().catch(() => {
