@@ -1,8 +1,10 @@
-import { Descriptions, Drawer, Space, Typography, Button, Popconfirm, message } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { Button, Descriptions, Drawer, Popconfirm, Space, Typography, message } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import DataGrid from '../common/DataGrid'
-import { getAdminFeedback, deleteAdminFeedback } from '../../services/feedbackService'
+import { deleteAdminFeedback, getAdminFeedback } from '../../services/feedbackService'
 
 function formatDateTime(value) {
     if (!value) {
@@ -27,6 +29,7 @@ function getFullName(row) {
 }
 
 function FeedbackSection() {
+    const { t } = useTranslation()
     const [rows, setRows] = useState([])
     const [isLoading, setIsLoading] = useState(false)
     const [errorText, setErrorText] = useState('')
@@ -53,7 +56,7 @@ function FeedbackSection() {
             }
 
             if (!result.isSuccess) {
-                setErrorText(result.errors?.[0]?.message || 'Geri bildirimler alınamadı.')
+                setErrorText(result.errors?.[0]?.message || t('admin.feedback.error'))
                 setRows([])
                 setTotalCount(0)
                 setIsLoading(false)
@@ -71,7 +74,7 @@ function FeedbackSection() {
                 return
             }
 
-            setErrorText('Geri bildirimler alınamadı.')
+            setErrorText(t('admin.feedback.error'))
             setRows([])
             setTotalCount(0)
             setIsLoading(false)
@@ -80,69 +83,69 @@ function FeedbackSection() {
         return () => {
             isCancelled = true
         }
-    }, [pageNumber, pageSize, refresh])
+    }, [pageNumber, pageSize, refresh, t])
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         setIsLoading(true)
         const result = await deleteAdminFeedback(id)
         if (result.isSuccess) {
-            message.success('Geri bildirim başarıyla silindi.')
-            setRefresh(prev => prev + 1)
+            message.success(t('admin.feedback.deleteSuccess'))
+            setRefresh((prev) => prev + 1)
         } else {
-            message.error(result.errors?.[0]?.message || 'Geri bildirim silinemedi.')
+            message.error(result.errors?.[0]?.message || t('admin.feedback.deleteError'))
             setIsLoading(false)
         }
-    }
+    }, [t])
 
     const columns = useMemo(() => [
         {
-            title: 'Ad Soyad',
+            title: t('admin.feedback.columns.fullName'),
             dataIndex: 'firstName',
             key: 'fullName',
             render: (_, row) => <span style={{ fontWeight: 600 }}>{getFullName(row)}</span>,
         },
         {
-            title: 'E-posta',
+            title: t('admin.feedback.columns.email'),
             dataIndex: 'email',
             key: 'email',
             render: (value, row) => value || row.Email || '-',
         },
         {
-            title: 'Mesaj',
+            title: t('admin.feedback.columns.message'),
             dataIndex: 'message',
             key: 'message',
             render: (value, row) => {
-                const message = value || row.Message || ''
-                return message.length > 120 ? `${message.slice(0, 120)}...` : message || '-'
+                const feedbackMessage = value || row.Message || ''
+                return feedbackMessage.length > 120 ? `${feedbackMessage.slice(0, 120)}...` : feedbackMessage || '-'
             },
         },
         {
-            title: 'Tarih',
+            title: t('admin.feedback.columns.createdAt'),
             dataIndex: 'createdAt',
             key: 'createdAt',
             render: (value, row) => formatDateTime(value || row.CreatedAt),
         },
         {
-            title: 'İşlemler',
+            title: t('admin.feedback.columns.actions'),
             key: 'actions',
             width: 100,
             render: (_, row) => (
                 <Popconfirm
-                    title="Bu geri bildirimi silmek istediğinize emin misiniz?"
+                    title={t('admin.feedback.deleteConfirm')}
                     onConfirm={() => handleDelete(row.feedbackId || row.FeedbackId)}
-                    okText="Evet"
-                    cancelText="Hayır"
+                    okText={t('admin.feedback.popconfirm.confirm')}
+                    cancelText={t('admin.feedback.popconfirm.cancel')}
                 >
-                    <Button type="text" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={(event) => event.stopPropagation()} />
                 </Popconfirm>
             ),
         },
-    ], [])
+    ], [handleDelete, t])
 
     return (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Typography.Paragraph style={{ marginBottom: 0, color: '#4b5563' }}>
-                Landing sayfasından iletilen geri bildirimleri buradan okuyabilirsiniz.
+                {t('admin.feedback.description')}
             </Typography.Paragraph>
 
             {errorText ? (
@@ -161,26 +164,26 @@ function FeedbackSection() {
                     setPageNumber(nextPage)
                     setPageSize(nextPageSize)
                 }}
-                emptyText="Henüz geri bildirim yok."
+                emptyText={t('admin.feedback.empty')}
                 onInfoCardClick={(row) => setSelectedFeedback(row)}
-                infoCardColumnTitle="Detay"
-                infoCardLabel="Oku"
+                infoCardColumnTitle={t('admin.feedback.infoCardColumnTitle')}
+                infoCardLabel={t('admin.feedback.infoCardLabel')}
             />
 
             <Drawer
-                title="Geri Bildirim Detayı"
+                title={t('admin.feedback.detailsTitle')}
                 open={Boolean(selectedFeedback)}
                 onClose={() => setSelectedFeedback(null)}
                 width={640}
             >
                 {selectedFeedback ? (
                     <Descriptions column={1} bordered size="small">
-                        <Descriptions.Item label="Ad Soyad">{getFullName(selectedFeedback)}</Descriptions.Item>
-                        <Descriptions.Item label="E-posta">{selectedFeedback.email || selectedFeedback.Email || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="IP Adresi">{selectedFeedback.ipAddress || selectedFeedback.IpAddress || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="Cihaz (User-Agent)">{selectedFeedback.userAgent || selectedFeedback.UserAgent || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="Tarih">{formatDateTime(selectedFeedback.createdAt || selectedFeedback.CreatedAt)}</Descriptions.Item>
-                        <Descriptions.Item label="Mesaj">
+                        <Descriptions.Item label={t('admin.feedback.attributes.fullName')}>{getFullName(selectedFeedback)}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.feedback.attributes.email')}>{selectedFeedback.email || selectedFeedback.Email || '-'}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.feedback.attributes.ipAddress')}>{selectedFeedback.ipAddress || selectedFeedback.IpAddress || '-'}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.feedback.attributes.userAgent')}>{selectedFeedback.userAgent || selectedFeedback.UserAgent || '-'}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.feedback.attributes.createdAt')}>{formatDateTime(selectedFeedback.createdAt || selectedFeedback.CreatedAt)}</Descriptions.Item>
+                        <Descriptions.Item label={t('admin.feedback.attributes.message')}>
                             <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
                                 {selectedFeedback.message || selectedFeedback.Message || '-'}
                             </Typography.Paragraph>

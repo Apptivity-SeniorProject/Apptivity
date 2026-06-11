@@ -89,7 +89,7 @@ function OrganizationHomePage() {
                                 type="text"
                                 icon={<MenuOutlined />}
                                 onClick={() => setIsMobileMenuOpen(true)}
-                                aria-label="Open organization menu"
+                                aria-label={t('organization.navigation.openMenu')}
                             />
                         ) : null}
                         <Typography.Title
@@ -171,7 +171,7 @@ function OrganizationHomePage() {
                                         paddingInline: 8,
                                         height: 28,
                                     }}
-                                    aria-label={isCollapsed ? 'Open organization menu' : 'Close organization menu'}
+                                    aria-label={isCollapsed ? t('organization.navigation.openMenu') : t('organization.navigation.closeMenu')}
                                 />
                             </div>
                         </Layout.Sider>

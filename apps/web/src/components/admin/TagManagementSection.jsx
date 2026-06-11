@@ -143,8 +143,8 @@ function TagManagementSection() {
                         <Popconfirm
                             title={t('admin.tags.messages.deleteConfirm')}
                             onConfirm={() => handleDelete(record.id)}
-                            okText={t('admin.tags.actions.yes') || 'Evet'}
-                            cancelText={t('admin.tags.actions.no') || 'Hayır'}
+                            okText={t('admin.tags.actions.yes')}
+                            cancelText={t('admin.tags.actions.no')}
                         >
                             <Button type="text" danger icon={<DeleteOutlined />}>
                                 {t('admin.tags.actions.delete')}
