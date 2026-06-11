@@ -5,16 +5,19 @@ import DateTimePicker, {
 import { format } from 'date-fns';
 import { Redirect, router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Keyboard, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 
 import { Ionicons } from '@expo/vector-icons';
+import { Camera } from 'lucide-react-native';
 
 import { registerIndividual } from '@/src/api/authService';
 import { TagSelectionModal } from '@/src/components/tags/tag-selection-modal';
 import { Input } from '@/src/components/ui/input';
 import { hitSlop } from '@/src/constants/theme';
-import { useSetMyInterests } from '@/src/hooks/useProfile';
+import { useSetMyInterests, useUploadProfilePhoto } from '@/src/hooks/useProfile';
 import { useTags } from '@/src/hooks/useTags';
 import { useToast } from '@/src/hooks/useToast';
 import { useAuthStore } from '@/src/store/useAuthStore';
@@ -40,6 +43,11 @@ interface CountryCodeOption {
 interface GenderOption {
   label: string;
   value: string;
+}
+
+interface SelectedProfilePhoto {
+  uri: string;
+  mimeType: string;
 }
 
 const INITIAL_FORM: FormData = {
@@ -70,6 +78,7 @@ function normalizePhone(countryCode: string, input: string): string {
 }
 
 export function RegisterScreen() {
+  const insets = useSafeAreaInsets();
   const [countryCode, setCountryCode] = useState('+90');
   const [form, setForm] = useState<FormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -80,6 +89,8 @@ export function RegisterScreen() {
   const [isGenderModalOpen, setIsGenderModalOpen] = useState(false);
   const [isInterestsModalOpen, setIsInterestsModalOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedProfilePhoto, setSelectedProfilePhoto] = useState<SelectedProfilePhoto | null>(null);
+  const [isFinalizingRegistration, setIsFinalizingRegistration] = useState(false);
 
   const toast = useToast();
   const authenticate = useAuthStore((state) => state.authenticate);
@@ -87,6 +98,7 @@ export function RegisterScreen() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const tagsQuery = useTags();
   const setInterestsMutation = useSetMyInterests();
+  const uploadPhotoMutation = useUploadProfilePhoto();
 
   const phoneNumber = useMemo(
     () => normalizePhone(countryCode, form.phone),
@@ -100,6 +112,16 @@ export function RegisterScreen() {
     () => (tagsQuery.data ?? []).filter((tag) => selectedTagIds.includes(tag.id)).slice(0, 4),
     [selectedTagIds, tagsQuery.data]
   );
+  const sheetBottomPadding = Math.max(insets.bottom, 16);
+  const initials = useMemo(() => {
+    const words = [form.name.trim(), form.surname.trim()].filter(Boolean);
+    if (words.length >= 2) {
+      return `${words[0][0]}${words[1][0]}`.toUpperCase();
+    }
+
+    const fallback = form.name.trim() || form.username.trim();
+    return fallback ? fallback.slice(0, 2).toUpperCase() : '?';
+  }, [form.name, form.surname, form.username]);
 
   const updateField = (key: keyof FormData, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -166,6 +188,34 @@ export function RegisterScreen() {
     );
   };
 
+  const handleProfilePhotoPress = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      toast.error('Galeri erisimi reddedildi.');
+      return;
+    }
+
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (pickerResult.canceled || !pickerResult.assets?.[0]) {
+      return;
+    }
+
+    const asset = pickerResult.assets[0];
+    const mimeType = asset.mimeType ?? (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg');
+
+    setSelectedProfilePhoto({
+      uri: asset.uri,
+      mimeType,
+    });
+  };
+
   const registerMutation = useMutation({
     mutationFn: () =>
       registerIndividual({
@@ -179,11 +229,20 @@ export function RegisterScreen() {
         password: form.password,
       }),
     onSuccess: async (response) => {
+      setIsFinalizingRegistration(true);
       authenticate({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
         user: buildAuthUser(response.accessToken, phoneNumber),
       });
+
+      if (selectedProfilePhoto) {
+        try {
+          await uploadPhotoMutation.mutateAsync(selectedProfilePhoto);
+        } catch (error) {
+          toast.error(getApiErrorMessage(error, 'Hesap acildi ama profil fotografi yuklenemedi.'));
+        }
+      }
 
       if (selectedTagIds.length > 0) {
         try {
@@ -194,6 +253,7 @@ export function RegisterScreen() {
       }
 
       toast.success('Hesabın başarıyla oluşturuldu.');
+      setIsFinalizingRegistration(false);
       router.replace('/(tabs)');
     },
     onError: (error) => {
@@ -201,7 +261,7 @@ export function RegisterScreen() {
     },
   });
 
-  if (hasHydrated && accessToken) {
+  if (hasHydrated && accessToken && !isFinalizingRegistration) {
     return <Redirect href="/(tabs)" />;
   }
 
@@ -214,6 +274,12 @@ export function RegisterScreen() {
 
     registerMutation.mutate();
   };
+
+  const isRegistering =
+    registerMutation.isPending ||
+    uploadPhotoMutation.isPending ||
+    setInterestsMutation.isPending ||
+    isFinalizingRegistration;
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -362,6 +428,44 @@ export function RegisterScreen() {
           </View>
 
           {/* İlgi Alanları - Yeşil temalı kart */}
+          <View className="rounded-[14px] border-[1.5px] border-slate-200 bg-slate-50 px-3.5 py-3.5">
+            <Text className="text-[13px] font-bold text-slate-800">Profil Fotografi</Text>
+            <Text className="mt-1 text-[12.5px] text-slate-500 leading-[18px]">
+              Istersen kayit olurken profil fotografini da ekleyebilirsin.
+            </Text>
+
+            <View className="mt-4 items-center">
+              <Pressable
+                onPress={handleProfilePhotoPress}
+                disabled={isRegistering}
+                className="h-24 w-24 rounded-full border-2 border-slate-200 bg-white items-center justify-center overflow-hidden">
+                {selectedProfilePhoto ? (
+                  <Image
+                    source={{ uri: selectedProfilePhoto.uri }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Text className="text-3xl font-semibold text-slate-400">{initials}</Text>
+                )}
+
+                {uploadPhotoMutation.isPending ? (
+                  <View className="absolute inset-0 rounded-full bg-black/40 items-center justify-center">
+                    <ActivityIndicator color="#fff" size="small" />
+                  </View>
+                ) : (
+                  <View className="absolute bottom-0 w-full bg-black/40 py-1 items-center">
+                    <Camera size={14} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+
+              <Text className="mt-3 text-[12.5px] font-medium text-[#44a31e]">
+                {selectedProfilePhoto ? 'Profil fotografini degistir' : 'Profil fotografi ekle'}
+              </Text>
+            </View>
+          </View>
+
           <View className="rounded-[14px] border-[1.5px] border-[#BBEFAA] bg-[#F0FCE8] px-3.5 py-3.5">
             <View className="flex-row items-center gap-2 mb-1.5">
               <Text className="text-[13px] font-bold text-[#357c1c]">İlgi Alanları</Text>
@@ -441,16 +545,16 @@ export function RegisterScreen() {
         <Pressable
           className="mt-6 h-[52px] rounded-[14px] items-center justify-center"
           style={{
-            backgroundColor: registerMutation.isPending ? '#a3e88a' : undefined,
+            backgroundColor: isRegistering ? '#a3e88a' : undefined,
           }}
-          disabled={registerMutation.isPending}
+          disabled={isRegistering}
           onPress={handleRegister}>
           <View
             className="w-full h-full rounded-[14px] items-center justify-center"
             style={{
-              backgroundColor: registerMutation.isPending ? '#a3e88a' : '#5bcc2a',
+              backgroundColor: isRegistering ? '#a3e88a' : '#5bcc2a',
             }}>
-            {registerMutation.isPending ? (
+            {isRegistering ? (
               <Text className="text-[15.5px] font-bold text-white/60">Kayıt Ol...</Text>
             ) : (
               <Text className="text-[15.5px] font-bold text-white tracking-wide">Kayıt Ol</Text>
@@ -467,15 +571,21 @@ export function RegisterScreen() {
         </View>
       </ScrollView>
 
-      <Modal animationType="slide" transparent visible={isCountryModalOpen}>
-        <Pressable
-          className="flex-1 justify-end bg-black/40"
-          onPress={() => setIsCountryModalOpen(false)}>
-          <View className="max-h-72 rounded-t-sheet bg-white px-5 py-4">
+      <Modal
+        animationType="slide"
+        transparent
+        visible={isCountryModalOpen}
+        onRequestClose={() => setIsCountryModalOpen(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <Pressable className="absolute inset-0" onPress={() => setIsCountryModalOpen(false)} />
+          <View
+            className="max-h-72 rounded-t-sheet bg-white px-5 pt-4"
+            style={{ paddingBottom: sheetBottomPadding }}>
             <Text className="mb-4 font-sans-semibold text-lg text-gray-900">Ülke Kodu Seç</Text>
             <FlatList
               data={COUNTRY_CODES}
               keyExtractor={(item) => item.value}
+              contentContainerStyle={{ paddingBottom: 4 }}
               renderItem={({ item }) => (
                 <Pressable
                   className="rounded-card px-3 py-3"
@@ -488,18 +598,24 @@ export function RegisterScreen() {
               )}
             />
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
-      <Modal animationType="slide" transparent visible={isGenderModalOpen}>
-        <Pressable
-          className="flex-1 justify-end bg-black/40"
-          onPress={() => setIsGenderModalOpen(false)}>
-          <View className="rounded-t-sheet bg-white px-5 py-4">
+      <Modal
+        animationType="slide"
+        transparent
+        visible={isGenderModalOpen}
+        onRequestClose={() => setIsGenderModalOpen(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <Pressable className="absolute inset-0" onPress={() => setIsGenderModalOpen(false)} />
+          <View
+            className="rounded-t-sheet bg-white px-5 pt-4"
+            style={{ paddingBottom: sheetBottomPadding }}>
             <Text className="mb-4 font-sans-semibold text-lg text-gray-900">Cinsiyet Seç</Text>
             <FlatList
               data={GENDER_OPTIONS}
               keyExtractor={(item) => item.value}
+              contentContainerStyle={{ paddingBottom: 4 }}
               renderItem={({ item }) => (
                 <Pressable
                   className="rounded-card px-3 py-3"
@@ -512,7 +628,7 @@ export function RegisterScreen() {
               )}
             />
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       <TagSelectionModal

@@ -91,7 +91,11 @@ export async function setMyInterests(tagIds: string[]): Promise<ProfileDto> {
   const response = await apiClient.put<ApiEnvelope<ProfileDto>>('/api/profiles/me/interests', {
     tagIds,
   });
-  return unwrapEnvelope(response.data);
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    profilePhoto: getFullImageUrl(payload.profilePhoto) ?? payload.profilePhoto,
+  };
 }
 
 export async function uploadProfilePhoto(uri: string, mimeType: string): Promise<string> {
