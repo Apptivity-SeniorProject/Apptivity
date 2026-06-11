@@ -97,6 +97,8 @@ services:
         condition: service_healthy
       web:
         condition: service_started
+    volumes:
+      - ./apptivity.apk:/usr/share/nginx/html/apptivity.apk:ro
 
 networks:
   apptivity-net:
