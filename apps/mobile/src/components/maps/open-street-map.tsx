@@ -397,6 +397,11 @@ function buildHtml({
       }
 
       window.updateMapData = renderMapData;
+      window.setRegion = (lat, lng, zoom) => {
+        if (map) {
+          map.setView([lat, lng], zoom);
+        }
+      };
       renderMapData({ markers: [], selectedCoordinate: null });
 
       if (payload.interactive) {
@@ -464,6 +469,7 @@ export function OpenStreetMap({
 }: OpenStreetMapProps) {
   const initialRegionRef = useRef(region);
   const lastViewportKeyRef = useRef<number | string>(viewportKey);
+  const lastInternalRegionRef = useRef<MapRegion | null>(null);
   const webViewRef = useRef<WebView>(null);
   const latestMapDataRef = useRef({
     markers,
@@ -505,6 +511,26 @@ export function OpenStreetMap({
     `);
   }, [markers, selectedCoordinate]);
 
+  useEffect(() => {
+    const internal = lastInternalRegionRef.current;
+    const isSame =
+      internal &&
+      Math.abs(internal.latitude - region.latitude) < 0.0001 &&
+      Math.abs(internal.longitude - region.longitude) < 0.0001;
+
+    if (isSame) {
+      return;
+    }
+
+    const zoom = getZoomFromRegion(region);
+    webViewRef.current?.injectJavaScript(`
+      if (window.setRegion) {
+        window.setRegion(${region.latitude}, ${region.longitude}, ${zoom});
+      }
+      true;
+    `);
+  }, [region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta]);
+
   const syncMapData = () => {
     const payload = JSON.stringify(latestMapDataRef.current).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
@@ -539,12 +565,14 @@ export function OpenStreetMap({
       }
 
       if (message.type === 'regionChange') {
-        onRegionChange?.({
+        const nextRegion = {
           latitude: message.latitude,
           longitude: message.longitude,
           latitudeDelta: message.latitudeDelta,
           longitudeDelta: message.longitudeDelta,
-        });
+        };
+        lastInternalRegionRef.current = nextRegion;
+        onRegionChange?.(nextRegion);
       }
     } catch {
       // Ignore malformed WebView bridge events.

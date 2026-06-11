@@ -15,6 +15,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -64,6 +65,23 @@ function createInitialScheduledAt() {
   const now = new Date();
   now.setHours(now.getHours() + 2, 0, 0, 0);
   return now;
+}
+
+function timeoutPromise<T>(promise: Promise<T>, ms: number, defaultValue: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => {
+      resolve(defaultValue);
+    }, ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(defaultValue);
+      });
+  });
 }
 
 const DEFAULT_REGION: MapRegion = {
@@ -218,14 +236,33 @@ export function CreateEventScreen() {
         return;
       }
 
-      const currentPosition = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const coordinate = {
-        latitude: currentPosition.coords.latitude,
-        longitude: currentPosition.coords.longitude,
+      let coordinate = {
+        latitude: DEFAULT_REGION.latitude,
+        longitude: DEFAULT_REGION.longitude,
       };
+
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown) {
+          coordinate = {
+            latitude: lastKnown.coords.latitude,
+            longitude: lastKnown.coords.longitude,
+          };
+        } else {
+          const currentPositionPromise = Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          const currentPosition = await timeoutPromise(currentPositionPromise, 4000, null);
+          if (currentPosition) {
+            coordinate = {
+              latitude: currentPosition.coords.latitude,
+              longitude: currentPosition.coords.longitude,
+            };
+          }
+        }
+      } catch {
+        // Fallback to default
+      }
 
       setCurrentLocation(coordinate);
       const nextDraftCoordinate = selectedCoordinate ?? coordinate;
@@ -236,7 +273,6 @@ export function CreateEventScreen() {
         latitudeDelta: 0.04,
         longitudeDelta: 0.04,
       });
-      setMapViewportKey((current) => current + 1);
     } catch {
       toast.error('Konum bilgisi alınamadı. Haritadan manuel işaretleyebilirsiniz.');
       if (selectedCoordinate) {
@@ -247,7 +283,6 @@ export function CreateEventScreen() {
           latitudeDelta: 0.04,
           longitudeDelta: 0.04,
         });
-        setMapViewportKey((current) => current + 1);
       }
     } finally {
       setIsResolvingLocation(false);
@@ -757,45 +792,54 @@ export function CreateEventScreen() {
         primaryActionLabel="Uygula"
       />
 
-      <Modal visible={isMapModalOpen} transparent animationType="slide" onRequestClose={() => setIsMapModalOpen(false)}>
-        <View className="flex-1 justify-end bg-black/35">
-          <View className="rounded-t-3xl bg-white px-4 pb-5 pt-4">
-            <Text className="text-lg font-semibold text-slate-900">Haritadan Konum Seç</Text>
-            <Text className="mt-1 text-sm text-slate-500">Haritada istediğin noktaya dokunup pin bırak.</Text>
+      <View
+        pointerEvents={isMapModalOpen ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            backgroundColor: 'rgba(0, 0, 0, 0.35)',
+            justifyContent: 'flex-end',
+            opacity: isMapModalOpen ? 1 : 0,
+            zIndex: isMapModalOpen ? 999 : -1,
+          },
+        ]}
+      >
+        <View className="rounded-t-3xl bg-white px-4 pb-5 pt-4">
+          <Text className="text-lg font-semibold text-slate-900">Haritadan Konum Seç</Text>
+          <Text className="mt-1 text-sm text-slate-500">Haritada istediğin noktaya dokunup pin bırak.</Text>
 
-            <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" style={{ height: 320 }}>
-              <OpenStreetMap
-                style={{ flex: 1 }}
-                region={mapRegion}
-                markers={mapMarkers}
-                onMapPress={handleMapPress}
-                viewportKey={mapViewportKey}
-              />
+          <View className="mt-3 overflow-hidden rounded-2xl border border-slate-200" style={{ height: 320 }}>
+            <OpenStreetMap
+              style={{ flex: 1 }}
+              region={mapRegion}
+              markers={mapMarkers}
+              onMapPress={handleMapPress}
+              viewportKey={mapViewportKey}
+            />
 
-              {isResolvingLocation ? (
-                <View className="absolute inset-0 items-center justify-center bg-white/70">
-                  <ActivityIndicator color="#0f172a" />
-                </View>
-              ) : null}
-            </View>
+            {isResolvingLocation ? (
+              <View className="absolute inset-0 items-center justify-center bg-white/70">
+                <ActivityIndicator color="#0f172a" />
+              </View>
+            ) : null}
+          </View>
 
-            <View className="mt-3 flex-row gap-3">
-              <Button
-                label="İptal"
-                variant="secondary"
-                className="flex-1 border-[1.5px] border-surface-tertiary bg-surface-secondary rounded-button"
-                onPress={() => setIsMapModalOpen(false)}
-              />
-              <Button
-                label="Konumu Kaydet"
-                className="flex-1 bg-primary rounded-button"
-                textClassName="text-primary-950 font-sans-bold"
-                onPress={confirmMapSelection}
-              />
-            </View>
+          <View className="mt-3 flex-row gap-3">
+            <Button
+              label="İptal"
+              variant="secondary"
+              className="flex-1 border-[1.5px] border-surface-tertiary bg-surface-secondary rounded-button"
+              onPress={() => setIsMapModalOpen(false)}
+            />
+            <Button
+              label="Konumu Kaydet"
+              className="flex-1 bg-primary rounded-button"
+              textClassName="text-primary-950 font-sans-bold"
+              onPress={confirmMapSelection}
+            />
           </View>
         </View>
-      </Modal>
+      </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

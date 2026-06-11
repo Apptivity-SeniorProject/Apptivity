@@ -169,7 +169,6 @@ export default function MapScreen() {
       };
 
       setRegion(nextRegion);
-      setMapViewportKey((current) => current + 1);
     } catch {
       toast.error('Konum bilgisi alınamadı.');
     } finally {
@@ -220,13 +219,11 @@ export default function MapScreen() {
       const nextRegion = buildRegionForCoordinate(coordinate);
       setSelectedEventId(eventsToFocus[0].id);
       setRegion(nextRegion);
-      setMapViewportKey((current) => current + 1);
       return;
     }
 
     setSelectedEventId(null);
     setRegion(buildRegionForCoordinates(eventsToFocus.map((event) => getEventCoordinate(event))));
-    setMapViewportKey((current) => current + 1);
   }, []);
 
   const locationClusters = useMemo<LocationCluster[]>(() => {
