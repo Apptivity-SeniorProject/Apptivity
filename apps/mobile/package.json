@@ -28,6 +28,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
+    "expo-application": "~7.0.8",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "^56.0.17",

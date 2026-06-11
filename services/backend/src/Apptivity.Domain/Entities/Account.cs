@@ -16,6 +16,10 @@ public sealed class Account : BaseEntity
     public bool IsActive { get; set; } = true;
     public DateTime? SuspendedUntilUtc { get; set; }
 
+    public string? RegistrationIpAddress { get; set; }
+    public string? RegistrationUserAgent { get; set; }
+    public string? RegistrationDeviceId { get; set; }
+
     public User? UserProfile { get; set; }
     public Club? ClubProfile { get; set; }
 

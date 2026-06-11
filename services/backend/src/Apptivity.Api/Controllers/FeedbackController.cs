@@ -24,7 +24,7 @@ public sealed class FeedbackController : ApiControllerBase
                         ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim()
                         ?? HttpContext.Connection.RemoteIpAddress?.ToString();
 
-        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
 
         var result = await _feedbackService.SubmitAsync(request, ipAddress, userAgent, cancellationToken);
         return FromResult(result);

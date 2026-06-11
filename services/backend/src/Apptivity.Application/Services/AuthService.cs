@@ -135,7 +135,7 @@ public sealed class AuthService : IAuthService
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 
-    public async Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, CancellationToken cancellationToken)
+    public async Task<Result<AuthResponse>> RegisterIndividualAsync(RegisterIndividualRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password))
         {
@@ -177,7 +177,10 @@ public sealed class AuthService : IAuthService
             Password = _passwordHasher.Hash(request.Password),
             Status = AccountStatus.Active,
             IsActive = true,
-            IsDeleted = false
+            IsDeleted = false,
+            RegistrationIpAddress = ipAddress,
+            RegistrationUserAgent = userAgent,
+            RegistrationDeviceId = request.DeviceId
         };
 
         var user = new User
@@ -207,7 +210,7 @@ public sealed class AuthService : IAuthService
         return await IssueTokenPairAsync(account, request.DeviceId, cancellationToken);
     }
 
-    public async Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, CancellationToken cancellationToken)
+    public async Task<Result<AuthResponse>> RegisterOrganizationAsync(RegisterOrganizationRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Name))
         {
@@ -249,7 +252,10 @@ public sealed class AuthService : IAuthService
             Password = _passwordHasher.Hash(request.Password),
             Status = AccountStatus.Active,
             IsActive = true,
-            IsDeleted = false
+            IsDeleted = false,
+            RegistrationIpAddress = ipAddress,
+            RegistrationUserAgent = userAgent,
+            RegistrationDeviceId = request.DeviceId
         };
 
         var club = new Club

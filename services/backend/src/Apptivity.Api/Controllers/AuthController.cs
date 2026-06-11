@@ -48,7 +48,12 @@ public sealed class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> RegisterIndividual([FromBody] RegisterIndividualRequest request, CancellationToken cancellationToken)
     {
-        var result = await _authService.RegisterIndividualAsync(request, cancellationToken);
+        var ipAddress = HttpContext.Request.Headers["CF-Connecting-IP"].FirstOrDefault() 
+                        ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim()
+                        ?? HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+
+        var result = await _authService.RegisterIndividualAsync(request, ipAddress, userAgent, cancellationToken);
         return FromResult(result);
     }
 
@@ -56,7 +61,12 @@ public sealed class AuthController : ApiControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> RegisterOrganization([FromBody] RegisterOrganizationRequest request, CancellationToken cancellationToken)
     {
-        var result = await _authService.RegisterOrganizationAsync(request, cancellationToken);
+        var ipAddress = HttpContext.Request.Headers["CF-Connecting-IP"].FirstOrDefault() 
+                        ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim()
+                        ?? HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+
+        var result = await _authService.RegisterOrganizationAsync(request, ipAddress, userAgent, cancellationToken);
         return FromResult(result);
     }
 
