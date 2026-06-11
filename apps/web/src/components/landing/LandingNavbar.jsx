@@ -54,7 +54,7 @@ function LandingNavbar() {
                     <Flex align="center" gap={8}>
                         <LanguageSwitcher />
                         <Button
-                            aria-label="Open menu"
+                            aria-label={t('landing.navigation.openMenu')}
                             icon={<MenuOutlined />}
                             style={{ borderRadius: 10, borderColor: '#d1d5db', color: '#111111' }}
                             onClick={() => setOpen(true)}

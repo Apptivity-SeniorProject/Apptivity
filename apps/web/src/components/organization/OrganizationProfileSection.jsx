@@ -517,7 +517,7 @@ function OrganizationProfileSection() {
                 footer={null}
                 onCancel={() => setPreviewOpen(false)}
             >
-                <img alt="profile-preview" style={{ width: '100%' }} src={previewImage} />
+                <img alt={t('organization.profile.photoPreviewAlt')} style={{ width: '100%' }} src={previewImage} />
             </Modal>
         </Card>
     )
