@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { EventCard } from '@/src/components/events/event-card';
+import { getFullImageUrl } from '@/src/api/eventService';
 import { useProfile, useProfileEvents, useProfileStats } from '@/src/hooks/useProfile';
 import type { EventListItem } from '@/src/types/event';
 import type { ProfileEventDto } from '@/src/types/profile';
@@ -87,22 +88,56 @@ function getReputationLabel(level: string): string {
   }
 }
 
+function parseProfileEventLocation(locationData?: string | null) {
+  if (!locationData) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(locationData) as Record<string, unknown>;
+    return {
+      city: typeof parsed.city === 'string' ? parsed.city : undefined,
+      fullAddress:
+        typeof parsed.fullAddress === 'string'
+          ? parsed.fullAddress
+          : typeof parsed.address === 'string'
+            ? parsed.address
+            : undefined,
+      locationLabel: typeof parsed.locationLabel === 'string' ? parsed.locationLabel : undefined,
+      imageUrls: Array.isArray(parsed.imageUrls)
+        ? parsed.imageUrls
+            .filter((url): url is string => typeof url === 'string')
+            .map((url) => getFullImageUrl(url) ?? url)
+        : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 function mapProfileEventToListItem(event: ProfileEventDto, organizerName: string): EventListItem {
+  const location = parseProfileEventLocation(event.locationData);
+  const imageUrls = location.imageUrls?.filter(Boolean);
+
   return {
     id: event.eventId,
     title: event.name,
     description: '',
     date: event.date,
     time: event.time,
-    location: {},
-    price: 0,
-    isPaid: false,
-    organizerName,
+    location,
+    price: Number(event.price ?? 0),
+    isPaid: Number(event.price ?? 0) > 0,
+    organizerName: event.ownerName || organizerName,
     status: event.status,
     remainingParticipationCount: 0,
     capacity: 0,
-    tags: [],
+    tags: event.tags ?? [],
     participantCount: 0,
+    bannerImageUrl: event.bannerImage ?? imageUrls?.[0],
+    organizerProfilePhoto: event.ownerProfilePhoto ?? undefined,
+    primaryTagId: event.primaryTagId ?? undefined,
+    imageUrls,
   };
 }
 

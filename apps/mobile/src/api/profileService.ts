@@ -64,7 +64,15 @@ export async function getProfileEvents(
       },
     }
   );
-  return unwrapEnvelope(response.data);
+  const payload = unwrapEnvelope(response.data);
+  return {
+    ...payload,
+    items: payload.items.map((event) => ({
+      ...event,
+      bannerImage: getFullImageUrl(event.bannerImage) ?? event.bannerImage,
+      ownerProfilePhoto: getFullImageUrl(event.ownerProfilePhoto) ?? event.ownerProfilePhoto,
+    })),
+  };
 }
 
 export async function searchProfiles(params: ProfileSearchParams): Promise<PagedResult<ProfileDto>> {

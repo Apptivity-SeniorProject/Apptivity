@@ -1,4 +1,4 @@
-import { Button, Descriptions, Drawer, Grid, Segmented, Space, Spin, Tag, Typography, message } from 'antd'
+import { Avatar, Button, Descriptions, Drawer, Grid, Segmented, Space, Spin, Tag, Typography, message } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DataGrid from '../common/DataGrid'
@@ -35,6 +35,23 @@ function normalizeParticipationStatus(value) {
     if (numeric === 3) return 'Rejected'
     if (numeric === 4) return 'Withdrawn'
     return String(value || '')
+}
+
+function getParticipantInitials(displayName) {
+    const parts = String(displayName || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+
+    if (parts.length === 0) {
+        return '?'
+    }
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase()
+    }
+
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
 function OrganizationApplicationsSection() {
@@ -166,7 +183,18 @@ function OrganizationApplicationsSection() {
                 title: t('organization.applications.columns.participant'),
                 dataIndex: 'displayName',
                 key: 'displayName',
-                render: (value) => String(value || '-'),
+                render: (value, row) => {
+                    const displayName = String(value || row.displayName || '-')
+
+                    return (
+                        <Space size={10}>
+                            <Avatar src={row.profilePhoto || undefined} size="small">
+                                {getParticipantInitials(displayName)}
+                            </Avatar>
+                            <span>{displayName}</span>
+                        </Space>
+                    )
+                },
             },
             {
                 title: t('organization.applications.columns.username'),
@@ -308,10 +336,17 @@ function OrganizationApplicationsSection() {
                     </div>
                 ) : selectedApplication ? (
                     <Descriptions column={1} bordered size="small">
+                        <Descriptions.Item label={t('organization.applications.attributes.participantName')}>
+                            <Space size={12}>
+                                <Avatar src={selectedApplication.profilePhoto || undefined} size={48}>
+                                    {getParticipantInitials(selectedApplication.displayName)}
+                                </Avatar>
+                                <span>{String(selectedApplication.displayName || '-')}</span>
+                            </Space>
+                        </Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.eventName')}>{String(selectedApplication.eventName || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.eventDate')}>{String(selectedApplication.eventDate || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.eventTime')}>{String(selectedApplication.eventTime || '-')}</Descriptions.Item>
-                        <Descriptions.Item label={t('organization.applications.attributes.participantName')}>{String(selectedApplication.displayName || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.username')}>{String(selectedApplication.username || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.accountId')}>{String(selectedApplication.accountId || '-')}</Descriptions.Item>
                         <Descriptions.Item label={t('organization.applications.attributes.type')}>{String(selectedApplication.type || '-')}</Descriptions.Item>

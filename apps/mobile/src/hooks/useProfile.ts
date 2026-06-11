@@ -96,13 +96,18 @@ export function useUploadProfilePhoto() {
 
   return useMutation({
     mutationFn: ({ uri, mimeType }: { uri: string; mimeType: string }) => uploadProfilePhoto(uri, mimeType),
-    onSuccess: (profilePhotoUrl) => {
+    onSuccess: async (profilePhotoUrl) => {
       queryClient.setQueryData<ProfileDto | undefined>(['profile-me'], (current) => {
         if (!current) return current;
         return {
           ...current,
           profilePhoto: profilePhotoUrl,
         };
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['profile-me'],
+        exact: true,
       });
     },
   });

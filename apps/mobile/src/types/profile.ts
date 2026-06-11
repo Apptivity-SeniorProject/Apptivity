@@ -45,6 +45,13 @@ export interface ProfileEventDto {
   time: string;
   status: string;
   isPast: boolean;
+  bannerImage?: string | null;
+  locationData?: string | null;
+  price?: number;
+  ownerName?: string;
+  ownerProfilePhoto?: string | null;
+  primaryTagId?: string | null;
+  tags?: ProfileInterestTag[];
 }
 
 export interface ProfileSearchParams {

@@ -202,13 +202,30 @@ public sealed class ProfileService : IProfileService
         var mapped = items.Select(x =>
         {
             var eventDateTime = DateTime.SpecifyKind(x.Date.ToDateTime(x.Time), DateTimeKind.Utc);
+            var ownerName = x.Owner?.Type == AccountType.Organization && x.Owner.ClubProfile != null
+                ? x.Owner.ClubProfile.Name
+                : x.Owner?.UserProfile != null
+                    ? x.Owner.UserProfile.Name + " " + x.Owner.UserProfile.Surname
+                    : x.Owner?.Username ?? "Organizator";
+
             return new ProfileEventDto(
                 x.Id,
                 x.Name,
                 x.Date,
                 x.Time,
                 x.Status,
-                eventDateTime < nowUtc);
+                eventDateTime < nowUtc,
+                x.BannerImage,
+                x.LocationData,
+                x.Price,
+                ownerName,
+                x.Owner?.ProfilePhoto,
+                x.PrimaryTagId,
+                x.Tags
+                    .Where(tag => tag.IsActive && !tag.IsDeleted)
+                    .OrderBy(tag => tag.Name)
+                    .Select(tag => new TagDto(tag.Id, tag.Name))
+                    .ToArray());
         }).ToArray();
 
         return Result<PagedResult<ProfileEventDto>>.Success(

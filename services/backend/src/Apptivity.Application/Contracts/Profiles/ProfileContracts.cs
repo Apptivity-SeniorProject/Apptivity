@@ -55,7 +55,14 @@ public sealed record ProfileEventDto(
     DateOnly Date,
     TimeOnly Time,
     EventStatus Status,
-    bool IsPast);
+    bool IsPast,
+    string? BannerImage,
+    string? LocationData,
+    decimal Price,
+    string OwnerName,
+    string? OwnerProfilePhoto,
+    Guid? PrimaryTagId,
+    IReadOnlyCollection<TagDto> Tags);
 
 public interface IProfileService
 {
