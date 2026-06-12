@@ -86,7 +86,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminAccountDto>> CreateOrganizationAsync(CreateAdminOrganizationRequest request, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminAccountDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can create organizations.");
         }
@@ -207,7 +207,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminAccountDto>> UpdateAccountStatusAsync(Guid accountId, UpdateAccountStatusRequest request, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminAccountDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can manage account status.");
         }
@@ -261,7 +261,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminClubDto>> VerifyClubAsync(Guid clubId, VerifyClubRequest request, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminClubDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can verify organizations.");
         }
@@ -321,7 +321,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminReportStatusDto>> IgnoreReportAsync(Guid reportId, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminReportStatusDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can moderate reports.");
         }
@@ -406,7 +406,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminEventModerationDto>> DeleteEventAsync(Guid eventId, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminEventModerationDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can delete events.");
         }
@@ -442,7 +442,7 @@ public sealed class AdminService : IAdminService
 
     public async Task<Result<AdminEventModerationDto>> ToggleFeaturedAsync(Guid eventId, ToggleEventFeaturedRequest request, UserContext adminContext, CancellationToken cancellationToken)
     {
-        if (!IsAdmin(adminContext))
+        if (!await IsActiveAdminAsync(adminContext, cancellationToken))
         {
             return Result<AdminEventModerationDto>.Failure(ErrorCodes.AdminUnauthorized, "Only admins can feature events.");
         }
@@ -501,5 +501,20 @@ public sealed class AdminService : IAdminService
         return phoneNumber.Trim().Replace(" ", string.Empty, StringComparison.Ordinal);
     }
 
-    private static bool IsAdmin(UserContext context) => context.AccountType == AccountType.Admin;
+    private async Task<bool> IsActiveAdminAsync(UserContext context, CancellationToken cancellationToken)
+    {
+        if (context.AccountType != AccountType.Admin)
+        {
+            return false;
+        }
+
+        var account = await _adminRepository.GetAccountByIdAsync(context.AccountId, cancellationToken);
+        return account is
+        {
+            Type: AccountType.Admin,
+            Status: AccountStatus.Active,
+            IsActive: true,
+            IsDeleted: false
+        };
+    }
 }

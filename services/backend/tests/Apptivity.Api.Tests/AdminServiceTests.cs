@@ -204,6 +204,50 @@ public sealed class AdminServiceTests
         Assert.Empty(adminRepository.AuditLogs);
     }
 
+    [Fact]
+    public async Task DeleteEventAsync_DoesNotTouchEvent_WhenAdminAccountNoLongerExists()
+    {
+        var eventId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var eventEntity = new Event
+        {
+            Id = eventId,
+            OwnerId = Guid.NewGuid(),
+            Owner = new Account
+            {
+                Id = Guid.NewGuid(),
+                Username = "owner",
+                Phone = "5551112233",
+                Password = "hash",
+                Type = AccountType.Organization
+            },
+            Name = "Reported event",
+            Description = "desc",
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            Time = TimeOnly.FromDateTime(DateTime.UtcNow),
+            Capacity = 10,
+            RemainingParticipationCount = 10,
+            Status = EventStatus.Published
+        };
+
+        var adminRepository = new FakeAdminRepository(eventEntity, hasActiveAdmin: false);
+        var reportRepository = new FakeReportRepository();
+        var notificationRepository = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var service = CreateService(adminRepository, reportRepository, notificationRepository, unitOfWork);
+
+        var result = await service.DeleteEventAsync(
+            eventId,
+            new UserContext(adminId, AccountType.Admin),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(EventStatus.Published, eventEntity.Status);
+        Assert.False(eventEntity.IsDeleted);
+        Assert.Equal(0, unitOfWork.SaveChangesCallCount);
+        Assert.Empty(adminRepository.AuditLogs);
+    }
+
     private static AdminService CreateService(
         FakeAdminRepository adminRepository,
         FakeReportRepository reportRepository,
@@ -224,10 +268,12 @@ public sealed class AdminServiceTests
     private sealed class FakeAdminRepository : IAdminRepository
     {
         private readonly Event? _event;
+        private readonly bool _hasActiveAdmin;
 
-        public FakeAdminRepository(Event? eventEntity)
+        public FakeAdminRepository(Event? eventEntity, bool hasActiveAdmin = true)
         {
             _event = eventEntity;
+            _hasActiveAdmin = hasActiveAdmin;
         }
 
         public List<AuditLog> AuditLogs { get; } = new();
@@ -242,7 +288,24 @@ public sealed class AdminServiceTests
         public Task<int> CountActiveEventsAsync(CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<int> CountRecentParticipationsAsync(DateTime fromUtc, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<(IReadOnlyCollection<AdminAccountListItem> Items, int TotalCount)> GetAccountsAsync(AdminAccountFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
-        public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<Account?> GetAccountByIdAsync(Guid accountId, CancellationToken cancellationToken)
+        {
+            if (!_hasActiveAdmin)
+            {
+                return Task.FromResult<Account?>(null);
+            }
+
+            return Task.FromResult<Account?>(new Account
+            {
+                Id = accountId,
+                Username = "system.admin",
+                Phone = "+900000000000",
+                Password = "hash",
+                Type = AccountType.Admin,
+                Status = AccountStatus.Active,
+                IsActive = true
+            });
+        }
         public Task<Club?> GetClubByIdAsync(Guid clubId, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<(IReadOnlyCollection<Event> Items, int TotalCount)> GetEventsAsync(EventStatus? status, int pageNumber, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<(IReadOnlyCollection<AdminReportListItem> Items, int TotalCount)> GetReportsAsync(AdminReportFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
